@@ -110,7 +110,7 @@ export default function Home({ featured }) {
             Hottie comenzó a producir a principios de 2012 hasta que en 2018 decidió crear su marca personal, llevando consigo la música electro/latina a su terreno en otro nivel.
           </p>
           <p>
-            A lo largo de su carrera acumula más de <strong className="text-paper font-semibold">100 producciones</strong> de entre <strong className="text-paper font-semibold">14 y 17M de visualizaciones</strong> trabajando con diferentes artistas como <span className="text-paper font-medium">El Jincho, Saiko, Lucho SSJ, Denyerkin, Alejo Marín, Yeieme, Ritnes, Young Class, Escudero y Karlitos</span> entre muchos más...
+            A lo largo de su carrera acumula más de <strong className="text-paper font-semibold">100 producciones</strong> de más de <strong className="text-paper font-semibold">20M de visualizaciones</strong> trabajando con diferentes artistas como <span className="text-paper font-medium">El Jincho, Saiko, Lucho SSJ, Denyerkin, Alejo Marín, Yeieme, Ritnes, Young Class, Escudero y Karlitos</span> entre muchos más...
           </p>
         </div>
 
