@@ -1,11 +1,23 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
 import { supabase } from '../lib/supabaseClient';
 
 export default function Home({ featured }) {
+  const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+    if (email) {
+      setSubscribed(true);
+      setEmail('');
+    }
+  };
+
   return (
     <>
       <Head>
@@ -59,7 +71,7 @@ export default function Home({ featured }) {
 
       {/* SECCIÓN DE DESTACADOS */}
       {featured?.length > 0 && (
-        <section className="mx-auto max-w-6xl px-5 py-20">
+        <section className="mx-auto max-w-6xl px-5 py-20 border-b border-white/10">
           <div className="mb-8 flex items-end justify-between">
             <h2 className="font-display text-3xl tracking-wide text-paper">Destacados</h2>
             <Link href="/tienda" className="text-sm uppercase tracking-widest text-signal hover:underline">
@@ -73,6 +85,67 @@ export default function Home({ featured }) {
           </div>
         </section>
       )}
+
+      {/* SECCIÓN SOBRE HOTTIE + NEWSLETTER */}
+      <section className="mx-auto max-w-4xl px-5 py-20 text-center">
+        {/* FOTO REDONDA DE TU HARDWARE */}
+        <div className="mx-auto mb-8 h-36 w-36 overflow-hidden rounded-full border-2 border-volt/40 p-1 shadow-lg shadow-volt/10">
+          <img
+            src="/sobre-mi-imagen.jpeg"
+            alt="Sobre Hottie"
+            className="h-full w-full rounded-full object-cover"
+          />
+        </div>
+
+        <h2 className="font-display text-4xl tracking-wide text-paper mb-6 uppercase">
+          Sobre Hottie
+        </h2>
+
+        {/* BIOGRAFÍA EXACTA */}
+        <div className="mx-auto max-w-2xl space-y-4 font-body text-base text-muted leading-relaxed">
+          <p>
+            Hottie es un Productor, Ingeniero y Dj de origen Español con residencia en Salamanca especializado en música electrónica, latina y tribal.
+          </p>
+          <p>
+            Hottie comenzó a producir a principios de 2012 hasta que en 2018 decidió crear su marca personal, llevando consigo la música electro/latina a su terreno en otro nivel.
+          </p>
+          <p>
+            A lo largo de su carrera acumula más de <strong className="text-paper font-semibold">100 producciones</strong> de entre <strong className="text-paper font-semibold">14 y 17M de visualizaciones</strong> trabajando con diferentes artistas como <span className="text-paper font-medium">El Jincho, Saiko, Lucho SSJ, Denyerkin, Alejo Marín, Yeieme, Ritnes, Young Class, Escudero y Karlitos</span> entre muchos más...
+          </p>
+        </div>
+
+        {/* CUADRO DE CORREO / NEWSLETTER */}
+        <div className="mt-14 mx-auto max-w-md rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+          <form onSubmit={handleSubscribe} className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="email"
+                required
+                placeholder="Tu dirección de correo electrónico"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-md border border-white/20 bg-ink px-4 py-3 text-sm text-paper placeholder-muted focus:border-volt focus:outline-none transition"
+              />
+              <button
+                type="submit"
+                aria-label="Suscribirse"
+                className="flex items-center justify-center rounded-md bg-volt px-5 py-3 text-ink font-bold transition hover:bg-signal"
+              >
+                ➔
+              </button>
+            </div>
+            <p className="text-xs text-muted font-body text-left">
+              Recibe información sobre nuevos productos o servicios directamente en tu bandeja de entrada
+            </p>
+          </form>
+
+          {subscribed && (
+            <p className="mt-3 text-sm font-semibold text-signal">
+              ¡Gracias! Te avisaremos cuando subamos nuevos productos o servicios.
+            </p>
+          )}
+        </div>
+      </section>
 
       <Footer />
     </>
