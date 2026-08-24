@@ -15,47 +15,52 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         
-        {/* LOGO CON MATRAZ ANIMADO */}
-        <Link href="/" className="font-display text-3xl tracking-wide text-paper flex items-center gap-2 group">
+        {/* LOGO CON MATRAZ AJUSTADO */}
+        <Link href="/" className="font-display text-3xl tracking-wide text-paper flex items-center gap-2.5 group">
           <span>THE LAB</span>
           
-          {/* Matraz de Química SVG ajustado */}
-          <div className="relative w-8 h-8 flex items-center justify-center">
-            <svg viewBox="0 0 100 100" className="w-full h-full">
+          <div className="relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center self-center">
+            <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
               <defs>
                 <style>{`
                   @keyframes wave {
-                    0% { transform: translateY(0px) rotate(0deg); }
+                    0%, 100% { transform: translateY(0px) rotate(0deg); }
                     50% { transform: translateY(-1.5px) rotate(2deg); }
-                    100% { transform: translateY(0px) rotate(0deg); }
                   }
-                  .flask-liquid {
+                  .liquid-anim {
                     animation: wave 2.5s ease-in-out infinite;
-                    transform-origin: center;
+                    transform-origin: 50% 70%;
                   }
                 `}</style>
-                {/* Máscara interna ajustada al cuerpo del matraz */}
-                <clipPath id="flask-clip">
-                  <polygon points="46,15 54,15 54,38 76,78 24,78 46,38" />
-                </clipPath>
               </defs>
 
-              {/* LÍQUIDO VERDE (Recortado perfectamente dentro) */}
-              <g clipPath="url(#flask-clip)">
-                <path
-                  className="flask-liquid fill-volt"
-                  d="M 10 52 Q 30 48, 50 52 T 90 52 L 90 85 L 10 85 Z"
-                />
-              </g>
-
-              {/* CONTORNO Y BORDE DEL MATRAZ (Va encima para sellar los bordes) */}
+              {/* LÍQUIDO VERDE (Asentado en la base) */}
               <path
-                d="M 40 15 L 60 15 M 46 15 L 46 38 L 78 82 C 80 86 76 88 70 88 L 30 88 C 24 88 20 86 22 82 L 54 38 L 54 15"
+                className="liquid-anim fill-volt"
+                d="M 26 78 L 38 52 C 45 50 55 50 62 52 L 74 78 C 74 81 70 82 66 82 L 34 82 C 30 82 26 81 26 78 Z"
+              />
+
+              {/* CONTORNO DEL MATRAZ EN LÍNEA GRUESA */}
+              {/* Cuello y Labio superior */}
+              <path
+                d="M 38 18 H 62 M 44 18 V 38 L 22 76 C 18 83 23 88 31 88 H 69 C 77 88 82 83 78 76 L 56 38 V 18"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="text-paper transition-colors group-hover:text-volt"
+              />
+              
+              {/* Tapón o Marca superior interior */}
+              <line
+                x1="44"
+                y1="26"
+                x2="56"
+                y2="26"
+                stroke="currentColor"
+                strokeWidth="5"
+                strokeLinecap="round"
                 className="text-paper transition-colors group-hover:text-volt"
               />
             </svg>
