@@ -57,7 +57,7 @@ select:focus-visible {
 .waveform span {
   display: block;
   width: 3px;
-  background: linear-gradient(180deg, #FF2E7E, #29F1C3);
+  background: linear-gradient(180deg, #CCFF00, #10B981);
   border-radius: 2px;
   animation: wave 1.6s ease-in-out infinite;
 }
