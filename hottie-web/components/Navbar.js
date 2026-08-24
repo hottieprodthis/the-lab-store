@@ -19,40 +19,41 @@ export default function Navbar() {
         <Link href="/" className="font-display text-3xl tracking-wide text-paper flex items-center gap-2 group">
           <span>THE LAB</span>
           
-          {/* Matraz de Química SVG con Animación */}
-          <div className="relative w-7 h-7 flex items-center justify-center">
-            <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
+          {/* Matraz de Química SVG ajustado */}
+          <div className="relative w-8 h-8 flex items-center justify-center">
+            <svg viewBox="0 0 100 100" className="w-full h-full">
               <defs>
                 <style>{`
                   @keyframes wave {
                     0% { transform: translateY(0px) rotate(0deg); }
-                    50% { transform: translateY(-2px) rotate(3deg); }
+                    50% { transform: translateY(-1.5px) rotate(2deg); }
                     100% { transform: translateY(0px) rotate(0deg); }
                   }
                   .flask-liquid {
-                    animation: wave 3s ease-in-out infinite;
+                    animation: wave 2.5s ease-in-out infinite;
                     transform-origin: center;
                   }
                 `}</style>
+                {/* Máscara interna ajustada al cuerpo del matraz */}
                 <clipPath id="flask-clip">
-                  <path d="M 43 12 L 57 12 L 57 38 L 82 74 C 86 80 82 86 74 86 L 26 86 C 18 86 14 80 18 74 L 43 38 Z" />
+                  <polygon points="46,15 54,15 54,38 76,78 24,78 46,38" />
                 </clipPath>
               </defs>
 
-              {/* Líquido verde animado */}
+              {/* LÍQUIDO VERDE (Recortado perfectamente dentro) */}
               <g clipPath="url(#flask-clip)">
                 <path
                   className="flask-liquid fill-volt"
-                  d="M 10 52 Q 30 48, 50 52 T 90 52 L 90 95 L 10 95 Z"
+                  d="M 10 52 Q 30 48, 50 52 T 90 52 L 90 85 L 10 85 Z"
                 />
               </g>
 
-              {/* Contorno del Matraz */}
+              {/* CONTORNO Y BORDE DEL MATRAZ (Va encima para sellar los bordes) */}
               <path
-                d="M 40 12 L 60 12 M 45 12 L 45 38 L 78 82 C 81 86 78 90 71 90 L 29 90 C 22 90 19 86 22 82 L 55 38 L 55 12"
+                d="M 40 15 L 60 15 M 46 15 L 46 38 L 78 82 C 80 86 76 88 70 88 L 30 88 C 24 88 20 86 22 82 L 54 38 L 54 15"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="6"
+                strokeWidth="7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className="text-paper transition-colors group-hover:text-volt"
