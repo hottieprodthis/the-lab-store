@@ -9,10 +9,10 @@ export default function Home({ featured }) {
   return (
     <>
       <Head>
-        <title>The Lab — Hottie | Producción musical</title>
+        <title>The Lab – Hottie | Producción musical</title>
         <meta
           name="description"
-          content="Hottie: productor, ingeniero y DJ especializado en música electrónica, latina y tribal. Kits, mezcla, masterización y clases."
+          content="Hottie: laboratorio de sonido sin límites. Kits de producción, mezcla, masterización y clases personalizadas."
         />
       </Head>
 
@@ -20,22 +20,26 @@ export default function Home({ featured }) {
 
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-5 py-24 md:py-32">
+          {/* ONDA DE FIRMA DE LA MARCA */}
           <div className="waveform" aria-hidden="true">
             {Array.from({ length: 8 }).map((_, i) => (
               <span key={i} />
             ))}
           </div>
-          <h1 className="font-display text-6xl leading-[0.95] tracking-wide text-paper md:text-8xl">
-            SONIDO DE
+
+          {/* TITULAR PRINCIPAL (H1) */}
+          <h1 className="font-display text-6xl tracking-wide text-paper md:text-8xl leading-[0.95]">
+            TU PRÓXIMO HIT
             <br />
-            <span className="text-volt">SALAMANCA</span>
-            <br />
-            AL MUNDO.
+            <span className="text-volt">COMIENZA AQUÍ.</span>
           </h1>
-          <p className="max-w-xl text-lg text-muted">
-            Productor, ingeniero y DJ especializado en electrónica, latina y tribal.
-            Kits de producción, mezcla, masterización y clases personalizadas.
+
+          {/* SUBTÍTULO */}
+          <p className="max-w-xl text-lg text-muted font-body leading-relaxed">
+            Transforma tu estudio en un laboratorio de sonido sin límites. Kits de producción, mezcla, masterización y clases personalizadas para convertir cualquier idea en un lanzamiento profesional.
           </p>
+
+          {/* BOTONES DE ACCIÓN */}
           <div className="flex flex-wrap gap-4 pt-2">
             <Link
               href="/tienda"
@@ -45,7 +49,7 @@ export default function Home({ featured }) {
             </Link>
             <Link
               href="/servicios"
-              className="rounded-sm border border-white/20 px-6 py-3 text-sm uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
+              className="rounded-sm border border-white/20 px-6 py-3 text-sm font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
             >
               Ver servicios
             </Link>
@@ -53,6 +57,7 @@ export default function Home({ featured }) {
         </div>
       </section>
 
+      {/* SECCIÓN DE DESTACADOS */}
       {featured?.length > 0 && (
         <section className="mx-auto max-w-6xl px-5 py-20">
           <div className="mb-8 flex items-end justify-between">
