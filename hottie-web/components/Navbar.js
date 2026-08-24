@@ -15,35 +15,41 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         
-        {/* LOGO CON MATRAZ AJUSTADO */}
-        <Link href="/" className="font-display text-3xl tracking-wide text-paper flex items-center gap-2.5 group">
+        {/* LOGO CON MATRAZ ALINEADO Y RELLENO HASTA LA BASE */}
+        <Link href="/" className="font-display text-3xl sm:text-4xl tracking-wide text-paper flex items-center gap-3 leading-none group">
           <span>THE LAB</span>
           
-          <div className="relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center self-center">
-            <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
+          <div className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center">
+            <svg viewBox="0 0 100 100" className="w-full h-full overflow-hidden">
               <defs>
                 <style>{`
-                  @keyframes wave {
-                    0%, 100% { transform: translateY(0px) rotate(0deg); }
-                    50% { transform: translateY(-1.5px) rotate(2deg); }
+                  @keyframes waveMotion {
+                    0% { d: path('M 10 55 Q 35 50, 60 55 T 110 55 L 110 110 L 10 110 Z'); }
+                    50% { d: path('M 10 58 Q 35 62, 60 56 T 110 58 L 110 110 L 10 110 Z'); }
+                    100% { d: path('M 10 55 Q 35 50, 60 55 T 110 55 L 110 110 L 10 110 Z'); }
                   }
-                  .liquid-anim {
-                    animation: wave 2.5s ease-in-out infinite;
-                    transform-origin: 50% 70%;
+                  .animated-wave {
+                    animation: waveMotion 3s ease-in-out infinite;
                   }
                 `}</style>
+
+                {/* Máscara interna para que NADA se salga del vidrio */}
+                <clipPath id="flask-inner">
+                  <path d="M 44 20 L 56 20 L 56 40 L 78 78 C 82 85 76 88 68 88 L 32 88 C 24 88 18 85 22 78 L 44 40 Z" />
+                </clipPath>
               </defs>
 
-              {/* LÍQUIDO VERDE (Asentado en la base) */}
-              <path
-                className="liquid-anim fill-volt"
-                d="M 26 78 L 38 52 C 45 50 55 50 62 52 L 74 78 C 74 81 70 82 66 82 L 34 82 C 30 82 26 81 26 78 Z"
-              />
+              {/* LÍQUIDO VERDE (Llena toda la base sin huecos) */}
+              <g clipPath="url(#flask-inner)">
+                <path
+                  className="animated-wave fill-volt"
+                  d="M 10 55 Q 35 50, 60 55 T 110 55 L 110 110 L 10 110 Z"
+                />
+              </g>
 
-              {/* CONTORNO DEL MATRAZ EN LÍNEA GRUESA */}
-              {/* Cuello y Labio superior */}
+              {/* CONTORNO DEL MATRAZ (Trazo limpio por encima) */}
               <path
-                d="M 38 18 H 62 M 44 18 V 38 L 22 76 C 18 83 23 88 31 88 H 69 C 77 88 82 83 78 76 L 56 38 V 18"
+                d="M 38 18 H 62 M 44 18 V 40 L 22 78 C 18 85 24 88 32 88 H 68 C 76 88 82 85 78 78 L 56 40 V 18"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="7"
@@ -51,13 +57,13 @@ export default function Navbar() {
                 strokeLinejoin="round"
                 className="text-paper transition-colors group-hover:text-volt"
               />
-              
-              {/* Tapón o Marca superior interior */}
+
+              {/* Marca superior interior */}
               <line
                 x1="44"
-                y1="26"
+                y1="27"
                 x2="56"
-                y2="26"
+                y2="27"
                 stroke="currentColor"
                 strokeWidth="5"
                 strokeLinecap="round"
