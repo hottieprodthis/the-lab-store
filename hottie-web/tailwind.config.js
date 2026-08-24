@@ -12,7 +12,7 @@ module.exports = {
         surface2: '#1B1A22',
         muted: '#9B9BA5',
         paper: '#F2F0EA',
-        volt: '#FF2E7E',
+        volt: '#CCFF00',
         signal: '#29F1C3',
       },
       fontFamily: {
