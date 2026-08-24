@@ -96,6 +96,22 @@ export default function Contacto() {
             </div>
           ))}
         </section>
+
+        {/* Sección de Horario */}
+        <section className="mt-12 text-center rounded-xl border border-white/10 bg-surface/50 p-8">
+          <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-volt mb-3">
+            Horario
+          </h2>
+          <p className="text-base sm:text-lg font-medium text-paper">
+            Lunes a Viernes
+          </p>
+          <p className="text-lg sm:text-xl font-bold text-volt underline decoration-volt underline-offset-4 mt-1">
+            16:00 - 21:00
+          </p>
+          <p className="text-xs text-muted mt-3">
+            Hora de España Peninsular (CET)
+          </p>
+        </section>
       </main>
 
       <Footer />
