@@ -5,6 +5,7 @@ const links = [
   { href: '/tienda', label: 'Tienda' },
   { href: '/servicios', label: 'Servicios' },
   { href: '/contacto', label: 'Contacto' },
+  { href: '/faq', label: 'FAQ' }
 ];
 
 export default function Navbar() {
