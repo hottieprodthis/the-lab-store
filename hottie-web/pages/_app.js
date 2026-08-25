@@ -1,5 +1,6 @@
 import { Bebas_Neue, Inter } from 'next/font/google';
 import '../styles/globals.css';
+import CartFloating from '../components/CartFloating';
 
 const display = Bebas_Neue({
   subsets: ['latin'],
@@ -18,6 +19,7 @@ export default function App({ Component, pageProps }) {
   return (
     <main className={`${display.variable} ${body.variable} font-body bg-ink min-h-screen bg-grain`}>
       <Component {...pageProps} />
+      <CartFloating />
     </main>
   );
 }
