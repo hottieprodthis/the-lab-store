@@ -9,15 +9,15 @@ export default function CartFloating({ cartItems = [], onRemoveItem }) {
 
   return (
     <>
-      {/* 1. BOTÓN FLOTANTE REDONDO #CCFF00 CON CARRITO BLANCO */}
+      {/* 1. BOTÓN FLOTANTE REDONDO #CCFF00 CON CARRITO NEGRO */}
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Ver carrito"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-white shadow-xl shadow-[#CCFF00]/30 transition-all duration-200 hover:scale-110 active:scale-95"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-black shadow-xl shadow-[#CCFF00]/30 transition-all duration-200 hover:scale-110 active:scale-95"
       >
-        {/* Ícono de Carrito (Blanco) */}
+        {/* Ícono de Carrito (Negro) */}
         <svg
-          className="h-7 w-7 text-white"
+          className="h-7 w-7 text-black"
           fill="none"
           stroke="currentColor"
           strokeWidth="2.2"
