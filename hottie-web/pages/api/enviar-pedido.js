@@ -1,67 +1,90 @@
 import nodemailer from 'nodemailer';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+async function buffer(readable) {
+  const chunks = [];
+  for await (const chunk) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Método no permitido' });
   }
 
-  const { nombreReal, nombreArtistico, emailCliente, contacto, tipoPedido, detallesServicio } = req.body;
+  const buf = await buffer(req);
+  const sig = req.headers['stripe-signature'];
 
-  if (!nombreReal || !emailCliente || !contacto) {
-    return res.status(400).json({ message: 'Faltan campos obligatorios' });
-  }
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'pedidos.thelab@gmail.com',
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
-
-  const esServicio = tipoPedido === 'servicio';
+  let event;
 
   try {
-    // Correo que te llega a ti
-    await transporter.sendMail({
-      from: '"The Lab System" <pedidos.thelab@gmail.com>',
-      to: 'pedidos.thelab@gmail.com',
-      subject: `🚨 NUEVO PEDIDO [${esServicio ? 'SERVICIO' : 'TIENDA'}]: ${nombreArtistico || nombreReal}`,
-      html: `
-        <h2>Nuevo Pedido Recibido</h2>
-        <p><strong>Tipo:</strong> ${esServicio ? 'Servicio (Producción/Mezcla/Master/Clase)' : 'Artículo de Tienda'}</p>
-        <hr />
-        <p><strong>Nombre Real:</strong> ${nombreReal}</p>
-        <p><strong>Nombre Artístico:</strong> ${nombreArtistico || 'No especificado'}</p>
-        <p><strong>Email:</strong> ${emailCliente}</p>
-        <p><strong>Contacto (WhatsApp/Discord/IG):</strong> ${contacto}</p>
-        ${
-          esServicio
-            ? `
-          <hr />
-          <h3>Visión / Guía detallada del proyecto:</h3>
-          <p style="white-space: pre-wrap; background: #f4f4f4; padding: 12px; border-radius: 6px; color: #000;">${detallesServicio}</p>
-        `
-            : ''
-        }
-      `,
-    });
-
-    // Confirmación al cliente
-    await transporter.sendMail({
-      from: '"The Lab - Hottie" <pedidos.thelab@gmail.com>',
-      to: emailCliente,
-      subject: 'Confirmación de tu pedido - The Lab',
-      html: `
-        <h2>¡Gracias, ${nombreArtistico || nombreReal}!</h2>
-        <p>Hemos recibido los datos de tu pedido correctamente.</p>
-        <p>Nos pondremos en contacto contigo lo antes posible a través del contacto facilitado.</p>
-      `,
-    });
-
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Error al enviar el correo' });
+    event = stripe.webhooks.constructEvent(
+      buf,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error(`Error de firma de Webhook: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const emailCliente = session.customer_details?.email;
+    const nombreCliente = session.customer_details?.name || 'Cliente';
+
+    // Recupera el enlace guardado en los metadatos de Stripe o usa una variable de entorno/BD
+    const enlaceDrive = session.metadata?.driveUrl || process.env.DRIVE_PRODUCT_URL || 'https://drive.google.com/...';
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'pedidos.thelab@gmail.com',
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
+
+    try {
+      // 1. Notificación para ti
+      await transporter.sendMail({
+        from: '"The Lab System" <pedidos.thelab@gmail.com>',
+        to: 'pedidos.thelab@gmail.com',
+        subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
+        html: `
+          <h2>¡Nuevo pago completado en Stripe!</h2>
+          <p><strong>Cliente:</strong> ${nombreCliente}</p>
+          <p><strong>Email:</strong> ${emailCliente}</p>
+          <p><strong>Total pagado:</strong> ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+        `,
+      });
+
+      // 2. Correo al cliente con el enlace dinámico
+      await transporter.sendMail({
+        from: '"The Lab - Hottie" <pedidos.thelab@gmail.com>',
+        to: emailCliente,
+        subject: 'Tu pedido en The Lab - Acceso al producto',
+        html: `
+          <h2>¡Gracias por tu compra, ${nombreCliente}!</h2>
+          <p>Tu pago se ha procesado correctamente.</p>
+          <p>Puedes acceder a tu contenido digital directamente a través de este enlace:</p>
+          <p><a href="${enlaceDrive}" style="background:#0070f3;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Acceder al archivo en Google Drive</a></p>
+        `,
+      });
+    } catch (error) {
+      console.error('Error al enviar el correo:', error);
+      return res.status(500).json({ message: 'Error en el envío de correo' });
+    }
+  }
+
+  return res.status(200).json({ received: true });
 }
