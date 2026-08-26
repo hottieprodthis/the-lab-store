@@ -1,13 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Botón de pago con PayPal. Carga el SDK oficial de PayPal en el navegador
- * y crea un pedido con el importe indicado.
- *
- * OJO: esta implementación captura el pago desde el propio navegador, lo
- * cual es válido para empezar, pero para más seguridad en el futuro se
- * puede mover la "captura" del pago a una función de servidor (como ya
- * se hace con Stripe en /api/checkout).
+ * Botón de pago con PayPal sin la opción duplicada de tarjeta.
  */
 export default function PayPalButton({ amount, currency = 'EUR', label, onSuccess }) {
   const ref = useRef(null);
@@ -21,11 +15,13 @@ export default function PayPalButton({ amount, currency = 'EUR', label, onSucces
       ref.current.innerHTML = '';
       window.paypal
         .Buttons({
+          // Forzar únicamente el botón amarillo de PayPal
+          fundingSource: window.paypal.FUNDING.PAYPAL,
           style: { color: 'gold', shape: 'rect', label: 'paypal', height: 45 },
           createOrder: (data, actions) =>
             actions.order.create({
               purchase_units: [
-                { description: label, amount: { value: amount.toFixed(2), currency_code: currency } },
+                { description: label, amount: { value: Number(amount).toFixed(2), currency_code: currency } },
               ],
             }),
           onApprove: async (data, actions) => {
@@ -42,12 +38,13 @@ export default function PayPalButton({ amount, currency = 'EUR', label, onSucces
       return;
     }
 
+    // Añadido disable-funding=card en la URL para evitar el botón duplicado de tarjeta
     const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&disable-funding=card`;
     script.dataset.paypalSdk = 'true';
     script.onload = renderButtons;
     document.body.appendChild(script);
   }, [amount, currency, label, onSuccess]);
 
-  return <div ref={ref} />;
+  return <div ref={ref} className="w-full relative z-10" />;
 }
