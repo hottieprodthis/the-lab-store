@@ -59,7 +59,6 @@ export default function ProductoDetalle({ product }) {
       <section className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-2">
         <div className="aspect-square overflow-hidden rounded-sm border border-white/10 bg-surface2">
           {product.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-muted">Sin imagen</div>
@@ -71,10 +70,9 @@ export default function ProductoDetalle({ product }) {
           <p className="mt-3 text-2xl text-signal">{formatPrice(product.price_cents, product.currency)}</p>
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
 
-          <div className="mt-8 flex flex-col gap-6 w-full max-w-md">
+          <div className="mt-8 flex flex-col gap-5 w-full max-w-md">
             {!purchaseDone ? (
               <>
-                {/* Botón 1: Tarjeta Stripe */}
                 <button
                   onClick={buyWithStripe}
                   disabled={loading}
@@ -83,14 +81,12 @@ export default function ProductoDetalle({ product }) {
                   {loading ? 'Redirigiendo…' : 'Comprar con tarjeta'}
                 </button>
 
-                {/* Separador visual */}
                 <div className="relative flex py-1 items-center">
                   <div className="flex-grow border-t border-white/10"></div>
                   <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
                   <div className="flex-grow border-t border-white/10"></div>
                 </div>
 
-                {/* Botón 2: Contenedor PayPal con espacio holgado */}
                 <div className="w-full relative z-10 min-h-[50px]">
                   <PayPalButton
                     amount={product.price_cents / 100}
@@ -104,12 +100,9 @@ export default function ProductoDetalle({ product }) {
               <p className="rounded-sm border border-signal/40 bg-signal/10 p-4 text-sm text-signal">
                 ¡Pago completado! {stripeSuccess ? 'Revisa tu correo para el recibo.' : 'Revisa tu correo de PayPal para el recibo.'}
                 {product.file_url && (
-                  <>
-                    {' '}
-                    <a href={product.file_url} className="underline">
-                      Descargar ahora
-                    </a>
-                  </>
+                  <a href={product.file_url} className="underline ml-2">
+                    Descargar ahora
+                  </a>
                 )}
               </p>
             )}
