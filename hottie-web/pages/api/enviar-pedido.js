@@ -11,7 +11,7 @@ export const config = {
 
 async function buffer(readable) {
   const chunks = [];
-  for await (const chunk) {
+  for await (const chunk of readable) {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks);
@@ -22,12 +22,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Método no permitido' });
   }
 
-  const buf = await buffer(req);
-  const sig = req.headers['stripe-signature'];
-
   let event;
 
   try {
+    const buf = await buffer(req);
+    const sig = req.headers['stripe-signature'];
+
     event = stripe.webhooks.constructEvent(
       buf,
       sig,
@@ -43,8 +43,8 @@ export default async function handler(req, res) {
     const emailCliente = session.customer_details?.email;
     const nombreCliente = session.customer_details?.name || 'Cliente';
 
-    // Recupera el enlace guardado en los metadatos de Stripe o usa una variable de entorno/BD
-    const enlaceDrive = session.metadata?.driveUrl || process.env.DRIVE_PRODUCT_URL || 'https://drive.google.com/...';
+    // Obtiene dinámicamente el enlace desde los metadatos de Stripe
+    const enlaceDrive = session.metadata?.driveUrl || session.metadata?.link || session.metadata?.fileUrl;
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -65,21 +65,24 @@ export default async function handler(req, res) {
           <p><strong>Cliente:</strong> ${nombreCliente}</p>
           <p><strong>Email:</strong> ${emailCliente}</p>
           <p><strong>Total pagado:</strong> ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+          <p><strong>Enlace enviado:</strong> ${enlaceDrive || 'Sin enlace adjunto en metadata'}</p>
         `,
       });
 
-      // 2. Correo al cliente con el enlace dinámico
-      await transporter.sendMail({
-        from: '"The Lab - Hottie" <pedidos.thelab@gmail.com>',
-        to: emailCliente,
-        subject: 'Tu pedido en The Lab - Acceso al producto',
-        html: `
-          <h2>¡Gracias por tu compra, ${nombreCliente}!</h2>
-          <p>Tu pago se ha procesado correctamente.</p>
-          <p>Puedes acceder a tu contenido digital directamente a través de este enlace:</p>
-          <p><a href="${enlaceDrive}" style="background:#0070f3;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Acceder al archivo en Google Drive</a></p>
-        `,
-      });
+      // 2. Correo al cliente
+      if (emailCliente) {
+        await transporter.sendMail({
+          from: '"The Lab - Hottie" <pedidos.thelab@gmail.com>',
+          to: emailCliente,
+          subject: 'Tu pedido en The Lab - Acceso al producto',
+          html: `
+            <h2>¡Gracias por tu compra, ${nombreCliente}!</h2>
+            <p>Tu pago se ha procesado correctamente.</p>
+            <p>Puedes acceder a tu contenido digital directamente a través de este enlace:</p>
+            <p><a href="${enlaceDrive}" style="background:#0070f3;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Acceder al archivo en Google Drive</a></p>
+          `,
+        });
+      }
     } catch (error) {
       console.error('Error al enviar el correo:', error);
       return res.status(500).json({ message: 'Error en el envío de correo' });
