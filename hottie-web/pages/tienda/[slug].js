@@ -71,22 +71,35 @@ export default function ProductoDetalle({ product }) {
           <p className="mt-3 text-2xl text-signal">{formatPrice(product.price_cents, product.currency)}</p>
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
 
-          <div className="mt-8 space-y-4">
-            <button
-              onClick={buyWithStripe}
-              disabled={loading}
-              className="w-full rounded-sm bg-volt px-6 py-4 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110 disabled:opacity-50"
-            >
-              {loading ? 'Redirigiendo…' : 'Comprar con tarjeta'}
-            </button>
-
+          <div className="mt-8 flex flex-col gap-6 w-full max-w-md">
             {!purchaseDone ? (
-              <PayPalButton
-                amount={product.price_cents / 100}
-                currency={(product.currency || 'eur').toUpperCase()}
-                label={product.name}
-                onSuccess={() => setPaypalDone(true)}
-              />
+              <>
+                {/* Botón 1: Tarjeta Stripe */}
+                <button
+                  onClick={buyWithStripe}
+                  disabled={loading}
+                  className="w-full rounded-sm bg-volt px-6 py-4 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {loading ? 'Redirigiendo…' : 'Comprar con tarjeta'}
+                </button>
+
+                {/* Separador visual */}
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-white/10"></div>
+                  <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                  <div className="flex-grow border-t border-white/10"></div>
+                </div>
+
+                {/* Botón 2: Contenedor PayPal con espacio holgado */}
+                <div className="w-full relative z-10 min-h-[50px]">
+                  <PayPalButton
+                    amount={product.price_cents / 100}
+                    currency={(product.currency || 'eur').toUpperCase()}
+                    label={product.name}
+                    onSuccess={() => setPaypalDone(true)}
+                  />
+                </div>
+              </>
             ) : (
               <p className="rounded-sm border border-signal/40 bg-signal/10 p-4 text-sm text-signal">
                 ¡Pago completado! {stripeSuccess ? 'Revisa tu correo para el recibo.' : 'Revisa tu correo de PayPal para el recibo.'}
