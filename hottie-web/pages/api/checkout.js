@@ -58,8 +58,8 @@ export default async function handler(req, res) {
       ? `${siteUrl}/servicios/exito`
       : `${siteUrl}/gracias?tipo=producto`;
 
-    // Extrae la URL de Google Drive si existe en el objeto item de Supabase
-    const driveLink = item.drive_url || item.driveUrl || item.download_url || item.link || '';
+    // Extrae la URL leyendo prioritariamente la columna 'file_url' de Supabase
+    const driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
