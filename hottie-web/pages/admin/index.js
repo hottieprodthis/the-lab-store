@@ -41,6 +41,7 @@ function Section({ title, items, kind, onToggle, onDelete }) {
                   <td className="px-4 py-3 text-muted">{formatPrice(item.price_cents, item.currency)}</td>
                   <td className="px-4 py-3">
                     <button
+                      type="button"
                       onClick={() => onToggle(item)}
                       className={`rounded-sm px-2 py-1 text-xs uppercase tracking-widest ${
                         item.active ? 'bg-signal/20 text-signal' : 'bg-white/10 text-muted'
@@ -53,7 +54,11 @@ function Section({ title, items, kind, onToggle, onDelete }) {
                     <Link href={`${baseUrl}/${item.id}`} className="mr-4 text-signal hover:underline">
                       Editar
                     </Link>
-                    <button onClick={() => onDelete(item)} className="text-volt hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => onDelete(item)}
+                      className="text-volt hover:underline"
+                    >
                       Borrar
                     </button>
                   </td>
@@ -94,7 +99,6 @@ export default function AdminDashboard() {
       return;
     }
     
-    // Actualizar estado local al instante
     if (table === 'products') {
       setProducts((prev) => prev.map((p) => (p.id === item.id ? { ...p, active: !p.active } : p)));
     } else {
@@ -103,16 +107,15 @@ export default function AdminDashboard() {
   }
 
   async function remove(table, item) {
-    if (!confirm(`¿Seguro que quieres borrar "${item.name}"? No se puede deshacer.`)) return;
-    
     const { error } = await supabase.from(table).delete().eq('id', item.id);
 
     if (error) {
       alert(`No se pudo borrar: ${error.message}`);
+      console.error('Error al borrar en Supabase:', error);
       return;
     }
 
-    // Quitar del estado visual al instante sin necesidad de recargar la página entera
+    // Quitar del estado visual al instante
     if (table === 'products') {
       setProducts((prev) => prev.filter((p) => p.id !== item.id));
     } else {
