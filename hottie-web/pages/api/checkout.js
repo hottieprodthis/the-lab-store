@@ -58,6 +58,7 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
+      allow_promotion_codes: true, // <-- Casilla para introducir cupones en Stripe
       line_items: [
         {
           price_data: {
