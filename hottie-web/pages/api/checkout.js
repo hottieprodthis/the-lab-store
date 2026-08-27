@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ['card', 'klarna', 'link', 'bizum'],
       allow_promotion_codes: true,
       line_items: [
         {
