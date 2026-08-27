@@ -88,14 +88,36 @@ export default function AdminDashboard() {
   }, []);
 
   async function toggleActive(table, item) {
-    await supabase.from(table).update({ active: !item.active }).eq('id', item.id);
-    load();
+    const { error } = await supabase.from(table).update({ active: !item.active }).eq('id', item.id);
+    if (error) {
+      alert(`Error al actualizar estado: ${error.message}`);
+      return;
+    }
+    
+    // Actualizar estado local al instante
+    if (table === 'products') {
+      setProducts((prev) => prev.map((p) => (p.id === item.id ? { ...p, active: !p.active } : p)));
+    } else {
+      setServices((prev) => prev.map((s) => (s.id === item.id ? { ...s, active: !s.active } : s)));
+    }
   }
 
   async function remove(table, item) {
     if (!confirm(`¿Seguro que quieres borrar "${item.name}"? No se puede deshacer.`)) return;
-    await supabase.from(table).delete().eq('id', item.id);
-    load();
+    
+    const { error } = await supabase.from(table).delete().eq('id', item.id);
+
+    if (error) {
+      alert(`No se pudo borrar: ${error.message}`);
+      return;
+    }
+
+    // Quitar del estado visual al instante sin necesidad de recargar la página entera
+    if (table === 'products') {
+      setProducts((prev) => prev.filter((p) => p.id !== item.id));
+    } else {
+      setServices((prev) => prev.filter((s) => s.id !== item.id));
+    }
   }
 
   return (
