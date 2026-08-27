@@ -4,20 +4,26 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useCart } from '../context/cartcontext';
 
 export default function Gracias() {
   const router = useRouter();
   const { tipo } = router.query;
+  const { clearCart } = useCart();
 
   useEffect(() => {
-    // 1. Limpia todo el almacenamiento del carrito en el navegador
+    // 1. Vaciar el estado en memoria mediante la función del Contexto
+    clearCart();
+
+    // 2. Limpiar todas las claves posibles del almacenamiento local por seguridad
+    localStorage.removeItem('hottie_cart');
     localStorage.removeItem('cart');
     localStorage.removeItem('cart_data');
     localStorage.removeItem('carrito');
 
-    // 2. Avisa a otros componentes (Navbar/Header) para que reactiven el contador a 0
+    // 3. Notificar cambios a la ventana
     window.dispatchEvent(new Event('storage'));
-  }, []);
+  }, [clearCart]);
 
   const esServicio = tipo === 'servicio';
   const esMixto = tipo === 'mixto';
