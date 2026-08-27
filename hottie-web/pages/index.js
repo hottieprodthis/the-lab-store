@@ -3,10 +3,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import ProductCard from '../components/ProductCard';
-import { supabase } from '../lib/supabaseClient';
 
-export default function Home({ featured }) {
+export default function Home() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -68,23 +66,6 @@ export default function Home({ featured }) {
           </div>
         </div>
       </section>
-
-      {/* SECCIÓN DE DESTACADOS */}
-      {featured?.length > 0 && (
-        <section className="mx-auto max-w-6xl px-5 py-20 border-b border-white/10">
-          <div className="mb-8 flex items-end justify-between">
-            <h2 className="font-display text-3xl tracking-wide text-paper">Destacados</h2>
-            <Link href="/tienda" className="text-sm uppercase tracking-widest text-signal hover:underline">
-              Ver todo →
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {featured.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* SECCIÓN SOBRE HOTTIE + NEWSLETTER */}
       <section className="mx-auto max-w-4xl px-5 py-20 text-center">
@@ -150,15 +131,4 @@ export default function Home({ featured }) {
       <Footer />
     </>
   );
-}
-
-export async function getServerSideProps() {
-  const { data } = await supabase
-    .from('products')
-    .select('*')
-    .eq('active', true)
-    .order('sort_order', { ascending: true })
-    .limit(4);
-
-  return { props: { featured: data || [] } };
 }
