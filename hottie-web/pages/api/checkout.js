@@ -58,6 +58,9 @@ export default async function handler(req, res) {
       ? `${siteUrl}/servicios/exito`
       : `${siteUrl}/gracias?tipo=producto`;
 
+    // Extrae la URL de Google Drive si existe en el objeto item de Supabase
+    const driveLink = item.drive_url || item.driveUrl || item.download_url || item.link || '';
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -78,8 +81,9 @@ export default async function handler(req, res) {
       success_url: successUrl,
       cancel_url: item.slug ? `${siteUrl}/tienda/${item.slug}?compra=cancelada` : `${siteUrl}/`,
       metadata: {
-        product_id: item.id,
+        product_id: String(item.id),
         is_service: isService ? 'true' : 'false',
+        driveUrl: driveLink,
       },
     });
 
