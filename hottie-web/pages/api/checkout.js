@@ -33,25 +33,65 @@ export default async function handler(req, res) {
 
     // OPCIÓN A: Compra acumulada desde el Carrito
     if (items && Array.isArray(items) && items.length > 0) {
-      lineItems = items.map((item) => {
-        const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
-        if (item.isService) hasService = true;
-        return {
-          price_data: {
-            currency: (item.moneda || item.currency || 'eur').toLowerCase(),
-            product_data: {
-              name: item.title || item.name || item.nombre || 'Producto Digital',
-              description: item.description ? item.description.slice(0, 300) : undefined,
-              images: item.image_url || item.imagen_url ? [item.image_url || item.imagen_url] : undefined,
-            },
-            unit_amount: unitAmount,
-          },
-          quantity: item.quantity || 1,
-        };
-      });
+      
+      // Consultamos en Supabase las URLs reales de los productos del carrito
+      const enrichedCart = await Promise.all(
+        items.map(async (item) => {
+          const table = item.isService ? 'services' : 'products';
+          let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
 
+          // Si es un producto y no tiene URL en el estado del carrito, la traemos de Supabase
+          if (!downloadUrl && !item.isService && item.id) {
+            const { data: dbItem } = await supabase
+              .from(table)
+              .select('*')
+              .eq('id', item.id)
+              .single();
+
+            if (dbItem) {
+              downloadUrl = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
+            }
+          }
+
+          if (item.isService) hasService = true;
+
+          return {
+            id: item.id,
+            title: item.title || item.name || item.nombre || 'Producto Digital',
+            isService: !!item.isService,
+            file_url: downloadUrl,
+            quantity: item.quantity || 1,
+            price_cents: item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60),
+            currency: item.moneda || item.currency || 'eur',
+            description: item.description,
+            image_url: item.image_url || item.imagen_url
+          };
+        })
+      );
+
+      lineItems = enrichedCart.map((item) => ({
+        price_data: {
+          currency: item.currency.toLowerCase(),
+          product_data: {
+            name: item.title,
+            description: item.description ? item.description.slice(0, 300) : undefined,
+            images: item.image_url ? [item.image_url] : undefined,
+          },
+          unit_amount: item.price_cents,
+        },
+        quantity: item.quantity,
+      }));
+
+      // Inyectamos el carrito completo con nombres y URLs en los metadata de Stripe
       metadataPayload = {
-        cart_data: JSON.stringify(items.map(i => ({ id: i.id, isService: !!i.isService }))),
+        cart_data: JSON.stringify(
+          enrichedCart.map(i => ({
+            id: i.id,
+            title: i.title,
+            isService: i.isService,
+            file_url: i.file_url
+          }))
+        ),
       };
     } 
     // OPCIÓN B: Compra directa instantánea (1 solo producto)
