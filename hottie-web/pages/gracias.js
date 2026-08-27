@@ -1,14 +1,35 @@
+import { useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
+// Si usas CartContext, intenta importarlo (descomenta si aplica en tu estructura)
+// import { useCart } from '../context/CartContext';
+
 export default function Gracias() {
   const router = useRouter();
   const { tipo } = router.query;
 
+  // Intenta limpiar carrito vía Context si está disponible
+  // const { clearCart } = useCart?.() || {};
+
+  useEffect(() => {
+    // 1. Limpia todo el almacenamiento del carrito en el navegador
+    localStorage.removeItem('cart');
+    localStorage.removeItem('cart_data');
+    localStorage.removeItem('carrito');
+
+    // 2. Ejecuta clearCart si existe en tu contexto
+    // if (clearCart) clearCart();
+
+    // 3. Avisa a otros componentes (Navbar/Header) para que actualicen el contador a 0
+    window.dispatchEvent(new Event('storage'));
+  }, []);
+
   const esServicio = tipo === 'servicio';
+  const esMixto = tipo === 'mixto';
 
   return (
     <>
@@ -29,9 +50,15 @@ export default function Gracias() {
           </h1>
 
           <p className="mt-4 text-muted text-lg max-w-lg mx-auto">
-            {esServicio
-              ? 'Hemos recibido los datos de tu proyecto correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para comenzar.'
-              : 'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los archivos y enlaces de descarga.'}
+            {esServicio && (
+              'Hemos recibido los datos de tu proyecto correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para comenzar.'
+            )}
+            {esMixto && (
+              'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los enlaces de descarga y en breve nos pondremos en contacto contigo para coordinar el servicio.'
+            )}
+            {!esServicio && !esMixto && (
+              'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los archivos y enlaces de descarga.'
+            )}
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
