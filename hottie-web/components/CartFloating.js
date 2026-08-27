@@ -1,11 +1,49 @@
 import { useState } from 'react';
-import Link from 'next/link';
+import { useCart } from '../context/CartContext';
 
-export default function CartFloating({ cartItems = [], onRemoveItem }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function CartFloating() {
+  const { 
+    cart, 
+    isOpen, 
+    setIsOpen, 
+    removeFromCart, 
+    updateQuantity, 
+    clearCart, 
+    totalItems, 
+    totalPrice 
+  } = useCart();
+  
+  const [loading, setLoading] = useState(false);
 
-  // Calcula el total si los items tienen precio
-  const total = cartItems.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: cart,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Ocurrió un error al iniciar el pago.');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error en checkout:', err);
+      alert('Error de conexión al procesar el pago.');
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -15,7 +53,6 @@ export default function CartFloating({ cartItems = [], onRemoveItem }) {
         aria-label="Ver carrito"
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-black shadow-xl shadow-[#CCFF00]/30 transition-all duration-200 hover:scale-110 active:scale-95"
       >
-        {/* Ícono de Carrito (Negro) */}
         <svg
           className="h-7 w-7 text-black"
           fill="none"
@@ -30,10 +67,10 @@ export default function CartFloating({ cartItems = [], onRemoveItem }) {
           />
         </svg>
 
-        {/* Contador de artículos (burbuja flotante) */}
-        {cartItems.length > 0 && (
+        {/* Contador de artículos */}
+        {totalItems > 0 && (
           <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow">
-            {cartItems.length}
+            {totalItems}
           </span>
         )}
       </button>
@@ -57,7 +94,7 @@ export default function CartFloating({ cartItems = [], onRemoveItem }) {
           <div>
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <h2 className="font-display text-2xl tracking-wide text-paper uppercase">
-                Tus Artículos ({cartItems.length})
+                Tus Artículos ({totalItems})
               </h2>
               <button
                 onClick={() => setIsOpen(false)}
@@ -69,54 +106,98 @@ export default function CartFloating({ cartItems = [], onRemoveItem }) {
 
             {/* Lista de productos solicitados */}
             <div className="mt-6 max-h-[60vh] space-y-4 overflow-y-auto pr-2">
-              {cartItems.length === 0 ? (
+              {cart.length === 0 ? (
                 <div className="py-12 text-center text-muted font-body">
                   <p>Tu selección está vacía.</p>
                   <p className="text-xs mt-2">Navega por la tienda o servicios para añadir artículos.</p>
                 </div>
               ) : (
-                cartItems.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3"
-                  >
-                    <div>
-                      <h4 className="font-semibold text-paper text-sm">{item.title}</h4>
-                      <p className="text-xs text-muted">{item.category || 'Servicio / Producto'}</p>
-                      {item.price && (
-                        <p className="text-xs font-bold text-[#CCFF00] mt-1">{item.price} €</p>
-                      )}
+                cart.map((item, index) => {
+                  const price = item.price || (item.price_cents ? item.price_cents / 100 : 0);
+                  const title = item.title || item.name || item.nombre || 'Producto / Servicio';
+                  return (
+                    <div
+                      key={`${item.id}-${item.isService ? 'srv' : 'prd'}-${index}`}
+                      className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3"
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-paper text-sm">{title}</h4>
+                        <p className="text-xs text-muted">
+                          {item.isService ? 'Servicio' : 'Producto'}
+                        </p>
+                        <p className="text-xs font-bold text-[#CCFF00] mt-1">
+                          {price.toFixed(2)} €
+                        </p>
+                        
+                        {/* Selector de cantidad */}
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            onClick={() => updateQuantity(item.id, item.isService, (item.quantity || 1) - 1)}
+                            className="w-5 h-5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center justify-center text-xs font-bold"
+                          >
+                            -
+                          </button>
+                          <span className="text-xs text-paper font-mono">{item.quantity || 1}</span>
+                          <button
+                            onClick={() => updateQuantity(item.id, item.isService, (item.quantity || 1) + 1)}
+                            className="w-5 h-5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center justify-center text-xs font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="text-right ml-4">
+                        <p className="text-sm font-bold text-paper">
+                          {(price * (item.quantity || 1)).toFixed(2)} €
+                        </p>
+                        <button
+                          onClick={() => removeFromCart(item.id, item.isService)}
+                          className="text-xs text-red-400 hover:text-red-300 mt-2 block"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
-                    {onRemoveItem && (
-                      <button
-                        onClick={() => onRemoveItem(index)}
-                        className="text-xs text-red-400 hover:text-red-300"
-                      >
-                        Eliminar
-                      </button>
-                    )}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
 
-          {/* Pie del Carrito / Botón de Acción */}
+          {/* Pie del Carrito / Botón de Pago con Stripe */}
           <div className="border-t border-white/10 pt-4 space-y-3">
-            {total > 0 && (
+            {totalPrice > 0 && (
               <div className="flex justify-between text-paper font-semibold text-base mb-2">
-                <span>Total estimado:</span>
-                <span className="text-[#CCFF00]">{total.toFixed(2)} €</span>
+                <span>Total:</span>
+                <span className="text-[#CCFF00] font-bold text-lg">{totalPrice.toFixed(2)} €</span>
               </div>
             )}
 
-            <Link
-              href={cartItems.length > 0 ? "/contacto" : "/tienda"}
-              onClick={() => setIsOpen(false)}
-              className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest text-ink transition hover:brightness-110"
-            >
-              {cartItems.length > 0 ? "Solicitar / Finalizar pedido" : "Explorar Tienda"}
-            </Link>
+            {cart.length > 0 ? (
+              <>
+                <button
+                  onClick={handleCheckout}
+                  disabled={loading}
+                  className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest text-ink transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {loading ? "Procesando..." : "Pagar con Stripe / Bizum"}
+                </button>
+                <button
+                  onClick={clearCart}
+                  className="block w-full text-center text-xs text-muted hover:text-paper underline"
+                >
+                  Vaciar carrito
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsOpen(false)}
+                className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest text-ink transition hover:brightness-110"
+              >
+                Explorar Tienda
+              </button>
+            )}
           </div>
         </div>
       </div>
