@@ -52,31 +52,33 @@ export default async function handler(req, res) {
         const cartItems = JSON.parse(metadata.cart_data);
 
         const itemsList = cartItems.map((item) => {
-          const itemTitle = item.title || item.name || 'Producto Digital';
+          const itemTitle = item.title || item.name || (item.isService ? 'Servicio Digital' : 'Producto Digital');
           const itemUrl = item.file_url || item.driveUrl || item.drive_url || item.link || '';
           
-          if (itemUrl) {
-            return `<li style="margin-bottom: 12px;">
-              <strong>${itemTitle}</strong><br/>
-              <a href="${itemUrl}" style="background:#CCFF00;color:#000;padding:8px 14px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:bold;margin-top:4px;">
-                Descargar / Acceder
-              </a>
+          if (item.isService) {
+            return `<li style="margin-bottom: 20px;">
+              <strong style="font-size: 16px;">${itemTitle} <span style="color:#888888; font-weight:normal;">(Servicio)</span></strong><br/>
+              <span style="color:#aaa;font-size:13px;display:block;margin-top:4px;">Nos pondremos en contacto contigo para coordinar el servicio.</span>
             </li>`;
-          } else if (item.isService) {
-            return `<li style="margin-bottom: 12px;">
-              <strong>${itemTitle}</strong> (Servicio)<br/>
-              <span style="color:#aaa;font-size:12px;">Nos pondremos en contacto contigo para coordinar el servicio.</span>
+          } else if (itemUrl) {
+            return `<li style="margin-bottom: 20px;">
+              <strong style="font-size: 16px;">${itemTitle} <span style="color:#888888; font-weight:normal;">(Producto)</span></strong><br/>
+              <div style="margin-top:8px;">
+                <a href="${itemUrl}" target="_blank" style="background-color:#CCFF00 !important; color:#000000 !important; padding:12px 20px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:bold; font-size:14px; text-transform:uppercase; border: none;">
+                  Descargar / Acceder
+                </a>
+              </div>
             </li>`;
           } else {
-            return `<li style="margin-bottom: 12px;">
-              <strong>${itemTitle}</strong><br/>
-              <span style="color:red;font-size:12px;">Enlace no disponible. Te lo enviaremos por email.</span>
+            return `<li style="margin-bottom: 20px;">
+              <strong style="font-size: 16px;">${itemTitle} <span style="color:#888888; font-weight:normal;">(Producto)</span></strong><br/>
+              <span style="color:#ff4444;font-size:13px;display:block;margin-top:4px;">Enlace no disponible. Te lo enviaremos manualmente a este correo.</span>
             </li>`;
           }
         });
 
-        linksHtml = `<ul style="list-style:none;padding:0;">${itemsList.join('')}</ul>`;
-        linksText = cartItems.map(i => `${i.title || i.name}: ${i.file_url || 'Servicio'}`).join(' | ');
+        linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
+        linksText = cartItems.map(i => `${i.title || 'Artículo'}: ${i.file_url || 'Servicio'}`).join(' | ');
       } catch (e) {
         console.error('Error al parsear cart_data:', e);
       }
@@ -91,15 +93,24 @@ export default async function handler(req, res) {
         metadata.drive_url || 
         metadata.link || 
         '';
+      
+      const singleTitle = metadata.product_name || (metadata.is_service === 'true' ? 'Servicio Digital' : 'Producto Digital');
 
-      if (enlaceDrive) {
-        linksHtml = `<p><a href="${enlaceDrive}" style="background:#CCFF00;color:#000;padding:12px 20px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;">Acceder al contenido digital</a></p>`;
-        linksText = enlaceDrive;
-      } else if (metadata.isService === 'true') {
-        linksHtml = `<p>Has reservado un servicio. Te contactaremos en breve para coordinar los detalles.</p>`;
-        linksText = 'Servicio contratado';
+      if (metadata.is_service === 'true') {
+        linksHtml = `<p><strong style="font-size:16px;">${singleTitle} <span style="color:#888888; font-weight:normal;">(Servicio)</span></strong></p><p style="color:#aaa;font-size:13px;">Nos pondremos en contacto contigo para coordinar el servicio.</p>`;
+        linksText = `${singleTitle} (Servicio)`;
+      } else if (enlaceDrive) {
+        linksHtml = `
+          <p><strong style="font-size:16px;">${singleTitle} <span style="color:#888888; font-weight:normal;">(Producto)</span></strong></p>
+          <div style="margin-top:10px;">
+            <a href="${enlaceDrive}" target="_blank" style="background-color:#CCFF00 !important; color:#000000 !important; padding:12px 20px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:bold; font-size:14px; text-transform:uppercase;">
+              Descargar / Acceder
+            </a>
+          </div>
+        `;
+        linksText = `${singleTitle}: ${enlaceDrive}`;
       } else {
-        linksHtml = `<p style="color:red;">Ha habido un problema cargando tu enlace de descarga automático. Por favor responde a este correo para enviártelo manualmente.</p>`;
+        linksHtml = `<p style="color:#ff4444;">Ha habido un problema cargando tu enlace de descarga automático. Por favor responde a este correo para enviártelo manualmente.</p>`;
         linksText = 'Error enlace';
       }
     }
@@ -112,7 +123,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Notificación de venta para el administrador
+      // Notificación para el administrador
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -133,7 +144,7 @@ export default async function handler(req, res) {
         }),
       });
 
-      // Correo instantáneo para el cliente
+      // Correo para el cliente
       if (emailCliente) {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
