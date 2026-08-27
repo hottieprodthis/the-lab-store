@@ -6,7 +6,7 @@ export default function ServiceCard({ service }) {
 
   const handleCheckout = async () => {
     // Si no tiene precio definido, redirige al contacto
-    if (!service.price_cents) {
+    if (!service.price_cents && !service.price) {
       window.location.href = '/contacto';
       return;
     }
@@ -14,33 +14,26 @@ export default function ServiceCard({ service }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/checkout/create-session', {
+      const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceId: service.id,
-          name: service.name,
-          description: service.description,
-          priceCents: service.price_cents,
-          currency: service.currency || 'eur',
+          productId: service.id,
+          isService: true, // Importante: así la API sabe que debe redirigir a /servicios/briefing tras el pago
         }),
       });
 
       const data = await res.json();
 
       if (data.url) {
-        // Redirige a la pasarela de pago de Stripe
         window.location.href = data.url;
       } else {
-        console.error('Error al crear la sesión de pago:', data.error);
-        alert('Hubo un problema al iniciar el pago. Por favor, inténtalo de nuevo.');
+        alert('Error al iniciar la reserva. Inténtalo de nuevo.');
         setLoading(false);
       }
     } catch (error) {
-      console.error('Error de red/servidor:', error);
-      alert('Error al conectar con el servidor.');
+      console.error('Error de conexión:', error);
+      alert('Error de conexión con el servidor.');
       setLoading(false);
     }
   };
@@ -53,14 +46,14 @@ export default function ServiceCard({ service }) {
       </div>
       <div className="mt-6 flex items-center justify-between">
         <span className="text-volt">
-          {service.price_cents ? formatPrice(service.price_cents, service.currency) : 'A consultar'}
+          {service.price_cents || service.price ? formatPrice(service.price_cents || Math.round(service.price * 100), service.currency) : 'A consultar'}
         </span>
         <button
           onClick={handleCheckout}
           disabled={loading}
           className="rounded-sm border border-white/20 px-4 py-2 text-xs uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal disabled:opacity-50"
         >
-          {loading ? 'Cargando...' : 'Reservar'}
+          {loading ? 'CARGANDO...' : 'RESERVAR'}
         </button>
       </div>
     </div>
