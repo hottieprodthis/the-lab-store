@@ -17,27 +17,40 @@ export default function Home() {
 
     setLoading(true);
     setErrorMessage('');
+    setSubscribed(false);
 
     try {
       const emailLimpio = email.trim().toLowerCase();
 
-      // Usamos upsert para registrar o actualizar si ya existía sin lanzar error
+      // 1. Comprobar si el correo ya existe en la base de datos
+      const { data: existente } = await supabase
+        .from('suscriptores')
+        .select('email')
+        .eq('email', emailLimpio)
+        .maybeSingle();
+
+      if (existente) {
+        setErrorMessage('Este correo electrónico ya está suscrito.');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Si no existe, lo insertamos como un nuevo suscriptor
       const { error } = await supabase
         .from('suscriptores')
-        .upsert([{ email: emailLimpio }], { onConflict: 'email' });
+        .insert([{ email: emailLimpio }]);
 
       if (error) {
         console.error('Detalle del error en Supabase:', error);
-        // Si el error es por duplicado o política, lo marcamos igualmente como suscrito
-        if (error.code === '23505' || error.status === 409) {
-          setSubscribed(true);
+        if (error.code === '23505') {
+          setErrorMessage('Este correo electrónico ya está suscrito.');
         } else {
           setErrorMessage('Hubo un problema al guardar tu correo. Inténtalo de nuevo.');
         }
       } else {
         setSubscribed(true);
+        setEmail('');
       }
-      setEmail('');
     } catch (err) {
       console.error('Error al suscribir:', err);
       setErrorMessage('Ocurrió un error inesperado.');
