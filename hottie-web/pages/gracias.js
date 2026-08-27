@@ -5,15 +5,9 @@ import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
-// Si usas CartContext, intenta importarlo (descomenta si aplica en tu estructura)
-// import { useCart } from '../context/CartContext';
-
 export default function Gracias() {
   const router = useRouter();
   const { tipo } = router.query;
-
-  // Intenta limpiar carrito vía Context si está disponible
-  // const { clearCart } = useCart?.() || {};
 
   useEffect(() => {
     // 1. Limpia todo el almacenamiento del carrito en el navegador
@@ -21,10 +15,7 @@ export default function Gracias() {
     localStorage.removeItem('cart_data');
     localStorage.removeItem('carrito');
 
-    // 2. Ejecuta clearCart si existe en tu contexto
-    // if (clearCart) clearCart();
-
-    // 3. Avisa a otros componentes (Navbar/Header) para que actualicen el contador a 0
+    // 2. Avisa a otros componentes (Navbar/Header) para que reactiven el contador a 0
     window.dispatchEvent(new Event('storage'));
   }, []);
 
@@ -63,10 +54,10 @@ export default function Gracias() {
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/tienda"
+              href="/"
               className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110"
             >
-              Volver a la Tienda
+              Inicio
             </Link>
 
             <Link
