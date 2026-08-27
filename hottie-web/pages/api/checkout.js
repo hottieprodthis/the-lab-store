@@ -48,8 +48,10 @@ export default async function handler(req, res) {
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
 
+    // Si es servicio, va a la página del formulario briefing antes de la de agradecimientos.
+    // Si es producto, va directamente a la página de gracias.
     const successUrl = isService
-      ? `${siteUrl}/servicios/exito`
+      ? `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`
       : `${siteUrl}/gracias?tipo=producto`;
 
     // Extrae la URL probando file_url (donde está tu enlace en Supabase)
