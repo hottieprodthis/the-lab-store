@@ -29,36 +29,30 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Busca en la tabla 'services' o en 'products' según corresponda
     const table = isService ? 'services' : 'products';
 
+    // Obtenemos el producto directamente por su ID
     const { data: item, error } = await supabase
       .from(table)
       .select('*')
       .eq('id', productId)
-      .eq('active', true)
       .single();
 
     if (error || !item) {
-      return res.status(404).json({ error: 'Artículo no encontrado o no está activo.' });
+      console.error('Error buscando el producto:', error);
+      return res.status(404).json({ error: 'Artículo no encontrado.' });
     }
 
     // Calcula el precio en céntimos
-    const unitAmount = item.price_cents || (item.price ? Math.round(item.price * 100) : 0);
-
-    if (unitAmount <= 0) {
-      return res.status(400).json({ error: 'El precio debe ser mayor a 0.' });
-    }
+    const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
 
-    // Si es servicio -> Va al formulario post-pago
-    // Si es producto -> Va a la página de agradecimiento
     const successUrl = isService
       ? `${siteUrl}/servicios/exito`
       : `${siteUrl}/gracias?tipo=producto`;
 
-    // Extrae la URL leyendo prioritariamente la columna 'file_url' de Supabase
+    // Extrae la URL probando file_url (donde está tu enlace en Supabase)
     const driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
 
     const session = await stripe.checkout.sessions.create({
@@ -67,11 +61,11 @@ export default async function handler(req, res) {
       line_items: [
         {
           price_data: {
-            currency: (item.currency || 'eur').toLowerCase(),
+            currency: (item.moneda || item.currency || 'eur').toLowerCase(),
             product_data: {
-              name: item.name || 'Servicio/Producto',
+              name: item.title || item.name || item.nombre || 'Producto Digital',
               description: item.description ? item.description.slice(0, 300) : undefined,
-              images: item.image_url ? [item.image_url] : undefined,
+              images: item.image_url || item.imagen_url ? [item.image_url || item.imagen_url] : undefined,
             },
             unit_amount: unitAmount,
           },
@@ -84,6 +78,7 @@ export default async function handler(req, res) {
         product_id: String(item.id),
         is_service: isService ? 'true' : 'false',
         driveUrl: driveLink,
+        file_url: driveLink,
       },
     });
 
