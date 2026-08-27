@@ -1,5 +1,6 @@
 import { Bebas_Neue, Inter } from 'next/font/google';
 import '../styles/globals.css';
+import { CartProvider } from '../context/CartContext';
 import CartFloating from '../components/CartFloating';
 
 const display = Bebas_Neue({
@@ -17,9 +18,11 @@ const body = Inter({
 
 export default function App({ Component, pageProps }) {
   return (
-    <main className={`${display.variable} ${body.variable} font-body bg-ink min-h-screen bg-grain`}>
-      <Component {...pageProps} />
-      <CartFloating />
-    </main>
+    <CartProvider>
+      <main className={`${display.variable} ${body.variable} font-body bg-ink min-h-screen bg-grain`}>
+        <Component {...pageProps} />
+        <CartFloating />
+      </main>
+    </CartProvider>
   );
 }
