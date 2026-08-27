@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -43,48 +42,72 @@ export default async function handler(req, res) {
     const emailCliente = session.customer_details?.email;
     const nombreCliente = session.customer_details?.name || 'Cliente';
 
-    // Obtiene dinámicamente el enlace desde los metadatos de Stripe
-    const enlaceDrive = session.metadata?.driveUrl || session.metadata?.link || session.metadata?.fileUrl;
+    // Captura exhaustiva de la URL de Drive desde los metadatos
+    const metadata = session.metadata || {};
+    const enlaceDrive = 
+      metadata.driveUrl || 
+      metadata.file_url || 
+      metadata.fileUrl || 
+      metadata.drive_url || 
+      metadata.link || 
+      '';
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'pedidos.thelab@gmail.com',
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
+    const resendApiKey = process.env.RESEND_API_KEY;
+
+    if (!resendApiKey) {
+      console.error('Falta la variable RESEND_API_KEY en Vercel');
+      return res.status(500).json({ error: 'Falta la API Key de Resend' });
+    }
 
     try {
-      // 1. Notificación para ti
-      await transporter.sendMail({
-        from: '"The Lab System" <pedidos.thelab@gmail.com>',
-        to: 'pedidos.thelab@gmail.com',
-        subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
-        html: `
-          <h2>¡Nuevo pago completado en Stripe!</h2>
-          <p><strong>Cliente:</strong> ${nombreCliente}</p>
-          <p><strong>Email:</strong> ${emailCliente}</p>
-          <p><strong>Total pagado:</strong> ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
-          <p><strong>Enlace enviado:</strong> ${enlaceDrive || 'Sin enlace adjunto en metadata'}</p>
-        `,
+      // 1. Notificación instantánea para ti
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'The Lab System <onboarding@resend.dev>',
+          to: ['pedidos.thelab@gmail.com'],
+          subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
+          html: `
+            <h2>¡Nuevo pago completado en Stripe!</h2>
+            <p><strong>Cliente:</strong> ${nombreCliente}</p>
+            <p><strong>Email:</strong> ${emailCliente}</p>
+            <p><strong>Total pagado:</strong> ${(session.amount_total / 100).toFixed(2)} ${session.currency.toUpperCase()}</p>
+            <p><strong>Enlace enviado:</strong> ${enlaceDrive || 'Sin enlace adjunto en metadata'}</p>
+          `,
+        }),
       });
 
-      // 2. Correo al cliente
+      // 2. Correo instantáneo al cliente
       if (emailCliente) {
-        await transporter.sendMail({
-          from: '"The Lab - Hottie" <pedidos.thelab@gmail.com>',
-          to: emailCliente,
-          subject: 'Tu pedido en The Lab - Acceso al producto',
-          html: `
-            <h2>¡Gracias por tu compra, ${nombreCliente}!</h2>
-            <p>Tu pago se ha procesado correctamente.</p>
-            <p>Puedes acceder a tu contenido digital directamente a través de este enlace:</p>
-            <p><a href="${enlaceDrive}" style="background:#0070f3;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Acceder al archivo en Google Drive</a></p>
-          `,
+        const botonHtml = enlaceDrive 
+          ? `<p><a href="${enlaceDrive}" style="background:#0070f3;color:#fff;padding:12px 20px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;">Acceder al archivo en Google Drive</a></p>`
+          : `<p style="color:red;">Ha habido un problema cargando tu enlace de descarga automático. Por favor responde a este correo para enviártelo manualmente.</p>`;
+
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'The Lab <onboarding@resend.dev>',
+            to: [emailCliente],
+            subject: 'Tu pedido en The Lab - Acceso al producto',
+            html: `
+              <h2>¡Gracias por tu compra, ${nombreCliente}!</h2>
+              <p>Tu pago se ha procesado correctamente.</p>
+              <p>Puedes acceder a tu contenido digital directamente a través de este enlace:</p>
+              ${botonHtml}
+            `,
+          }),
         });
       }
     } catch (error) {
-      console.error('Error al enviar el correo:', error);
+      console.error('Error al enviar el correo con Resend:', error);
       return res.status(500).json({ message: 'Error en el envío de correo' });
     }
   }
