@@ -18,56 +18,60 @@ export default async function handler(req, res) {
 
   if (!process.env.STRIPE_SECRET_KEY) {
     return res.status(500).json({
-      error: 'Falta configurar STRIPE_SECRET_KEY en las variables de entorno del servidor.',
+      error: 'Falta configurar STRIPE_SECRET_KEY en las variables de entorno.',
     });
   }
 
-  const { productId, isService } = req.body;
-
-  if (!productId) {
-    return res.status(400).json({ error: 'Falta el ID del producto o servicio.' });
-  }
+  const { productId, isService, items } = req.body;
 
   try {
-    const table = isService ? 'services' : 'products';
-
-    // Obtenemos el producto directamente por su ID
-    const { data: item, error } = await supabase
-      .from(table)
-      .select('*')
-      .eq('id', productId)
-      .single();
-
-    if (error || !item) {
-      console.error('Error buscando el producto:', error);
-      return res.status(404).json({ error: 'Artículo no encontrado.' });
-    }
-
-    // Calcula el precio en céntimos
-    const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
-
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
+    let lineItems = [];
+    let hasService = false;
+    let driveLink = '';
+    let metadataPayload = {};
 
-    // Si es servicio, va a la página del formulario briefing antes de la de agradecimientos.
-    // Si es producto, va directamente a la página de gracias.
-    const successUrl = isService
-      ? `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`
-      : `${siteUrl}/gracias?tipo=producto`;
+    // OPCIÓN A: Compra acumulada desde el Carrito
+    if (items && Array.isArray(items) && items.length > 0) {
+      lineItems = items.map((item) => {
+        const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
+        if (item.isService) hasService = true;
+        return {
+          price_data: {
+            currency: (item.moneda || item.currency || 'eur').toLowerCase(),
+            product_data: {
+              name: item.title || item.name || item.nombre || 'Producto Digital',
+              description: item.description ? item.description.slice(0, 300) : undefined,
+              images: item.image_url || item.imagen_url ? [item.image_url || item.imagen_url] : undefined,
+            },
+            unit_amount: unitAmount,
+          },
+          quantity: item.quantity || 1,
+        };
+      });
 
-    // Si se cancela un servicio vuelve a /servicios.
-    // Si se cancela un producto vuelve a su ficha en la tienda o a /tienda.
-    const cancelUrl = isService
-      ? `${siteUrl}/servicios`
-      : (item.slug ? `${siteUrl}/tienda/${item.slug}?compra=cancelada` : `${siteUrl}/tienda`);
+      metadataPayload = {
+        cart_data: JSON.stringify(items.map(i => ({ id: i.id, isService: !!i.isService }))),
+      };
+    } 
+    // OPCIÓN B: Compra directa instantánea (1 solo producto)
+    else if (productId) {
+      const table = isService ? 'services' : 'products';
+      const { data: item, error } = await supabase
+        .from(table)
+        .select('*')
+        .eq('id', productId)
+        .single();
 
-    // Extrae la URL probando file_url (donde está tu enlace en Supabase)
-    const driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
+      if (error || !item) {
+        return res.status(404).json({ error: 'Artículo no encontrado.' });
+      }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card', 'klarna', 'link', 'bizum'],
-      allow_promotion_codes: true,
-      line_items: [
+      const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
+      hasService = isService;
+      driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
+
+      lineItems = [
         {
           price_data: {
             currency: (item.moneda || item.currency || 'eur').toLowerCase(),
@@ -80,15 +84,32 @@ export default async function handler(req, res) {
           },
           quantity: 1,
         },
-      ],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: {
+      ];
+
+      metadataPayload = {
         product_id: String(item.id),
         is_service: isService ? 'true' : 'false',
         driveUrl: driveLink,
         file_url: driveLink,
-      },
+      };
+    } else {
+      return res.status(400).json({ error: 'No se enviaron productos para la compra.' });
+    }
+
+    const successUrl = hasService
+      ? `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`
+      : `${siteUrl}/gracias?tipo=producto`;
+
+    const cancelUrl = hasService ? `${siteUrl}/servicios` : `${siteUrl}/tienda`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card', 'klarna', 'link', 'bizum'],
+      allow_promotion_codes: true,
+      line_items: lineItems,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: metadataPayload,
     });
 
     return res.status(200).json({ url: session.url });
