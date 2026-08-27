@@ -46,45 +46,57 @@ export default async function handler(req, res) {
     let linksHtml = '';
     let linksText = '';
 
-    // 1. Verificar si la compra proviene del carrito múltiple
+    const btnStyle = 'background-color:#CCFF00 !important; color:#000000 !important; padding:14px 22px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:900; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; border:none;';
+
+    // 1. Carrito múltiple
     if (metadata.cart_data) {
       try {
         const cartItems = JSON.parse(metadata.cart_data);
 
         const itemsList = cartItems.map((item) => {
-          const itemTitle = item.title || item.name || (item.isService ? 'Servicio Digital' : 'Producto Digital');
+          let itemTitle = item.title;
+          if (itemTitle === undefined || itemTitle === null || itemTitle === '') {
+            itemTitle = item.name || item.nombre || (item.isService ? 'Servicio Digital' : 'Producto Digital');
+          }
+          
           const itemUrl = item.file_url || item.driveUrl || item.drive_url || item.link || '';
           
           if (item.isService) {
-            return `<li style="margin-bottom: 20px;">
-              <strong style="font-size: 16px;">${itemTitle} <span style="color:#888888; font-weight:normal;">(Servicio)</span></strong><br/>
-              <span style="color:#aaa;font-size:13px;display:block;margin-top:4px;">Nos pondremos en contacto contigo para coordinar el servicio.</span>
+            return `<li style="margin-bottom: 24px;">
+              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(Servicio)</span></strong><br/>
+              <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Nos pondremos en contacto contigo para coordinar el servicio.</span>
             </li>`;
           } else if (itemUrl) {
-            return `<li style="margin-bottom: 20px;">
-              <strong style="font-size: 16px;">${itemTitle} <span style="color:#888888; font-weight:normal;">(Producto)</span></strong><br/>
-              <div style="margin-top:8px;">
-                <a href="${itemUrl}" target="_blank" style="background-color:#CCFF00 !important; color:#000000 !important; padding:12px 20px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:bold; font-size:14px; text-transform:uppercase; border: none;">
-                  Descargar / Acceder
-                </a>
+            return `<li style="margin-bottom: 24px;">
+              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong><br/>
+              <div style="margin-top:10px;">
+                <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td align="center" bgcolor="#CCFF00" style="border-radius:6px; background-color:#CCFF00;">
+                      <a href="${itemUrl}" target="_blank" style="${btnStyle}">
+                        Descargar / Acceder
+                      </a>
+                    </td>
+                  </tr>
+                </table>
               </div>
             </li>`;
           } else {
-            return `<li style="margin-bottom: 20px;">
-              <strong style="font-size: 16px;">${itemTitle} <span style="color:#888888; font-weight:normal;">(Producto)</span></strong><br/>
-              <span style="color:#ff4444;font-size:13px;display:block;margin-top:4px;">Enlace no disponible. Te lo enviaremos manualmente a este correo.</span>
+            return `<li style="margin-bottom: 24px;">
+              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong><br/>
+              <span style="color:#ff5555;font-size:13px;display:block;margin-top:6px;">Enlace no disponible. Te lo enviaremos manualmente a este correo.</span>
             </li>`;
           }
         });
 
         linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
-        linksText = cartItems.map(i => `${i.title || 'Artículo'}: ${i.file_url || 'Servicio'}`).join(' | ');
+        linksText = cartItems.map(i => `${i.title}: ${i.file_url || 'Servicio'}`).join(' | ');
       } catch (e) {
         console.error('Error al parsear cart_data:', e);
       }
     }
 
-    // 2. Si no es un carrito múltiple, procesar como compra individual (fallback)
+    // 2. Compra individual (fallback)
     if (!linksHtml) {
       const enlaceDrive = 
         metadata.driveUrl || 
@@ -94,23 +106,32 @@ export default async function handler(req, res) {
         metadata.link || 
         '';
       
-      const singleTitle = metadata.product_name || (metadata.is_service === 'true' ? 'Servicio Digital' : 'Producto Digital');
+      let singleTitle = metadata.product_name;
+      if (singleTitle === undefined || singleTitle === null || singleTitle === '') {
+        singleTitle = metadata.is_service === 'true' ? 'Servicio Digital' : 'Producto Digital';
+      }
 
       if (metadata.is_service === 'true') {
-        linksHtml = `<p><strong style="font-size:16px;">${singleTitle} <span style="color:#888888; font-weight:normal;">(Servicio)</span></strong></p><p style="color:#aaa;font-size:13px;">Nos pondremos en contacto contigo para coordinar el servicio.</p>`;
+        linksHtml = `<p><strong style="font-size:16px; color:#ffffff;">${singleTitle} <span style="color:#aaaaaa; font-weight:normal;">(Servicio)</span></strong></p><p style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo para coordinar el servicio.</p>`;
         linksText = `${singleTitle} (Servicio)`;
       } else if (enlaceDrive) {
         linksHtml = `
-          <p><strong style="font-size:16px;">${singleTitle} <span style="color:#888888; font-weight:normal;">(Producto)</span></strong></p>
+          <p><strong style="font-size:16px; color:#ffffff;">${singleTitle} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong></p>
           <div style="margin-top:10px;">
-            <a href="${enlaceDrive}" target="_blank" style="background-color:#CCFF00 !important; color:#000000 !important; padding:12px 20px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:bold; font-size:14px; text-transform:uppercase;">
-              Descargar / Acceder
-            </a>
+            <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+              <tr>
+                <td align="center" bgcolor="#CCFF00" style="border-radius:6px; background-color:#CCFF00;">
+                  <a href="${enlaceDrive}" target="_blank" style="${btnStyle}">
+                    Descargar / Acceder
+                  </a>
+                </td>
+              </tr>
+            </table>
           </div>
         `;
         linksText = `${singleTitle}: ${enlaceDrive}`;
       } else {
-        linksHtml = `<p style="color:#ff4444;">Ha habido un problema cargando tu enlace de descarga automático. Por favor responde a este correo para enviártelo manualmente.</p>`;
+        linksHtml = `<p style="color:#ff5555;">Ha habido un problema cargando tu enlace de descarga automático. Por favor responde a este correo para enviártelo manualmente.</p>`;
         linksText = 'Error enlace';
       }
     }
@@ -122,8 +143,23 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Falta la API Key de Resend' });
     }
 
+    const fullEmailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="color-scheme" content="light dark">
+        <meta name="supported-color-schemes" content="light dark">
+      </head>
+      <body style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:20px;">
+        <h2 style="color:#ffffff;">¡Gracias por tu compra, ${nombreCliente}!</h2>
+        <p style="color:#dddddd;">Tu pago se ha procesado correctamente.</p>
+        <p style="color:#dddddd;">Aquí tienes el acceso a tus artículos:</p>
+        ${linksHtml}
+      </body>
+      </html>
+    `;
+
     try {
-      // Notificación para el administrador
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -144,7 +180,6 @@ export default async function handler(req, res) {
         }),
       });
 
-      // Correo para el cliente
       if (emailCliente) {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
@@ -157,12 +192,7 @@ export default async function handler(req, res) {
             reply_to: 'pedidos.thelab@gmail.com',
             to: [emailCliente],
             subject: 'Tu pedido en The Lab - Acceso a tus artículos',
-            html: `
-              <h2>¡Gracias por tu compra, ${nombreCliente}!</h2>
-              <p>Tu pago se ha procesado correctamente.</p>
-              <p>Aquí tienes el acceso a tus artículos:</p>
-              ${linksHtml}
-            `,
+            html: fullEmailHtml,
           }),
         });
       }
