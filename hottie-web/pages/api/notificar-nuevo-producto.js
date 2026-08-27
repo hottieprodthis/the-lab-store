@@ -14,9 +14,8 @@ export default async function handler(req, res) {
     const precio = payload.price || payload.precio || null;
     const esServicio = payload.type === 'servicio' || payload.tipo === 'servicio';
 
-    const enlace = esServicio 
-      ? 'https://hottieprodthis.com/servicios' 
-      : 'https://hottieprodthis.com/tienda';
+    // Enlace directo a la página principal / inicio
+    const enlace = 'https://hottieprodthis.com';
 
     // 1. Obtener los suscriptores desde Supabase
     const { data: suscriptores, error } = await supabase
