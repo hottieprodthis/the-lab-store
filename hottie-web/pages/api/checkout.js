@@ -65,8 +65,8 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      automatic_payment_methods: { enabled: true },
-      allow_promotion_codes: true, // <-- Casilla para introducir cupones en Stripe
+      payment_method_types: ['card', 'klarna', 'link'],
+      allow_promotion_codes: true,
       line_items: [
         {
           price_data: {
