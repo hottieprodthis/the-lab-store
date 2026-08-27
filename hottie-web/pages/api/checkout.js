@@ -54,6 +54,12 @@ export default async function handler(req, res) {
       ? `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`
       : `${siteUrl}/gracias?tipo=producto`;
 
+    // Si se cancela un servicio vuelve a /servicios.
+    // Si se cancela un producto vuelve a su ficha en la tienda o a /tienda.
+    const cancelUrl = isService
+      ? `${siteUrl}/servicios`
+      : (item.slug ? `${siteUrl}/tienda/${item.slug}?compra=cancelada` : `${siteUrl}/tienda`);
+
     // Extrae la URL probando file_url (donde está tu enlace en Supabase)
     const driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
 
@@ -76,7 +82,7 @@ export default async function handler(req, res) {
         },
       ],
       success_url: successUrl,
-      cancel_url: item.slug ? `${siteUrl}/tienda/${item.slug}?compra=cancelada` : `${siteUrl}/`,
+      cancel_url: cancelUrl,
       metadata: {
         product_id: String(item.id),
         is_service: isService ? 'true' : 'false',
