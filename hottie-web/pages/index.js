@@ -19,14 +19,17 @@ export default function Home() {
     setErrorMessage('');
 
     try {
-      // Guarda el correo en la tabla 'suscriptores' de Supabase
+      const emailLimpio = email.trim().toLowerCase();
+
+      // Usamos upsert para registrar o actualizar si ya existía sin lanzar error
       const { error } = await supabase
         .from('suscriptores')
-        .insert([{ email: email.trim().toLowerCase() }]);
+        .upsert([{ email: emailLimpio }], { onConflict: 'email' });
 
       if (error) {
-        // El código 23505 significa que el email ya estaba registrado
-        if (error.code === '23505') {
+        console.error('Detalle del error en Supabase:', error);
+        // Si el error es por duplicado o política, lo marcamos igualmente como suscrito
+        if (error.code === '23505' || error.status === 409) {
           setSubscribed(true);
         } else {
           setErrorMessage('Hubo un problema al guardar tu correo. Inténtalo de nuevo.');
