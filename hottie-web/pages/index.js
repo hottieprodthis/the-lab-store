@@ -3,16 +3,43 @@ import Link from 'next/link';
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Home() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (email) {
-      setSubscribed(true);
+    if (!email) return;
+
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      // Guarda el correo en la tabla 'suscriptores' de Supabase
+      const { error } = await supabase
+        .from('suscriptores')
+        .insert([{ email: email.trim().toLowerCase() }]);
+
+      if (error) {
+        // El código 23505 significa que el email ya estaba registrado
+        if (error.code === '23505') {
+          setSubscribed(true);
+        } else {
+          setErrorMessage('Hubo un problema al guardar tu correo. Inténtalo de nuevo.');
+        }
+      } else {
+        setSubscribed(true);
+      }
       setEmail('');
+    } catch (err) {
+      console.error('Error al suscribir:', err);
+      setErrorMessage('Ocurrió un error inesperado.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -109,10 +136,11 @@ export default function Home() {
               />
               <button
                 type="submit"
+                disabled={loading}
                 aria-label="Suscribirse"
-                className="flex items-center justify-center rounded-md bg-volt px-5 py-3 text-ink font-bold transition hover:bg-signal"
+                className="flex items-center justify-center rounded-md bg-volt px-5 py-3 text-ink font-bold transition hover:bg-signal disabled:opacity-50"
               >
-                ➔
+                {loading ? '...' : '➔'}
               </button>
             </div>
             <p className="text-xs text-muted font-body text-left">
@@ -123,6 +151,12 @@ export default function Home() {
           {subscribed && (
             <p className="mt-3 text-sm font-semibold text-signal">
               ¡Gracias! Te avisaremos cuando subamos nuevos productos o servicios.
+            </p>
+          )}
+
+          {errorMessage && (
+            <p className="mt-3 text-sm font-semibold text-red-400">
+              {errorMessage}
             </p>
           )}
         </div>
