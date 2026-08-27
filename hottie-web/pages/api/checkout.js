@@ -33,15 +33,13 @@ export default async function handler(req, res) {
 
     // OPCIÓN A: Compra acumulada desde el Carrito
     if (items && Array.isArray(items) && items.length > 0) {
-      
-      // Consultamos en Supabase las URLs reales de los productos del carrito
       const enrichedCart = await Promise.all(
         items.map(async (item) => {
           const table = item.isService ? 'services' : 'products';
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
+          let nameResolved = item.name || item.title || item.nombre || '';
 
-          // Si es un producto y no tiene URL en el estado del carrito, la traemos de Supabase
-          if (!downloadUrl && !item.isService && item.id) {
+          if (item.id) {
             const { data: dbItem } = await supabase
               .from(table)
               .select('*')
@@ -49,15 +47,21 @@ export default async function handler(req, res) {
               .single();
 
             if (dbItem) {
-              downloadUrl = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
+              if (!downloadUrl && !item.isService) {
+                downloadUrl = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
+              }
+              if (!nameResolved) {
+                nameResolved = dbItem.name || dbItem.title || dbItem.nombre || '';
+              }
             }
           }
 
+          if (!nameResolved) nameResolved = item.isService ? 'Servicio Digital' : 'Producto Digital';
           if (item.isService) hasService = true;
 
           return {
             id: item.id,
-            title: item.title || item.name || item.nombre || 'Producto Digital',
+            title: nameResolved,
             isService: !!item.isService,
             file_url: downloadUrl,
             quantity: item.quantity || 1,
@@ -82,7 +86,6 @@ export default async function handler(req, res) {
         quantity: item.quantity,
       }));
 
-      // Inyectamos el carrito completo con nombres y URLs en los metadata de Stripe
       metadataPayload = {
         cart_data: JSON.stringify(
           enrichedCart.map(i => ({
@@ -94,7 +97,7 @@ export default async function handler(req, res) {
         ),
       };
     } 
-    // OPCIÓN B: Compra directa instantánea (1 solo producto)
+    // OPCIÓN B: Compra directa instantánea
     else if (productId) {
       const table = isService ? 'services' : 'products';
       const { data: item, error } = await supabase
@@ -110,13 +113,14 @@ export default async function handler(req, res) {
       const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
       hasService = isService;
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
+      const nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
 
       lineItems = [
         {
           price_data: {
             currency: (item.moneda || item.currency || 'eur').toLowerCase(),
             product_data: {
-              name: item.title || item.name || item.nombre || 'Producto Digital',
+              name: nameResolved,
               description: item.description ? item.description.slice(0, 300) : undefined,
               images: item.image_url || item.imagen_url ? [item.image_url || item.imagen_url] : undefined,
             },
@@ -128,6 +132,7 @@ export default async function handler(req, res) {
 
       metadataPayload = {
         product_id: String(item.id),
+        product_name: nameResolved,
         is_service: isService ? 'true' : 'false',
         driveUrl: driveLink,
         file_url: driveLink,
