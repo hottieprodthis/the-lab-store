@@ -60,7 +60,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      // 1. Notificación instantánea para ti
+      // 1. Notificación instantánea de venta para ti
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'The Lab System <onboarding@resend.dev>',
+          from: 'The Lab System <pedidos@hottieprodthis.com>',
           to: ['pedidos.thelab@gmail.com'],
           subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
           html: `
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
         }),
       });
 
-      // 2. Correo instantáneo al cliente
+      // 2. Correo instantáneo con el producto para el cliente
       if (emailCliente) {
         const botonHtml = enlaceDrive 
           ? `<p><a href="${enlaceDrive}" style="background:#0070f3;color:#fff;padding:12px 20px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;">Acceder al archivo en Google Drive</a></p>`
@@ -94,7 +94,8 @@ export default async function handler(req, res) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'The Lab <onboarding@resend.dev>',
+            from: 'The Lab <pedidos@hottieprodthis.com>',
+            reply_to: 'pedidos.thelab@gmail.com',
             to: [emailCliente],
             subject: 'Tu pedido en The Lab - Acceso al producto',
             html: `
