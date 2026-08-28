@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -15,7 +14,7 @@ export default function Gracias() {
     // 1. Vaciar el estado en memoria mediante la función del Contexto
     if (clearCart) clearCart();
 
-    // 2. Limpiar todas las claves posibles del almacenamiento local por seguridad
+    // 2. Limpiar el almacenamiento local por seguridad
     localStorage.removeItem('hottie_cart');
     localStorage.removeItem('cart');
     localStorage.removeItem('cart_data');
@@ -59,19 +58,21 @@ export default function Gracias() {
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/"
-              className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110"
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110 cursor-pointer"
             >
               Inicio
-            </Link>
+            </button>
 
-            <Link
-              href="/contacto"
-              className="w-full sm:w-auto border border-white/20 text-paper font-semibold px-8 py-3 text-sm uppercase tracking-wider transition hover:border-white"
+            <button
+              type="button"
+              onClick={() => router.push('/contacto')}
+              className="w-full sm:w-auto border border-white/20 text-paper font-semibold px-8 py-3 text-sm uppercase tracking-wider transition hover:border-white cursor-pointer"
             >
               Contacto
-            </Link>
+            </button>
           </div>
         </div>
       </main>
