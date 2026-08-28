@@ -11,18 +11,20 @@ export default function Gracias() {
   const { clearCart } = useCart();
 
   useEffect(() => {
-    // 1. Vaciar el estado en memoria mediante la función del Contexto
-    if (clearCart) clearCart();
-
-    // 2. Limpiar el almacenamiento local por seguridad
-    localStorage.removeItem('hottie_cart');
-    localStorage.removeItem('cart');
-    localStorage.removeItem('cart_data');
-    localStorage.removeItem('carrito');
-
-    // 3. Notificar cambios a la ventana
-    window.dispatchEvent(new Event('storage'));
-  }, [clearCart]);
+    // Se ejecuta una sola vez al cargar la página
+    try {
+      if (typeof clearCart === 'function') {
+        clearCart();
+      }
+      localStorage.removeItem('hottie_cart');
+      localStorage.removeItem('cart');
+      localStorage.removeItem('cart_data');
+      localStorage.removeItem('carrito');
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {
+      console.error('Error vaciando carrito:', e);
+    }
+  }, []); // Sin dependencias para evitar bucles de renderizado
 
   const esServicio = tipo === 'servicio';
   const esMixto = tipo === 'mixto';
@@ -58,21 +60,19 @@ export default function Gracias() {
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => router.push('/')}
-              className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110 cursor-pointer"
+            <a
+              href="/"
+              className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110 inline-block"
             >
               Inicio
-            </button>
+            </a>
 
-            <button
-              type="button"
-              onClick={() => router.push('/contacto')}
-              className="w-full sm:w-auto border border-white/20 text-paper font-semibold px-8 py-3 text-sm uppercase tracking-wider transition hover:border-white cursor-pointer"
+            <a
+              href="/contacto"
+              className="w-full sm:w-auto border border-white/20 text-paper font-semibold px-8 py-3 text-sm uppercase tracking-wider transition hover:border-white inline-block"
             >
               Contacto
-            </button>
+            </a>
           </div>
         </div>
       </main>
