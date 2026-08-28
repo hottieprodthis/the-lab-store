@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { useCart } from '../context/cartcontext';
+import { useCart } from '../context/CartContext';
 
 export default function Gracias() {
   const router = useRouter();
@@ -13,7 +13,7 @@ export default function Gracias() {
 
   useEffect(() => {
     // 1. Vaciar el estado en memoria mediante la función del Contexto
-    clearCart();
+    if (clearCart) clearCart();
 
     // 2. Limpiar todas las claves posibles del almacenamiento local por seguridad
     localStorage.removeItem('hottie_cart');
