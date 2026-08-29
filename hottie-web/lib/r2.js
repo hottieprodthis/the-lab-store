@@ -8,4 +8,8 @@ export const r2Client = new S3Client({
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   },
   forcePathStyle: true,
+  requestHandler: {
+    // Evita que añada la cabecera host con el nombre del bucket
+    requestTimeout: 3000,
+  },
 });
