@@ -1,6 +1,6 @@
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { r2Client } from '../../lib/r2';
+import { r2Client } from '@/lib/r2';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -19,10 +19,8 @@ export default async function handler(req, res) {
       Key: file,
     });
 
-    // Genera la URL firmada con validez de 2 horas (7200 segundos)
     const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 7200 });
 
-    // Redirige al usuario al enlace de descarga de R2
     return res.redirect(307, signedUrl);
   } catch (error) {
     console.error('Error al generar la URL firmada:', error);
