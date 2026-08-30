@@ -7,7 +7,7 @@ export default function SearchBar() {
   const [loading, setLoading] = useState(false);
   const searchRef = useRef(null);
 
-  // Obtener productos y servicios desde Supabase al montar el componente
+  // Cargar catálogo de Supabase al montar el componente
   useEffect(() => {
     async function fetchCatalog() {
       setLoading(true);
@@ -17,7 +17,6 @@ export default function SearchBar() {
 
         if (!supabaseUrl || !supabaseAnonKey) return;
 
-        // Petición a la API REST de Supabase para traer los items
         const res = await fetch(`${supabaseUrl}/rest/v1/items?select=*`, {
           headers: {
             apikey: supabaseAnonKey,
@@ -27,10 +26,10 @@ export default function SearchBar() {
 
         if (res.ok) {
           const data = await res.json();
-          setItems(data);
+          setItems(data || []);
         }
       } catch (err) {
-        console.error('Error cargando el catálogo:', err);
+        console.error('Error cargando productos:', err);
       } finally {
         setLoading(false);
       }
@@ -39,7 +38,7 @@ export default function SearchBar() {
     fetchCatalog();
   }, []);
 
-  // Cerrar al hacer clic fuera del buscador
+  // Cerrar desplegable si hace clic fuera
   useEffect(() => {
     function handleClickOutside(event) {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -50,13 +49,17 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtrar productos/servicios por título o categoría/descripción
+  // Filtrado ultra flexible: busca en TODOS los campos de la tabla
   const filtered = items.filter(item => {
-    const titleMatch = item.title || item.nombre || item.name || '';
-    const categoryMatch = item.category || item.categoria || item.subcategory || '';
-    const q = query.toLowerCase();
+    if (!query.trim()) return false;
+    const q = query.toLowerCase().trim();
 
-    return titleMatch.toLowerCase().includes(q) || categoryMatch.toLowerCase().includes(q);
+    // Convertimos todos los valores del objeto a texto para buscar coincidencia en cualquier columna
+    const allValuesText = Object.values(item)
+      .map(val => (val !== null && val !== undefined ? String(val).toLowerCase() : ''))
+      .join(' ');
+
+    return allValuesText.includes(q);
   });
 
   return (
@@ -79,7 +82,7 @@ export default function SearchBar() {
           </div>
         </div>
 
-        {/* Campo de texto */}
+        {/* Input de texto */}
         <input
           type="text"
           value={query}
@@ -101,13 +104,13 @@ export default function SearchBar() {
         )}
       </div>
 
-      {/* Menú desplegable de resultados */}
+      {/* Ventana flotante de resultados */}
       {isOpen && query.trim().length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
             {loading ? (
               <div className="p-4 text-center text-xs text-neutral-500 font-mono animate-pulse">
-                Cargando productos...
+                Buscando en Supabase...
               </div>
             ) : filtered.length === 0 ? (
               <div className="p-6 text-center text-xs text-neutral-400">
@@ -115,20 +118,21 @@ export default function SearchBar() {
               </div>
             ) : (
               filtered.map((item) => {
-                const title = item.title || item.nombre || item.name;
-                const category = item.category || item.categoria || item.type || 'Ítem';
-                const price = item.price || item.precio;
-                const image = item.image || item.image_url || item.imagen;
+                const title = item.title ?? item.nombre ?? item.name ?? item.title_es ?? String(item.id ?? 'Sin título');
+                const category = item.category ?? item.categoria ?? item.type ?? item.subcategory ?? 'Producto';
+                const price = item.price ?? item.precio;
+                const image = item.image ?? item.image_url ?? item.imagen;
+                const itemId = item.id ?? '';
 
                 return (
                   <a
-                    key={item.id}
-                    href={category.toLowerCase().includes('servicio') ? `/servicios#${item.id}` : `/tienda#${item.id}`}
+                    key={itemId || Math.random()}
+                    href={String(category).toLowerCase().includes('servicio') ? `/servicios` : `/tienda`}
                     className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-900 transition-all cursor-pointer group block"
                   >
                     <div className="flex items-center gap-3">
                       {image ? (
-                        <img src={image} alt={title} className="w-9 h-9 rounded-lg object-cover" />
+                        <img src={image} alt={String(title)} className="w-9 h-9 rounded-lg object-cover" />
                       ) : (
                         <div className="w-9 h-9 rounded-lg bg-neutral-800 flex items-center justify-center text-xs font-bold text-[#CCFF00]">
                           LAB
@@ -136,10 +140,12 @@ export default function SearchBar() {
                       )}
                       <div>
                         <h4 className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors">{title}</h4>
-                        <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{category}</span>
+                        <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{String(category)}</span>
                       </div>
                     </div>
-                    {price && <span className="text-xs font-black text-[#CCFF00]">{price}€</span>}
+                    {price !== undefined && price !== null && (
+                      <span className="text-xs font-black text-[#CCFF00]">{price}€</span>
+                    )}
                   </a>
                 );
               })
