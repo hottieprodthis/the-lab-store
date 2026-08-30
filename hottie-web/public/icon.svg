@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="512" height="512" fill="none" stroke="#CCFF00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Líquido interior con offset paralelo exacto de 1.4 unidades -->
+  <path d="M 8.8 15 C 10.9 14.1 13.1 14.1 15.2 15 L 16.6 17.4 C 17.0 18.1 16.5 19.0 15.7 19.0 H 8.3 C 7.5 19.0 7.0 18.1 7.4 17.4 Z" 
+        fill="#CCFF00" 
+        stroke="none" />
+
+  <!-- Silueta exterior del matraz -->
+  <path d="M 10 2 v 6 L 4.2 18.3 A 2 2 0 0 0 5.9 21.3 h 12.2 a 2 2 0 0 0 1.7 -3 L 14 8 V 2" />
+  <line x1="8" y1="2" x2="16" y2="2" />
+</svg>
