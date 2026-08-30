@@ -169,9 +169,9 @@ export default function SearchBar() {
                 const image = item.image_url ?? item.imagen_url ?? item.image ?? item.imagen;
                 const isService = category.includes('SERVICIO');
 
-                // Identificador único (slug o id) para construir la URL individual
                 const identifier = item.slug || item.id;
-                const itemUrl = isService ? `/servicios/${identifier}` : `/tienda/${identifier}`;
+                // Redirección arreglada: la tienda va a /tienda/id y servicios va a /servicios
+                const itemUrl = isService ? `/servicios` : `/tienda/${identifier}`;
 
                 return (
                   <a
