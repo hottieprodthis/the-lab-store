@@ -7,39 +7,6 @@ const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
-// Función inteligente que escanea el objeto completo buscando el precio exacto
-function getExactPrice(item) {
-  if (!item || typeof item !== 'object') return '';
-
-  // 1. Buscar primero en las propiedades conocidas de precio
-  const keys = Object.keys(item);
-  const priceKey = keys.find(k => k.toLowerCase().includes('precio') || k.toLowerCase().includes('price') || k.toLowerCase().includes('cost') || k.toLowerCase().includes('monto'));
-
-  if (priceKey && item[priceKey] !== null && item[priceKey] !== undefined) {
-    const val = item[priceKey];
-    if (typeof val === 'number') return `${val.toFixed(2).replace('.', ',')}€`;
-    if (typeof val === 'string' && val.trim()) {
-      return val.includes('€') ? val : `${val.trim()}€`;
-    }
-  }
-
-  // 2. Si no lo encuentra por clave, buscar cualquier valor en el objeto que parezca un precio o número
-  for (const key of keys) {
-    // Evitamos campos de ID, fecha o URLs
-    if (['id', 'created_at', 'updated_at', 'image', 'imagen', 'image_url', 'url'].includes(key.toLowerCase())) continue;
-    
-    const val = item[key];
-    if (typeof val === 'number' && val > 0) {
-      return `${val.toFixed(2).replace('.', ',')}€`;
-    }
-    if (typeof val === 'string' && (val.includes('€') || /^\d+([.,]\d+)?$/.test(val.trim()))) {
-      return val.includes('€') ? val : `${val.trim()}€`;
-    }
-  }
-
-  return '';
-}
-
 export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +21,6 @@ export default function SearchBar() {
       try {
         let allItems = [];
 
-        // Consultar todas las tablas posibles en Supabase
         const [resProducts, resServices, resItems, resProductos, resServicios] = await Promise.allSettled([
           supabase.from('products').select('*'),
           supabase.from('services').select('*'),
@@ -63,27 +29,16 @@ export default function SearchBar() {
           supabase.from('servicios').select('*'),
         ]);
 
-        if (resProducts.status === 'fulfilled' && resProducts.value.data) {
-          allItems.push(...resProducts.value.data.map(i => ({ ...i, categoryType: 'PRODUCTO' })));
-        }
-        if (resServices.status === 'fulfilled' && resServices.value.data) {
-          allItems.push(...resServices.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
-        }
-        if (resItems.status === 'fulfilled' && resItems.value.data) {
-          allItems.push(...resItems.value.data.map(i => ({ ...i, categoryType: i.category || 'ITEM' })));
-        }
-        if (resProductos.status === 'fulfilled' && resProductos.value.data) {
-          allItems.push(...resProductos.value.data.map(i => ({ ...i, categoryType: 'PRODUCTO' })));
-        }
-        if (resServicios.status === 'fulfilled' && resServicios.value.data) {
-          allItems.push(...resServicios.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
-        }
+        if (resProducts.status === 'fulfilled' && resProducts.value.data) allItems.push(...resProducts.value.data);
+        if (resServices.status === 'fulfilled' && resServices.value.data) allItems.push(...resServices.value.data);
+        if (resItems.status === 'fulfilled' && resItems.value.data) allItems.push(...resItems.value.data);
+        if (resProductos.status === 'fulfilled' && resProductos.value.data) allItems.push(...resProductos.value.data);
+        if (resServicios.status === 'fulfilled' && resServicios.value.data) allItems.push(...resServicios.value.data);
 
-        // Evitar duplicados
         const uniqueItems = Array.from(new Map(allItems.map(item => [item.id || JSON.stringify(item), item])).values());
         setItems(uniqueItems);
       } catch (err) {
-        console.error('Error cargando el catálogo:', err);
+        console.error('Error:', err);
       } finally {
         setLoading(false);
       }
@@ -102,15 +57,11 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtrado ultra preciso por el título o nombre del producto/servicio
   const filtered = items.filter(item => {
     if (!query.trim()) return false;
     const q = query.toLowerCase().trim();
-
-    const title = String(item.nombre || item.title || item.name || item.title_es || item.id || '').toLowerCase().trim();
-    const category = String(item.categoryType || item.categoria || item.category || '').toLowerCase().trim();
-
-    return title === q || title.includes(q) || category.includes(q);
+    const strData = JSON.stringify(item).toLowerCase();
+    return strData.includes(q);
   });
 
   return (
@@ -118,90 +69,30 @@ export default function SearchBar() {
       <div className={`relative flex items-center bg-[#111111] rounded-full border transition-all duration-300 ${
         isOpen ? 'border-[#CCFF00] shadow-[0_0_20px_rgba(204,255,0,0.25)]' : 'border-neutral-800 hover:border-neutral-700'
       }`}>
-        
-        {/* Lupa verde #CCFF00 + Ecualizador animado */}
         <div className="pl-4 text-[#CCFF00] flex items-center gap-2.5 pointer-events-none shrink-0">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          
-          <div className="flex items-end gap-[3px] h-3.5 pr-2 border-r border-neutral-800">
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_100ms] h-full"></span>
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_300ms] h-2/3"></span>
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_200ms] h-5/6"></span>
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_400ms] h-1/2"></span>
-          </div>
         </div>
 
-        {/* Campo de búsqueda */}
         <input
           type="text"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Buscar en el laboratorio..."
-          className="w-full bg-transparent py-2.5 pl-2.5 pr-10 text-xs md:text-sm text-white placeholder-neutral-500 focus:outline-none tracking-wide"
+          placeholder="Buscar..."
+          className="w-full bg-transparent py-2.5 pl-2.5 pr-10 text-xs text-white placeholder-neutral-500 focus:outline-none"
         />
-
-        {query && (
-          <button 
-            onClick={() => { setQuery(''); setIsOpen(false); }} 
-            className="absolute right-3 p-1 rounded-full text-neutral-400 hover:text-[#CCFF00]"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
       </div>
 
-      {/* Lista Desplegable de Resultados */}
       {isOpen && query.trim().length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
-          <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
-            {loading ? (
-              <div className="p-4 text-center text-xs text-neutral-500 font-mono animate-pulse">
-                Cargando catálogo...
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="p-6 text-center text-xs text-neutral-400">
-                No se encontraron resultados para "<span className="text-[#CCFF00]">{query}</span>"
-              </div>
-            ) : (
-              filtered.map((item) => {
-                const title = item.nombre ?? item.title ?? item.name ?? String(item.id ?? 'Sin nombre');
-                const category = item.categoryType || item.categoria || item.category || 'GENERAL';
-                const priceFormatted = getExactPrice(item);
-                const image = item.imagen ?? item.image ?? item.image_url;
-                const isService = String(category).toLowerCase().includes('servicio');
-
-                return (
-                  <a
-                    key={item.id || Math.random()}
-                    href={isService ? `/servicios` : `/tienda`}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-900 transition-all cursor-pointer group block"
-                  >
-                    <div className="flex items-center gap-3">
-                      {image ? (
-                        <img src={image} alt={String(title)} className="w-9 h-9 rounded-lg object-cover" />
-                      ) : (
-                        <div className="w-9 h-9 rounded-lg bg-neutral-800 flex items-center justify-center text-xs font-bold text-[#CCFF00]">
-                          LAB
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors">{title}</h4>
-                        <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{String(category)}</span>
-                      </div>
-                    </div>
-                    {priceFormatted ? (
-                      <span className="text-xs font-black text-[#CCFF00]">{priceFormatted}</span>
-                    ) : null}
-                  </a>
-                );
-              })
-            )}
-          </div>
+        <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl p-3 z-50 text-left">
+          {filtered.map((item, idx) => (
+            <div key={idx} className="p-2 mb-2 bg-neutral-900 rounded-lg text-[11px] font-mono text-green-400 break-all">
+              <strong>DATOS RECIBIDOS:</strong>
+              <pre className="text-white mt-1 whitespace-pre-wrap">{JSON.stringify(item, null, 2)}</pre>
+            </div>
+          ))}
         </div>
       )}
     </div>
