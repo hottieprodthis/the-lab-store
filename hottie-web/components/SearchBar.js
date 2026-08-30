@@ -1,10 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function SearchBar({ catalog = [] }) {
+export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
   const searchRef = useRef(null);
 
+  // Obtener productos y servicios desde Supabase al montar el componente
+  useEffect(() => {
+    async function fetchCatalog() {
+      setLoading(true);
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseAnonKey) return;
+
+        // Petición a la API REST de Supabase para traer los items
+        const res = await fetch(`${supabaseUrl}/rest/v1/items?select=*`, {
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setItems(data);
+        }
+      } catch (err) {
+        console.error('Error cargando el catálogo:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCatalog();
+  }, []);
+
+  // Cerrar al hacer clic fuera del buscador
   useEffect(() => {
     function handleClickOutside(event) {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -15,10 +50,14 @@ export default function SearchBar({ catalog = [] }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filtered = catalog.filter(item => 
-    item.title?.toLowerCase().includes(query.toLowerCase()) ||
-    item.subcategory?.toLowerCase().includes(query.toLowerCase())
-  );
+  // Filtrar productos/servicios por título o categoría/descripción
+  const filtered = items.filter(item => {
+    const titleMatch = item.title || item.nombre || item.name || '';
+    const categoryMatch = item.category || item.categoria || item.subcategory || '';
+    const q = query.toLowerCase();
+
+    return titleMatch.toLowerCase().includes(q) || categoryMatch.toLowerCase().includes(q);
+  });
 
   return (
     <div ref={searchRef} className="relative flex-1 max-w-md lg:max-w-lg mx-2">
@@ -62,27 +101,48 @@ export default function SearchBar({ catalog = [] }) {
         )}
       </div>
 
-      {/* Menú de resultados */}
+      {/* Menú desplegable de resultados */}
       {isOpen && query.trim().length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div className="p-4 text-center text-xs text-neutral-500 font-mono animate-pulse">
+                Cargando productos...
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="p-6 text-center text-xs text-neutral-400">
                 No se encontraron resultados para "<span className="text-[#CCFF00]">{query}</span>"
               </div>
             ) : (
-              filtered.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-900 transition-all cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    {item.image && <img src={item.image} alt={item.title} className="w-9 h-9 rounded-lg object-cover" />}
-                    <div>
-                      <h4 className="text-xs font-bold text-white hover:text-[#CCFF00]">{item.title}</h4>
-                      <span className="text-[10px] text-neutral-400">{item.subcategory}</span>
+              filtered.map((item) => {
+                const title = item.title || item.nombre || item.name;
+                const category = item.category || item.categoria || item.type || 'Ítem';
+                const price = item.price || item.precio;
+                const image = item.image || item.image_url || item.imagen;
+
+                return (
+                  <a
+                    key={item.id}
+                    href={category.toLowerCase().includes('servicio') ? `/servicios#${item.id}` : `/tienda#${item.id}`}
+                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-900 transition-all cursor-pointer group block"
+                  >
+                    <div className="flex items-center gap-3">
+                      {image ? (
+                        <img src={image} alt={title} className="w-9 h-9 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg bg-neutral-800 flex items-center justify-center text-xs font-bold text-[#CCFF00]">
+                          LAB
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors">{title}</h4>
+                        <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{category}</span>
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-xs font-black text-[#CCFF00]">{item.price}</span>
-                </div>
-              ))
+                    {price && <span className="text-xs font-black text-[#CCFF00]">{price}€</span>}
+                  </a>
+                );
+              })
             )}
           </div>
         </div>
