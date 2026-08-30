@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, ChevronRight } from 'lucide-react';
 
 export default function SearchBar({ catalog = [] }) {
   const [query, setQuery] = useState('');
@@ -27,9 +26,11 @@ export default function SearchBar({ catalog = [] }) {
         isOpen ? 'border-[#CCFF00] shadow-[0_0_20px_rgba(204,255,0,0.25)]' : 'border-neutral-800 hover:border-neutral-700'
       }`}>
         
-        {/* Lupa verde #CCFF00 + Onda ecualizadora animada integradas */}
+        {/* Lupa verde #CCFF00 + Ecualizador animado */}
         <div className="pl-4 text-[#CCFF00] flex items-center gap-2.5 pointer-events-none shrink-0">
-          <Search className="w-4 h-4 text-[#CCFF00]" />
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           
           <div className="flex items-end gap-[3px] h-3.5 pr-2 border-r border-neutral-800">
             <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_100ms] h-full"></span>
@@ -39,7 +40,7 @@ export default function SearchBar({ catalog = [] }) {
           </div>
         </div>
 
-        {/* Texto limpio y profesional */}
+        {/* Campo de texto */}
         <input
           type="text"
           value={query}
@@ -54,12 +55,14 @@ export default function SearchBar({ catalog = [] }) {
             onClick={() => { setQuery(''); setIsOpen(false); }} 
             className="absolute right-3 p-1 rounded-full text-neutral-400 hover:text-[#CCFF00]"
           >
-            <X className="w-4 h-4" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         )}
       </div>
 
-      {/* Resultados desplegables */}
+      {/* Menú de resultados */}
       {isOpen && query.trim().length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
@@ -71,7 +74,7 @@ export default function SearchBar({ catalog = [] }) {
               filtered.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-900 transition-all cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <img src={item.image} alt={item.title} className="w-9 h-9 rounded-lg object-cover" />
+                    {item.image && <img src={item.image} alt={item.title} className="w-9 h-9 rounded-lg object-cover" />}
                     <div>
                       <h4 className="text-xs font-bold text-white hover:text-[#CCFF00]">{item.title}</h4>
                       <span className="text-[10px] text-neutral-400">{item.subcategory}</span>
