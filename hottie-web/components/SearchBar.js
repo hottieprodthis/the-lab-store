@@ -11,7 +11,6 @@ const supabase = (supabaseUrl && supabaseAnonKey)
 function getItemPrice(item) {
   if (!item) return '';
 
-  // 1. Usar price_cents si existe (ej: 100 céntimos -> 1.00€)
   if (item.price_cents !== undefined && item.price_cents !== null && item.price_cents > 0) {
     const euros = (item.price_cents / 100).toFixed(2).replace('.', ',');
     return `${euros}€`;
@@ -21,12 +20,10 @@ function getItemPrice(item) {
     return `${euros}€`;
   }
 
-  // 2. Si es 0 céntimos pero el precio es 0
   if (item.price_cents === 0 || item.precio_centimos === 0) {
     return '0,00€';
   }
 
-  // 3. Revisar campos secundarios
   const val = item.precio ?? item.price;
   if (typeof val === 'number') {
     return `${val.toFixed(2).replace('.', ',')}€`;
@@ -98,7 +95,6 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtrado estricto solo por nombre, slug o tipo (evita coincidir con la fecha created_at)
   const filtered = items.filter(item => {
     if (!query.trim()) return false;
     const q = query.toLowerCase().trim();
@@ -173,10 +169,14 @@ export default function SearchBar() {
                 const image = item.image_url ?? item.imagen_url ?? item.image ?? item.imagen;
                 const isService = category.includes('SERVICIO');
 
+                // Identificador único (slug o id) para construir la URL individual
+                const identifier = item.slug || item.id;
+                const itemUrl = isService ? `/servicios/${identifier}` : `/tienda/${identifier}`;
+
                 return (
                   <a
                     key={item.id || Math.random()}
-                    href={isService ? `/servicios` : `/tienda`}
+                    href={itemUrl}
                     className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-900 transition-all cursor-pointer group block"
                   >
                     <div className="flex items-center gap-3">
