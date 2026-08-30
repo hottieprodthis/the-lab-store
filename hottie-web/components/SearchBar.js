@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicializar cliente Supabase con las variables de entorno de Vercel
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = (supabaseUrl && supabaseAnonKey) 
@@ -15,7 +14,6 @@ export default function SearchBar() {
   const [loading, setLoading] = useState(false);
   const searchRef = useRef(null);
 
-  // Cargar Productos y Servicios desde Supabase
   useEffect(() => {
     async function fetchAllData() {
       if (!supabase) return;
@@ -23,37 +21,31 @@ export default function SearchBar() {
       try {
         let allItems = [];
 
-        // 1. Intentar cargar de las tablas principales 'items', 'products', 'services'
-        const [resItems, resProducts, resServices, resProductos, resServicios] = await Promise.allSettled([
-          supabase.from('items').select('*'),
+        const [resProducts, resServices, resItems, resProductos, resServicios] = await Promise.allSettled([
           supabase.from('products').select('*'),
           supabase.from('services').select('*'),
+          supabase.from('items').select('*'),
           supabase.from('productos').select('*'),
           supabase.from('servicios').select('*'),
         ]);
 
-        // Extraer y etiquetar según la procedencia
-        if (resItems.status === 'fulfilled' && resItems.value.data) {
-          allItems.push(...resItems.value.data);
-        }
         if (resProducts.status === 'fulfilled' && resProducts.value.data) {
-          const prods = resProducts.value.data.map(i => ({ ...i, category: i.category || 'Producto' }));
-          allItems.push(...prods);
+          allItems.push(...resProducts.value.data.map(i => ({ ...i, categoryType: 'PRODUCTO' })));
         }
         if (resServices.status === 'fulfilled' && resServices.value.data) {
-          const servs = resServices.value.data.map(i => ({ ...i, category: i.category || 'Servicio' }));
-          allItems.push(...servs);
+          allItems.push(...resServices.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
+        }
+        if (resItems.status === 'fulfilled' && resItems.value.data) {
+          allItems.push(...resItems.value.data.map(i => ({ ...i, categoryType: i.category || 'ITEM' })));
         }
         if (resProductos.status === 'fulfilled' && resProductos.value.data) {
-          const prods = resProductos.value.data.map(i => ({ ...i, category: i.category || 'Producto' }));
-          allItems.push(...prods);
+          allItems.push(...resProductos.value.data.map(i => ({ ...i, categoryType: 'PRODUCTO' })));
         }
         if (resServicios.status === 'fulfilled' && resServicios.value.data) {
-          const servs = resServicios.value.data.map(i => ({ ...i, category: i.category || 'Servicio' }));
-          allItems.push(...servs);
+          allItems.push(...resServicios.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
         }
 
-        // Eliminar duplicados por id si los hubiera
+        // Eliminar duplicados
         const uniqueItems = Array.from(new Map(allItems.map(item => [item.id || JSON.stringify(item), item])).values());
         setItems(uniqueItems);
       } catch (err) {
@@ -66,7 +58,6 @@ export default function SearchBar() {
     fetchAllData();
   }, []);
 
-  // Cerrar al hacer clic fuera del buscador
   useEffect(() => {
     function handleClickOutside(event) {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -77,18 +68,16 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtrar por cualquier palabra, número o coincidencia
+  // Filtrado preciso: Solo busca en el nombre/título y la categoría visible
   const filtered = items.filter(item => {
     if (!query.trim()) return false;
     const q = query.toLowerCase().trim();
 
-    // Obtener texto completo de todas las propiedades del producto/servicio
-    const fullText = Object.values(item)
-      .filter(val => val !== null && val !== undefined)
-      .map(val => String(val).toLowerCase())
-      .join(' ');
+    const title = String(item.nombre || item.title || item.name || item.title_es || '').toLowerCase();
+    const category = String(item.categoryType || item.categoria || item.category || '').toLowerCase();
+    const description = String(item.description || item.descripcion || '').toLowerCase();
 
-    return fullText.includes(q);
+    return title.includes(q) || category.includes(q) || description.includes(q);
   });
 
   return (
@@ -111,7 +100,7 @@ export default function SearchBar() {
           </div>
         </div>
 
-        {/* Input de búsqueda */}
+        {/* Input */}
         <input
           type="text"
           value={query}
@@ -133,7 +122,7 @@ export default function SearchBar() {
         )}
       </div>
 
-      {/* Resultados desplegables */}
+      {/* Menú de resultados */}
       {isOpen && query.trim().length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
@@ -147,11 +136,17 @@ export default function SearchBar() {
               </div>
             ) : (
               filtered.map((item) => {
-                const title = item.nombre ?? item.title ?? item.name ?? String(item.id ?? 'Item');
-                const category = item.categoria ?? item.category ?? item.type ?? 'General';
-                const price = item.precio ?? item.price;
+                const title = item.nombre ?? item.title ?? item.name ?? 'Sin nombre';
+                const category = item.categoryType || item.categoria || item.category || 'GENERAL';
+                
+                // Extracción de precio multiformato (comprueba todas las propiedades de precio)
+                const rawPrice = item.precio ?? item.price ?? item.cost ?? item.amount;
+                const priceFormatted = rawPrice !== undefined && rawPrice !== null 
+                  ? `${typeof rawPrice === 'number' ? rawPrice.toFixed(2) : rawPrice}€`
+                  : '—';
+
                 const image = item.imagen ?? item.image ?? item.image_url;
-                const isService = String(category).toLowerCase().includes('servicio') || Boolean(item.tipo === 'servicio');
+                const isService = String(category).toLowerCase().includes('servicio');
 
                 return (
                   <a
@@ -172,9 +167,7 @@ export default function SearchBar() {
                         <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{String(category)}</span>
                       </div>
                     </div>
-                    {price !== undefined && price !== null && (
-                      <span className="text-xs font-black text-[#CCFF00]">{price}€</span>
-                    )}
+                    <span className="text-xs font-black text-[#CCFF00]">{priceFormatted}</span>
                   </a>
                 );
               })
