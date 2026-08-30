@@ -7,25 +7,36 @@ const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
-// Función para extraer el precio real sin importar cómo esté guardado en Supabase
-function getCleanPrice(item) {
-  const possibleValues = [
-    item.precio, item.price, item.cost, item.amount, item.precio_eur, item.price_eur
-  ];
+// Función inteligente que escanea el objeto completo buscando el precio exacto
+function getExactPrice(item) {
+  if (!item || typeof item !== 'object') return '';
 
-  for (const val of possibleValues) {
-    if (val !== undefined && val !== null && val !== '') {
-      // Si ya viene con formato texto (ej: "1,00 €" o "1,00")
-      if (typeof val === 'string') {
-        const cleaned = val.replace('€', '').trim();
-        if (cleaned) return `${cleaned}€`;
-      }
-      // Si es un número (ej: 1 o 1.5)
-      if (typeof val === 'number') {
-        return `${val.toFixed(2).replace('.', ',')}€`;
-      }
+  // 1. Buscar primero en las propiedades conocidas de precio
+  const keys = Object.keys(item);
+  const priceKey = keys.find(k => k.toLowerCase().includes('precio') || k.toLowerCase().includes('price') || k.toLowerCase().includes('cost') || k.toLowerCase().includes('monto'));
+
+  if (priceKey && item[priceKey] !== null && item[priceKey] !== undefined) {
+    const val = item[priceKey];
+    if (typeof val === 'number') return `${val.toFixed(2).replace('.', ',')}€`;
+    if (typeof val === 'string' && val.trim()) {
+      return val.includes('€') ? val : `${val.trim()}€`;
     }
   }
+
+  // 2. Si no lo encuentra por clave, buscar cualquier valor en el objeto que parezca un precio o número
+  for (const key of keys) {
+    // Evitamos campos de ID, fecha o URLs
+    if (['id', 'created_at', 'updated_at', 'image', 'imagen', 'image_url', 'url'].includes(key.toLowerCase())) continue;
+    
+    const val = item[key];
+    if (typeof val === 'number' && val > 0) {
+      return `${val.toFixed(2).replace('.', ',')}€`;
+    }
+    if (typeof val === 'string' && (val.includes('€') || /^\d+([.,]\d+)?$/.test(val.trim()))) {
+      return val.includes('€') ? val : `${val.trim()}€`;
+    }
+  }
+
   return '';
 }
 
@@ -43,6 +54,7 @@ export default function SearchBar() {
       try {
         let allItems = [];
 
+        // Consultar todas las tablas posibles en Supabase
         const [resProducts, resServices, resItems, resProductos, resServicios] = await Promise.allSettled([
           supabase.from('products').select('*'),
           supabase.from('services').select('*'),
@@ -67,10 +79,11 @@ export default function SearchBar() {
           allItems.push(...resServicios.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
         }
 
+        // Evitar duplicados
         const uniqueItems = Array.from(new Map(allItems.map(item => [item.id || JSON.stringify(item), item])).values());
         setItems(uniqueItems);
       } catch (err) {
-        console.error('Error cargando buscador:', err);
+        console.error('Error cargando el catálogo:', err);
       } finally {
         setLoading(false);
       }
@@ -89,15 +102,15 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtrado por título/nombre del producto o servicio
+  // Filtrado ultra preciso por el título o nombre del producto/servicio
   const filtered = items.filter(item => {
     if (!query.trim()) return false;
     const q = query.toLowerCase().trim();
 
-    const title = String(item.nombre || item.title || item.name || item.title_es || '').toLowerCase();
-    const category = String(item.categoryType || item.categoria || item.category || '').toLowerCase();
+    const title = String(item.nombre || item.title || item.name || item.title_es || item.id || '').toLowerCase().trim();
+    const category = String(item.categoryType || item.categoria || item.category || '').toLowerCase().trim();
 
-    return title.includes(q) || category.includes(q);
+    return title === q || title.includes(q) || category.includes(q);
   });
 
   return (
@@ -120,7 +133,7 @@ export default function SearchBar() {
           </div>
         </div>
 
-        {/* Input */}
+        {/* Campo de búsqueda */}
         <input
           type="text"
           value={query}
@@ -142,7 +155,7 @@ export default function SearchBar() {
         )}
       </div>
 
-      {/* Menú de resultados */}
+      {/* Lista Desplegable de Resultados */}
       {isOpen && query.trim().length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
@@ -156,9 +169,9 @@ export default function SearchBar() {
               </div>
             ) : (
               filtered.map((item) => {
-                const title = item.nombre ?? item.title ?? item.name ?? 'Sin nombre';
+                const title = item.nombre ?? item.title ?? item.name ?? String(item.id ?? 'Sin nombre');
                 const category = item.categoryType || item.categoria || item.category || 'GENERAL';
-                const priceFormatted = getCleanPrice(item);
+                const priceFormatted = getExactPrice(item);
                 const image = item.imagen ?? item.image ?? item.image_url;
                 const isService = String(category).toLowerCase().includes('servicio');
 
@@ -181,9 +194,9 @@ export default function SearchBar() {
                         <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{String(category)}</span>
                       </div>
                     </div>
-                    {priceFormatted && (
+                    {priceFormatted ? (
                       <span className="text-xs font-black text-[#CCFF00]">{priceFormatted}</span>
-                    )}
+                    ) : null}
                   </a>
                 );
               })
