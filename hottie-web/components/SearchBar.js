@@ -1,4 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// Inicializar cliente Supabase con las variables de entorno de Vercel
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = (supabaseUrl && supabaseAnonKey) 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null;
 
 export default function SearchBar() {
   const [query, setQuery] = useState('');
@@ -7,38 +15,58 @@ export default function SearchBar() {
   const [loading, setLoading] = useState(false);
   const searchRef = useRef(null);
 
-  // Cargar catálogo de Supabase al montar el componente
+  // Cargar Productos y Servicios desde Supabase
   useEffect(() => {
-    async function fetchCatalog() {
+    async function fetchAllData() {
+      if (!supabase) return;
       setLoading(true);
       try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        let allItems = [];
 
-        if (!supabaseUrl || !supabaseAnonKey) return;
+        // 1. Intentar cargar de las tablas principales 'items', 'products', 'services'
+        const [resItems, resProducts, resServices, resProductos, resServicios] = await Promise.allSettled([
+          supabase.from('items').select('*'),
+          supabase.from('products').select('*'),
+          supabase.from('services').select('*'),
+          supabase.from('productos').select('*'),
+          supabase.from('servicios').select('*'),
+        ]);
 
-        const res = await fetch(`${supabaseUrl}/rest/v1/items?select=*`, {
-          headers: {
-            apikey: supabaseAnonKey,
-            Authorization: `Bearer ${supabaseAnonKey}`,
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data || []);
+        // Extraer y etiquetar según la procedencia
+        if (resItems.status === 'fulfilled' && resItems.value.data) {
+          allItems.push(...resItems.value.data);
         }
+        if (resProducts.status === 'fulfilled' && resProducts.value.data) {
+          const prods = resProducts.value.data.map(i => ({ ...i, category: i.category || 'Producto' }));
+          allItems.push(...prods);
+        }
+        if (resServices.status === 'fulfilled' && resServices.value.data) {
+          const servs = resServices.value.data.map(i => ({ ...i, category: i.category || 'Servicio' }));
+          allItems.push(...servs);
+        }
+        if (resProductos.status === 'fulfilled' && resProductos.value.data) {
+          const prods = resProductos.value.data.map(i => ({ ...i, category: i.category || 'Producto' }));
+          allItems.push(...prods);
+        }
+        if (resServicios.status === 'fulfilled' && resServicios.value.data) {
+          const servs = resServicios.value.data.map(i => ({ ...i, category: i.category || 'Servicio' }));
+          allItems.push(...servs);
+        }
+
+        // Eliminar duplicados por id si los hubiera
+        const uniqueItems = Array.from(new Map(allItems.map(item => [item.id || JSON.stringify(item), item])).values());
+        setItems(uniqueItems);
       } catch (err) {
-        console.error('Error cargando productos:', err);
+        console.error('Error cargando buscador:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchCatalog();
+    fetchAllData();
   }, []);
 
-  // Cerrar desplegable si hace clic fuera
+  // Cerrar al hacer clic fuera del buscador
   useEffect(() => {
     function handleClickOutside(event) {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -49,17 +77,18 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtrado ultra flexible: busca en TODOS los campos de la tabla
+  // Filtrar por cualquier palabra, número o coincidencia
   const filtered = items.filter(item => {
     if (!query.trim()) return false;
     const q = query.toLowerCase().trim();
 
-    // Convertimos todos los valores del objeto a texto para buscar coincidencia en cualquier columna
-    const allValuesText = Object.values(item)
-      .map(val => (val !== null && val !== undefined ? String(val).toLowerCase() : ''))
+    // Obtener texto completo de todas las propiedades del producto/servicio
+    const fullText = Object.values(item)
+      .filter(val => val !== null && val !== undefined)
+      .map(val => String(val).toLowerCase())
       .join(' ');
 
-    return allValuesText.includes(q);
+    return fullText.includes(q);
   });
 
   return (
@@ -82,7 +111,7 @@ export default function SearchBar() {
           </div>
         </div>
 
-        {/* Input de texto */}
+        {/* Input de búsqueda */}
         <input
           type="text"
           value={query}
@@ -104,13 +133,13 @@ export default function SearchBar() {
         )}
       </div>
 
-      {/* Ventana flotante de resultados */}
+      {/* Resultados desplegables */}
       {isOpen && query.trim().length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
             {loading ? (
               <div className="p-4 text-center text-xs text-neutral-500 font-mono animate-pulse">
-                Buscando en Supabase...
+                Cargando catálogo...
               </div>
             ) : filtered.length === 0 ? (
               <div className="p-6 text-center text-xs text-neutral-400">
@@ -118,16 +147,16 @@ export default function SearchBar() {
               </div>
             ) : (
               filtered.map((item) => {
-                const title = item.title ?? item.nombre ?? item.name ?? item.title_es ?? String(item.id ?? 'Sin título');
-                const category = item.category ?? item.categoria ?? item.type ?? item.subcategory ?? 'Producto';
-                const price = item.price ?? item.precio;
-                const image = item.image ?? item.image_url ?? item.imagen;
-                const itemId = item.id ?? '';
+                const title = item.nombre ?? item.title ?? item.name ?? String(item.id ?? 'Item');
+                const category = item.categoria ?? item.category ?? item.type ?? 'General';
+                const price = item.precio ?? item.price;
+                const image = item.imagen ?? item.image ?? item.image_url;
+                const isService = String(category).toLowerCase().includes('servicio') || Boolean(item.tipo === 'servicio');
 
                 return (
                   <a
-                    key={itemId || Math.random()}
-                    href={String(category).toLowerCase().includes('servicio') ? `/servicios` : `/tienda`}
+                    key={item.id || Math.random()}
+                    href={isService ? `/servicios` : `/tienda`}
                     className="flex items-center justify-between p-2.5 rounded-xl hover:bg-neutral-900 transition-all cursor-pointer group block"
                   >
                     <div className="flex items-center gap-3">
