@@ -7,6 +7,28 @@ const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
+// Función para extraer el precio real sin importar cómo esté guardado en Supabase
+function getCleanPrice(item) {
+  const possibleValues = [
+    item.precio, item.price, item.cost, item.amount, item.precio_eur, item.price_eur
+  ];
+
+  for (const val of possibleValues) {
+    if (val !== undefined && val !== null && val !== '') {
+      // Si ya viene con formato texto (ej: "1,00 €" o "1,00")
+      if (typeof val === 'string') {
+        const cleaned = val.replace('€', '').trim();
+        if (cleaned) return `${cleaned}€`;
+      }
+      // Si es un número (ej: 1 o 1.5)
+      if (typeof val === 'number') {
+        return `${val.toFixed(2).replace('.', ',')}€`;
+      }
+    }
+  }
+  return '';
+}
+
 export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -45,7 +67,6 @@ export default function SearchBar() {
           allItems.push(...resServicios.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
         }
 
-        // Eliminar duplicados
         const uniqueItems = Array.from(new Map(allItems.map(item => [item.id || JSON.stringify(item), item])).values());
         setItems(uniqueItems);
       } catch (err) {
@@ -68,16 +89,15 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filtrado preciso: Solo busca en el nombre/título y la categoría visible
+  // Filtrado por título/nombre del producto o servicio
   const filtered = items.filter(item => {
     if (!query.trim()) return false;
     const q = query.toLowerCase().trim();
 
     const title = String(item.nombre || item.title || item.name || item.title_es || '').toLowerCase();
     const category = String(item.categoryType || item.categoria || item.category || '').toLowerCase();
-    const description = String(item.description || item.descripcion || '').toLowerCase();
 
-    return title.includes(q) || category.includes(q) || description.includes(q);
+    return title.includes(q) || category.includes(q);
   });
 
   return (
@@ -138,13 +158,7 @@ export default function SearchBar() {
               filtered.map((item) => {
                 const title = item.nombre ?? item.title ?? item.name ?? 'Sin nombre';
                 const category = item.categoryType || item.categoria || item.category || 'GENERAL';
-                
-                // Extracción de precio multiformato (comprueba todas las propiedades de precio)
-                const rawPrice = item.precio ?? item.price ?? item.cost ?? item.amount;
-                const priceFormatted = rawPrice !== undefined && rawPrice !== null 
-                  ? `${typeof rawPrice === 'number' ? rawPrice.toFixed(2) : rawPrice}€`
-                  : '—';
-
+                const priceFormatted = getCleanPrice(item);
                 const image = item.imagen ?? item.image ?? item.image_url;
                 const isService = String(category).toLowerCase().includes('servicio');
 
@@ -167,7 +181,9 @@ export default function SearchBar() {
                         <span className="text-[10px] text-neutral-400 uppercase tracking-wider">{String(category)}</span>
                       </div>
                     </div>
-                    <span className="text-xs font-black text-[#CCFF00]">{priceFormatted}</span>
+                    {priceFormatted && (
+                      <span className="text-xs font-black text-[#CCFF00]">{priceFormatted}</span>
+                    )}
                   </a>
                 );
               })
