@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { useState } from 'react';
+import SearchBar from './SearchBar';
 
 const links = [
   { href: '/tienda', label: 'Tienda' },
@@ -13,10 +14,10 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 gap-4">
         
         {/* LOGO CON MATRAZ ALINEADO EN LA MISMA LÍNEA BASE */}
-        <Link href="/" className="font-display text-3xl sm:text-4xl tracking-wide text-paper inline-flex items-baseline gap-2.5 group">
+        <Link href="/" className="font-display text-3xl sm:text-4xl tracking-wide text-paper inline-flex items-baseline gap-2.5 group shrink-0">
           <span>THE LAB</span>
           
           <span className="inline-flex items-center self-center -translate-y-[2px]">
@@ -76,8 +77,11 @@ export default function Navbar() {
           </span>
         </Link>
 
+        {/* BUSCADOR NEÓN INTEGRADO */}
+        <SearchBar />
+
         {/* NAVEGACIÓN EN ESCRITORIO */}
-        <nav className="hidden gap-8 md:flex">
+        <nav className="hidden gap-8 md:flex shrink-0">
           {links.map((l) => (
             <Link
               key={l.href}
