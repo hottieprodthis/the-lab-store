@@ -22,8 +22,8 @@ export default function App({ Component, pageProps }) {
     <CartProvider>
       <Head>
         <title>The Lab - Hottie</title>
-        <link key="favicon" rel="icon" type="image/svg+xml" href="/icon.svg?v=3" />
-        <link key="apple-icon" rel="apple-touch-icon" href="/icon.svg?v=3" />
+        <link key="favicon" rel="icon" type="image/svg+xml" href="/icon.svg?v=4" />
+        <link key="apple-icon" rel="apple-touch-icon" href="/icon.svg?v=4" />
       </Head>
       <main className={`${display.variable} ${body.variable} font-body bg-ink min-h-screen bg-grain`}>
         <Component {...pageProps} />
