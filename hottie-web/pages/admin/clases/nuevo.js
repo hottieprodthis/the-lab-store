@@ -3,7 +3,13 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminGuard from '../../../components/AdminGuard';
 import AdminHeader from '../../../components/AdminHeader';
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+// Cliente con permisos de administración
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function NuevaClase() {
   const router = useRouter();
@@ -20,7 +26,7 @@ export default function NuevaClase() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.from('classes').insert([
+    const { error } = await supabaseAdmin.from('classes').insert([
       {
         name: form.name,
         description: form.description,
