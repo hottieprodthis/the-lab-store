@@ -21,7 +21,8 @@ export default function App({ Component, pageProps }) {
   return (
     <CartProvider>
       <Head>
-        <title>The Lab - Hottie</title>
+        <title>The Lab - Hottie | Producción Musical</title>
+        <meta name="google-site-verification" content="Uw-H1BijekkxCzXY17ahyEABFKkhdHYhGaK9ujlPaVo" />
         <link key="favicon" rel="icon" type="image/png" href="/favicon.png?v=5" />
         <link key="apple-icon" rel="apple-touch-icon" href="/favicon.png?v=5" />
       </Head>
