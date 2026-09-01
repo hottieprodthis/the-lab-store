@@ -5,6 +5,7 @@ import SearchBar from './SearchBar';
 const links = [
   { href: '/tienda', label: 'Tienda' },
   { href: '/servicios', label: 'Servicios' },
+  { href: '/clases', label: 'Clases' },
   { href: '/contacto', label: 'Contacto' },
   { href: '/faq', label: 'FAQ' },
 ];
