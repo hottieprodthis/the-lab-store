@@ -7,7 +7,13 @@ import { supabase } from '../../lib/supabaseClient';
 import { formatPrice } from '../../lib/format';
 
 function Section({ title, items, kind, onToggle, onDelete }) {
-  const baseUrl = kind === 'productos' ? '/admin/productos' : '/admin/servicios';
+  const getBaseUrl = () => {
+    if (kind === 'productos') return '/admin/productos';
+    if (kind === 'servicios') return '/admin/servicios';
+    return '/admin/clases';
+  };
+
+  const baseUrl = getBaseUrl();
 
   return (
     <div className="mb-12">
@@ -75,16 +81,19 @@ function Section({ title, items, kind, onToggle, onDelete }) {
 export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
-    const [{ data: p }, { data: s }] = await Promise.all([
+    const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
       supabase.from('products').select('*').order('sort_order', { ascending: true }),
       supabase.from('services').select('*').order('sort_order', { ascending: true }),
+      supabase.from('classes').select('*').order('sort_order', { ascending: true }),
     ]);
     setProducts(p || []);
     setServices(s || []);
+    setClasses(c || []);
     setLoading(false);
   }
 
@@ -98,11 +107,13 @@ export default function AdminDashboard() {
       alert(`Error al actualizar estado: ${error.message}`);
       return;
     }
-    
+
     if (table === 'products') {
       setProducts((prev) => prev.map((p) => (p.id === item.id ? { ...p, active: !p.active } : p)));
-    } else {
+    } else if (table === 'services') {
       setServices((prev) => prev.map((s) => (s.id === item.id ? { ...s, active: !s.active } : s)));
+    } else {
+      setClasses((prev) => prev.map((c) => (c.id === item.id ? { ...c, active: !c.active } : c)));
     }
   }
 
@@ -115,11 +126,12 @@ export default function AdminDashboard() {
       return;
     }
 
-    // Quitar del estado visual al instante
     if (table === 'products') {
       setProducts((prev) => prev.filter((p) => p.id !== item.id));
-    } else {
+    } else if (table === 'services') {
       setServices((prev) => prev.filter((s) => s.id !== item.id));
+    } else {
+      setClasses((prev) => prev.filter((c) => c.id !== item.id));
     }
   }
 
@@ -147,6 +159,13 @@ export default function AdminDashboard() {
               items={services}
               onToggle={(item) => toggleActive('services', item)}
               onDelete={(item) => remove('services', item)}
+            />
+            <Section
+              title="Clases"
+              kind="clases"
+              items={classes}
+              onToggle={(item) => toggleActive('classes', item)}
+              onDelete={(item) => remove('classes', item)}
             />
           </>
         )}
