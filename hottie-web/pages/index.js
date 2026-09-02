@@ -62,7 +62,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>The Lab – Hottie | Producción musical</title>
+        <title>The Lab – Hottie</title>
         <meta
           name="description"
           content="Hottie: laboratorio de sonido sin límites. Kits de producción, mezcla, masterización y clases personalizadas."
