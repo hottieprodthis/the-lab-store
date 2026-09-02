@@ -27,6 +27,7 @@ export default function Gracias() {
   }, []); // Sin dependencias para evitar bucles de renderizado
 
   const esServicio = tipo === 'servicio';
+  const esClase = tipo === 'clase';
   const esMixto = tipo === 'mixto';
 
   return (
@@ -48,13 +49,16 @@ export default function Gracias() {
           </h1>
 
           <p className="mt-4 text-muted text-lg max-w-lg mx-auto">
+            {esClase && (
+              'Hemos recibido la reserva de tu clase correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para coordinar la sesión.'
+            )}
             {esServicio && (
               'Hemos recibido los datos de tu proyecto correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para comenzar.'
             )}
             {esMixto && (
               'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los enlaces de descarga y en breve nos pondremos en contacto contigo para coordinar el servicio.'
             )}
-            {!esServicio && !esMixto && (
+            {!esServicio && !esClase && !esMixto && (
               'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los archivos y enlaces de descarga.'
             )}
           </p>
