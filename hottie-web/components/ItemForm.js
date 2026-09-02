@@ -253,7 +253,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
                     value={plan.description}
                     onChange={(e) => updatePlan(index, 'description', e.target.value)}
                     className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
-                    placeholder="En el plan Royalties podrás tener una producción a tu medida..."
+                    placeholder="En el plan..."
                   />
                 </div>
               </div>
