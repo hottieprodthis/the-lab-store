@@ -184,7 +184,7 @@ export default function Home() {
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
           <div className="space-y-4 text-left">
             <h3 className="font-display text-2xl font-bold tracking-wide text-paper md:text-3xl">
-              Ahora by Escudero
+              TMQC by Escudero
             </h3>
             <p className="text-sm leading-relaxed text-muted md:text-base">
               Escudero, artista residente en Málaga, es uno de los compositores principales con los que trabaja Hottie.
