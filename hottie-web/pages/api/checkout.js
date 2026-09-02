@@ -35,16 +35,25 @@ export default async function handler(req, res) {
     if (items && Array.isArray(items) && items.length > 0) {
       const enrichedCart = await Promise.all(
         items.map(async (item) => {
-          const table = item.isService ? 'services' : 'products';
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
 
           if (item.id) {
-            const { data: dbItem } = await supabase
-              .from(table)
-              .select('*')
-              .eq('id', item.id)
-              .single();
+            // Intentamos buscar en services, classes o products
+            let dbItem = null;
+            
+            const { data: serviceData } = await supabase.from('services').select('*').eq('id', item.id).single();
+            if (serviceData) {
+              dbItem = serviceData;
+            } else {
+              const { data: classData } = await supabase.from('classes').select('*').eq('id', item.id).single();
+              if (classData) {
+                dbItem = classData;
+              } else {
+                const { data: productData } = await supabase.from('products').select('*').eq('id', item.id).single();
+                if (productData) dbItem = productData;
+              }
+            }
 
             if (dbItem) {
               if (!downloadUrl && !item.isService) {
@@ -99,19 +108,47 @@ export default async function handler(req, res) {
     } 
     // OPCIÓN B: Compra directa instantánea
     else if (productId) {
-      const table = isService ? 'services' : 'products';
-      const { data: item, error } = await supabase
-        .from(table)
-        .select('*')
-        .eq('id', productId)
-        .single();
+      let item = null;
 
-      if (error || !item) {
+      // 1. Probar en la tabla "services"
+      if (isService) {
+        const { data: serviceData } = await supabase
+          .from('services')
+          .select('*')
+          .eq('id', productId)
+          .single();
+        if (serviceData) item = serviceData;
+      }
+
+      // 2. Si no se encontró en servicios, probar en la tabla "classes"
+      if (!item) {
+        const { data: classData } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('id', productId)
+          .single();
+        if (classData) {
+          item = classData;
+          hasService = true; // Tratamos las clases como un servicio para el flujo de reserva
+        }
+      }
+
+      // 3. Si sigue sin encontrarse, probar en "products"
+      if (!item) {
+        const { data: productData } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', productId)
+          .single();
+        if (productData) item = productData;
+      }
+
+      if (!item) {
         return res.status(404).json({ error: 'Artículo no encontrado.' });
       }
 
       const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
-      hasService = isService;
+      if (isService) hasService = true;
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
       const nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
 
@@ -133,7 +170,7 @@ export default async function handler(req, res) {
       metadataPayload = {
         product_id: String(item.id),
         product_name: nameResolved,
-        is_service: isService ? 'true' : 'false',
+        is_service: hasService ? 'true' : 'false',
         driveUrl: driveLink,
         file_url: driveLink,
       };
