@@ -1,94 +1,67 @@
+import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import { useState, useEffect } from 'react';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import ProductCard from '../components/ProductCard';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Clases() {
-  const [clases, setClases] = useState([]);
-  const [claseSeleccionada, setClaseSeleccionada] = useState(null);
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/clases')
-      .then((res) => res.json())
-      .then((data) => {
-        setClases(Array.isArray(data) ? data : []);
+    async function fetchClasses() {
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('active', true)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setClasses(data || []);
+      } catch (err) {
+        console.error('Error cargando clases:', err);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    }
+
+    fetchClasses();
   }, []);
 
   return (
-    <>
+    <div className="min-h-screen bg-bg text-paper flex flex-col justify-between">
       <Head>
-        <title>Clases | The Lab - Hottie</title>
+        <title>Clases 1 a 1 — The Lab</title>
       </Head>
 
-      <div className="max-w-7xl mx-auto px-4 py-12 text-paper pt-32">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-display mb-4 tracking-wider text-paper">CLASES 1 A 1</h1>
-          <p className="text-muted max-w-2xl mx-auto font-body">
-            Aprende producción musical, mezcla y masterización con sesiones personalizadas por reserva.
-          </p>
-        </div>
+      <div>
+        <Header />
 
-        {loading ? (
-          <div className="text-center py-12 text-muted font-body">Cargando clases...</div>
-        ) : clases.length === 0 ? (
-          <div className="text-center py-12 text-muted font-body">
-            Próximamente habrá nuevas clases disponibles.
+        <main className="mx-auto max-w-6xl px-5 py-12">
+          <div className="mb-10">
+            <h1 className="font-display text-4xl font-bold uppercase tracking-wide">CLASES 1 A 1</h1>
+            <p className="mt-2 text-muted">
+              Aprende producción musical, mezcla y masterización con sesiones personalizadas por reserva.
+            </p>
           </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
-            {clases.map((clase) => (
-              <div
-                key={clase.id || clase._id}
-                className="border border-white/10 bg-ink/50 p-8 rounded-xl flex flex-col justify-between hover:border-[#CCFF00]/50 transition-colors"
-              >
-                <div>
-                  <h2 className="text-3xl font-display mb-2 text-paper">{clase.nombre}</h2>
-                  <div className="text-3xl font-bold text-[#CCFF00] mb-4">{clase.precio}€</div>
-                  <p className="text-paper/80 mb-6 font-body">{clase.descripcion}</p>
-                </div>
-                <button
-                  onClick={() => setClaseSeleccionada(clase)}
-                  className="w-full py-4 bg-[#CCFF00] text-black font-display text-xl tracking-wider rounded hover:bg-[#b8e600] transition-colors"
-                >
-                  Reservar Clase
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
 
-        {/* Modal de Reserva */}
-        {claseSeleccionada && (
-          <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
-            <div className="bg-ink border border-white/10 p-8 rounded-xl max-w-md w-full relative">
-              <button
-                onClick={() => setClaseSeleccionada(null)}
-                className="absolute top-4 right-4 text-muted hover:text-paper text-2xl font-bold"
-              >
-                ✕
-              </button>
-              <h3 className="text-3xl font-display mb-2 text-paper">
-                Reservar:<br />
-                {claseSeleccionada.nombre}
-              </h3>
-              <p className="text-sm text-muted mb-8 font-body">
-                Elige tu disponibilidad para agendar la sesión.
-              </p>
-
-              <div className="space-y-4">
-                <a
-                  href={claseSeleccionada.linkPago || `/contacto?reserva=${claseSeleccionada.id}`}
-                  className="block text-center w-full py-4 bg-[#CCFF00] text-black font-display text-xl tracking-wider rounded hover:bg-[#b8e600] transition-colors"
-                >
-                  Reservar Ahora
-                </a>
-              </div>
+          {loading ? (
+            <div className="py-12 text-center text-muted">Cargando clases…</div>
+          ) : classes.length === 0 ? (
+            <p className="text-muted">Próximamente habrá nuevas clases disponibles.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {classes.map((item) => (
+                <ProductCard key={item.id} item={item} type="clases" />
+              ))}
             </div>
-          </div>
-        )}
+          )}
+        </main>
       </div>
-    </>
+
+      <Footer />
+    </div>
   );
 }
