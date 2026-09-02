@@ -23,8 +23,6 @@ export default function App({ Component, pageProps }) {
       <Head>
         <title>The Lab - Hottie | Producción Musical</title>
         <meta name="google-site-verification" content="Uw-H1BijekkxCzXY17ahyEABFKkhdHYhGaK9ujlPaVo" />
-        <link key="favicon" rel="icon" type="image/png" href="/favicon.png?v=5" />
-        <link key="apple-icon" rel="apple-touch-icon" href="/favicon.png?v=5" />
       </Head>
       <main className={`${display.variable} ${body.variable} font-body bg-ink min-h-screen bg-grain`}>
         <Component {...pageProps} />
