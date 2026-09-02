@@ -224,7 +224,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs text-muted">Nombre del Plan (Ej. Royalties, Básico)</label>
+                    <label className="mb-1 block text-xs text-muted">Nombre del Plan</label>
                     <input
                       type="text"
                       required
