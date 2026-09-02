@@ -28,6 +28,7 @@ export default async function handler(req, res) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
     let lineItems = [];
     let hasService = false;
+    let isClassItem = false;
     let driveLink = '';
     let metadataPayload = {};
 
@@ -39,7 +40,6 @@ export default async function handler(req, res) {
           let nameResolved = item.name || item.title || item.nombre || '';
 
           if (item.id) {
-            // Intentamos buscar en services, classes o products
             let dbItem = null;
             
             const { data: serviceData } = await supabase.from('services').select('*').eq('id', item.id).single();
@@ -49,6 +49,7 @@ export default async function handler(req, res) {
               const { data: classData } = await supabase.from('classes').select('*').eq('id', item.id).single();
               if (classData) {
                 dbItem = classData;
+                isClassItem = true;
               } else {
                 const { data: productData } = await supabase.from('products').select('*').eq('id', item.id).single();
                 if (productData) dbItem = productData;
@@ -110,7 +111,6 @@ export default async function handler(req, res) {
     else if (productId) {
       let item = null;
 
-      // 1. Probar en la tabla "services"
       if (isService) {
         const { data: serviceData } = await supabase
           .from('services')
@@ -120,7 +120,6 @@ export default async function handler(req, res) {
         if (serviceData) item = serviceData;
       }
 
-      // 2. Si no se encontró en servicios, probar en la tabla "classes"
       if (!item) {
         const { data: classData } = await supabase
           .from('classes')
@@ -129,11 +128,11 @@ export default async function handler(req, res) {
           .single();
         if (classData) {
           item = classData;
-          hasService = true; // Tratamos las clases como un servicio para el flujo de reserva
+          hasService = true;
+          isClassItem = true;
         }
       }
 
-      // 3. Si sigue sin encontrarse, probar en "products"
       if (!item) {
         const { data: productData } = await supabase
           .from('products')
@@ -178,11 +177,19 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No se enviaron productos para la compra.' });
     }
 
-    const successUrl = hasService
-      ? `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`
-      : `${siteUrl}/gracias?tipo=producto`;
+    // Lógica de Redirección
+    let successUrl = `${siteUrl}/gracias?tipo=producto`;
+    let cancelUrl = `${siteUrl}/tienda`;
 
-    const cancelUrl = hasService ? `${siteUrl}/servicios` : `${siteUrl}/tienda`;
+    if (hasService) {
+      if (isClassItem) {
+        successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
+        cancelUrl = `${siteUrl}/clases`;
+      } else {
+        successUrl = `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
+        cancelUrl = `${siteUrl}/servicios`;
+      }
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
