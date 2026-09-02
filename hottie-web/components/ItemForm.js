@@ -6,6 +6,7 @@ import { slugify } from '../lib/format';
 export default function ItemForm({ table, initial, hasFileUrl }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
+  const isService = table === 'services';
 
   const [name, setName] = useState(initial?.name || '');
   const [slug, setSlug] = useState(initial?.slug || '');
@@ -24,10 +25,31 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   const [error, setError] = useState('');
   const [slugTouched, setSlugTouched] = useState(isEdit);
 
+  // ESTADO PARA HASTA 3 PLANES / CATEGORÍAS
+  const [plans, setPlans] = useState(
+    initial?.plans || []
+  );
+
   function handleNameChange(value) {
     setName(value);
     if (!slugTouched) setSlug(slugify(value));
   }
+
+  const addPlan = () => {
+    if (plans.length < 3) {
+      setPlans([...plans, { name: '', price: '', description: '' }]);
+    }
+  };
+
+  const removePlan = (index) => {
+    setPlans(plans.filter((_, i) => i !== index));
+  };
+
+  const updatePlan = (index, field, value) => {
+    const updated = [...plans];
+    updated[index][field] = value;
+    setPlans(updated);
+  };
 
   async function handleImageUpload(e) {
     const file = e.target.files?.[0];
@@ -57,6 +79,15 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       return;
     }
 
+    // Formatear los planes rellenados
+    const formattedPlans = plans
+      .filter((p) => p.name.trim() !== '')
+      .map((p) => ({
+        name: p.name.trim(),
+        price: p.price !== '' ? parseFloat(p.price) : 0,
+        description: p.description ? p.description.trim() : '',
+      }));
+
     const payload = {
       name: name.trim(),
       slug: slugify(slug),
@@ -66,7 +97,9 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       image_url: imageUrl || null,
       active,
     };
+
     if (hasFileUrl) payload.file_url = fileUrl || null;
+    if (isService) payload.plans = formattedPlans;
 
     setSaving(true);
     const query = isEdit
@@ -156,6 +189,78 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
           </select>
         </div>
       </div>
+
+      {/* PLANES / CATEGORÍAS (Solo en Servicios) */}
+      {isService && (
+        <div className="border-t border-white/15 pt-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-paper">
+                Planes / Categorías (Opcional - Máximo 3)
+              </h3>
+              <p className="text-xs text-muted">Añade precios y descripciones específicas por plan.</p>
+            </div>
+            {plans.length < 3 && (
+              <button
+                type="button"
+                onClick={addPlan}
+                className="rounded-sm border border-volt/40 bg-volt/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-volt hover:bg-volt hover:text-ink transition"
+              >
+                + Añadir Plan
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            {plans.map((plan, index) => (
+              <div key={index} className="relative rounded-sm border border-white/15 bg-white/5 p-4 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => removePlan(index)}
+                  className="absolute top-3 right-3 text-xs font-bold text-red-400 hover:underline uppercase"
+                >
+                  Eliminar
+                </button>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">Nombre del Plan (Ej. Royalties, Básico)</label>
+                    <input
+                      type="text"
+                      required
+                      value={plan.name}
+                      onChange={(e) => updatePlan(index, 'name', e.target.value)}
+                      className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">Precio (€)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={plan.price}
+                      onChange={(e) => updatePlan(index, 'price', e.target.value)}
+                      className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs text-muted">Descripción del Plan</label>
+                  <textarea
+                    rows={3}
+                    value={plan.description}
+                    onChange={(e) => updatePlan(index, 'description', e.target.value)}
+                    className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
+                    placeholder="En el plan Royalties podrás tener una producción a tu medida..."
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Imagen</label>
