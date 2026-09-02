@@ -25,7 +25,13 @@ export default function Clases({ classes }) {
         ) : (
           <div className="mt-10 grid gap-4 md:grid-cols-2">
             {classes.map((c) => (
-              <ServiceCard key={c.id} service={c} />
+              <ServiceCard 
+                key={c.id} 
+                service={{
+                  ...c,
+                  isService: true
+                }} 
+              />
             ))}
           </div>
         )}
