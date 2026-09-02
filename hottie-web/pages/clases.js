@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import ProductCard from '@/components/ProductCard';
-import { supabase } from '@/lib/supabaseClient';
+import Header from '../components/header';
+import Footer from '../components/footer';
+import ProductCard from '../components/productcard';
+import { supabase } from '../lib/supabaseclient';
 
 export default function Clases() {
   const [classes, setClasses] = useState([]);
