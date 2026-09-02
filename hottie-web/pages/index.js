@@ -178,6 +178,56 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SECCIÓN TRABAJOS DESTACADOS (DESPUÉS DE NEWSLETTER) */}
+      <section className="mx-auto max-w-6xl px-5 py-16 border-t border-white/10 space-y-16 font-body">
+        {/* BLOQUE 1: Texto Izquierda | YouTube Derecha */}
+        <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
+          <div className="space-y-4 text-left">
+            <h3 className="font-display text-2xl font-bold tracking-wide text-paper md:text-3xl">
+              Ahora by Escudero
+            </h3>
+            <p className="text-sm leading-relaxed text-muted md:text-base">
+              Escudero, artista residente en Málaga, es uno de los compositores principales con los que trabaja Hottie.
+            </p>
+            <p className="text-sm leading-relaxed text-muted md:text-base">
+              Este EP en específico ha sido producido, compuesto, grabado, masterizado y mezclado exclusivamente por el equipo completo.
+            </p>
+          </div>
+
+          <div className="relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
+            <iframe
+              className="h-full w-full"
+              src="https://www.youtube.com/embed/videoseries?list=PLbaFqVI9n3hphDGXDfQ_0VhnZfal0pMhi"
+              title="Ahora by Escudero - Playlist"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+
+        {/* BLOQUE 2: YouTube Izquierda | Texto Derecha */}
+        <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
+          <div className="order-2 md:order-1 relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
+            <iframe
+              className="h-full w-full"
+              src="https://www.youtube.com/embed/videoseries?list=PL6xkZFhZM7tBz6lWQRm7AVv0_fycRYN0Y"
+              title="Conexiones by Karlitos - Playlist"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            ></iframe>
+          </div>
+
+          <div className="order-1 md:order-2 space-y-4 text-left">
+            <h3 className="font-display text-2xl font-bold tracking-wide text-paper md:text-3xl">
+              Conexiones by Karlitos
+            </h3>
+            <p className="text-sm leading-relaxed text-muted md:text-base">
+              &quot;Conexiones&quot; es uno de los trabajos completamente producidos, mezclados y masterizados por Hottie de la mano del artista Sevillano Karlitos. Se trata de un pequeño EP de 6 canciones con estilos como Trap, Drill, Reggaeton, Pop, etc...
+            </p>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </>
   );
