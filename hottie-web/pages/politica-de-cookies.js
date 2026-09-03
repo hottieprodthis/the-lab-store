@@ -28,13 +28,6 @@ export default function PoliticaDeCookies() {
             Siguiendo las directrices de la Agencia Española de Protección de Datos, procedemos a detallar el uso de cookies que hace esta web con el fin de informarle con la máxima exactitud posible.
           </p>
 
-          <p className="font-semibold text-paper">Este sitio web utiliza las siguientes cookies propias:</p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>
-              <strong className="text-paper">Cookies de sesión y autenticación:</strong> Necesarias para garantizar la seguridad en el panel de administración, la gestión de sesiones de usuario y evitar ataques automatizados (spam).
-            </li>
-          </ul>
-
           <p className="font-semibold text-paper pt-2">Este sitio web utiliza las siguientes cookies de terceros:</p>
           <ul className="list-disc pl-5 space-y-2">
             <li>
