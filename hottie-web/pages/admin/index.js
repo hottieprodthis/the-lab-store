@@ -82,18 +82,21 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [subscribersCount, setSubscribersCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
-    const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
+    const [{ data: p }, { data: s }, { data: c }, { count: subCount }] = await Promise.all([
       supabase.from('products').select('*').order('sort_order', { ascending: true }),
       supabase.from('services').select('*').order('sort_order', { ascending: true }),
       supabase.from('classes').select('*').order('sort_order', { ascending: true }),
+      supabase.from('suscriptores').select('*', { count: 'exact', head: true }),
     ]);
     setProducts(p || []);
     setServices(s || []);
     setClasses(c || []);
+    setSubscribersCount(subCount || 0);
     setLoading(false);
   }
 
@@ -167,6 +170,22 @@ export default function AdminDashboard() {
               onToggle={(item) => toggleActive('classes', item)}
               onDelete={(item) => remove('classes', item)}
             />
+
+            {/* SECCIÓN SUSCRIPTORES */}
+            <div className="mb-12">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-2xl tracking-wide text-paper">Suscriptores</h2>
+                <Link
+                  href="/admin/suscriptores"
+                  className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                >
+                  Ver Lista
+                </Link>
+              </div>
+              <div className="rounded-sm border border-white/10 bg-surface p-4 text-sm text-muted">
+                Total suscriptores newsletter registrados: <span className="font-semibold text-paper">{subscribersCount}</span>
+              </div>
+            </div>
           </>
         )}
       </div>
