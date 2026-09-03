@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import '../styles/globals.css';
 import { CartProvider } from '../context/CartContext';
 import CartFloating from '../components/CartFloating';
+import CookieBanner from '../components/CookieBanner';
 
 const display = Bebas_Neue({
   subsets: ['latin'],
@@ -38,6 +39,7 @@ export default function App({ Component, pageProps }) {
       <main className={`${display.variable} ${body.variable} font-body bg-ink min-h-screen bg-grain`}>
         <Component {...pageProps} />
         <CartFloating />
+        <CookieBanner />
       </main>
     </CartProvider>
   );
