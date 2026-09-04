@@ -12,7 +12,18 @@ export default function CookieBanner() {
   }, []);
 
   const handleAceptar = () => {
+    // 1. Guardar en almacenamiento local
     localStorage.setItem('cookie_consent_accepted', 'true');
+
+    // 2. Notificar en vivo a Google Analytics para empezar a registrar
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('consent', 'update', {
+        analytics_storage: 'granted',
+        ad_storage: 'granted',
+      });
+    }
+
+    // 3. Ocultar el banner
     setMostrar(false);
   };
 
