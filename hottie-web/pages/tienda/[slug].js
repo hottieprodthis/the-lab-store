@@ -7,6 +7,65 @@ import PayPalButton from '../../components/PayPalButton';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPrice } from '../../lib/format';
 
+function ProductDemoPlayer({ demoUrl, demoCover }) {
+  if (!demoUrl) return null;
+
+  const isSpotify = demoUrl.includes('spotify.com');
+  const isYouTube = demoUrl.includes('youtube.com') || demoUrl.includes('youtu.be');
+
+  const getYouTubeEmbedUrl = (url) => {
+    let videoId = '';
+    if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    else if (url.includes('v=')) videoId = url.split('v=')[1]?.split('&')[0];
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+  };
+
+  const getSpotifyEmbedUrl = (url) => {
+    return url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+  };
+
+  return (
+    <div className="mt-8 rounded-sm border border-white/10 bg-surface p-4">
+      <p className="mb-3 text-xs font-bold uppercase tracking-wider text-volt">Escuchar / Ver Demo</p>
+      
+      {isSpotify && (
+        <iframe
+          src={getSpotifyEmbedUrl(demoUrl)}
+          width="100%"
+          height="152"
+          frameBorder="0"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+          className="rounded-sm"
+        />
+      )}
+
+      {isYouTube && getYouTubeEmbedUrl(demoUrl) && (
+        <div className="relative aspect-video w-full overflow-hidden rounded-sm">
+          <iframe
+            src={getYouTubeEmbedUrl(demoUrl)}
+            className="absolute inset-0 h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )}
+
+      {!isSpotify && !isYouTube && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {demoCover && (
+            <img src={demoCover} alt="Demo Cover" className="h-16 w-16 rounded-sm object-cover" />
+          )}
+          <audio controls className="w-full">
+            <source src={demoUrl} />
+            Tu navegador no soporta el reproductor de audio.
+          </audio>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProductoDetalle({ product }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -69,6 +128,9 @@ export default function ProductoDetalle({ product }) {
           <h1 className="font-display text-4xl tracking-wide text-paper">{product.name}</h1>
           <p className="mt-3 text-2xl text-signal">{formatPrice(product.price_cents, product.currency)}</p>
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
+
+          {/* Reproductor de Demo si el producto tiene demo_url */}
+          <ProductDemoPlayer demoUrl={product.demo_url} demoCover={product.demo_cover} />
 
           <div className="mt-8 flex flex-col gap-5 w-full max-w-md">
             {!purchaseDone ? (
