@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, items } = req.body;
+  const { productId, isService, planName, customPriceCents, items } = req.body;
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
@@ -38,20 +38,23 @@ export default async function handler(req, res) {
         items.map(async (item) => {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
+          
+          // Extraer ID real limpia si era un plan de servicio (ej: "uuid-nombreplan" -> "uuid")
+          const cleanId = item.id && String(item.id).includes('-') ? String(item.id).split('-')[0] : item.id;
 
-          if (item.id) {
+          if (cleanId) {
             let dbItem = null;
-            
-            const { data: serviceData } = await supabase.from('services').select('*').eq('id', item.id).single();
+
+            const { data: serviceData } = await supabase.from('services').select('*').eq('id', cleanId).single();
             if (serviceData) {
               dbItem = serviceData;
             } else {
-              const { data: classData } = await supabase.from('classes').select('*').eq('id', item.id).single();
+              const { data: classData } = await supabase.from('classes').select('*').eq('id', cleanId).single();
               if (classData) {
                 dbItem = classData;
                 isClassItem = true;
               } else {
-                const { data: productData } = await supabase.from('products').select('*').eq('id', item.id).single();
+                const { data: productData } = await supabase.from('products').select('*').eq('id', cleanId).single();
                 if (productData) dbItem = productData;
               }
             }
@@ -69,13 +72,16 @@ export default async function handler(req, res) {
           if (!nameResolved) nameResolved = item.isService ? 'Servicio Digital' : 'Producto Digital';
           if (item.isService) hasService = true;
 
+          // PRIORIDAD ABSOLUTA AL PRECIO ENVIADO POR EL CARRITO
+          const finalPriceCents = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
+
           return {
             id: item.id,
             title: nameResolved,
             isService: !!item.isService,
             file_url: downloadUrl,
             quantity: item.quantity || 1,
-            price_cents: item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60),
+            price_cents: finalPriceCents,
             currency: item.moneda || item.currency || 'eur',
             description: item.description,
             image_url: item.image_url || item.imagen_url
@@ -146,10 +152,16 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Artículo no encontrado.' });
       }
 
-      const unitAmount = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 60);
+      // SI SE ENVÍA UN PRECIO DE PLAN PERSONALIZADO SE USA, SI NO EL DEL ITEM
+      const unitAmount = customPriceCents || item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
+      
       if (isService) hasService = true;
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
-      const nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
+      
+      let nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
+      if (planName) {
+        nameResolved = `${nameResolved} (${planName})`;
+      }
 
       lineItems = [
         {
