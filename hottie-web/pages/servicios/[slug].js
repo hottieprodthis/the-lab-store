@@ -36,6 +36,7 @@ export default function DetalleServicio({ service }) {
           isService: true,
           planName: plan.name,
           customPriceCents: planPriceCents,
+          returnUrl: window.location.href,
         }),
       });
 
