@@ -20,7 +20,6 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   const [imageUrl, setImageUrl] = useState(initial?.image_url || '');
   const [fileUrl, setFileUrl] = useState(initial?.file_url || '');
   const [demoUrl, setDemoUrl] = useState(initial?.demo_url || '');
-  const [demoCover, setDemoCover] = useState(initial?.demo_cover || '');
   const [active, setActive] = useState(initial?.active ?? true);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -108,7 +107,6 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
     if (hasFileUrl) {
       payload.file_url = fileUrl || null;
       payload.demo_url = demoUrl || null;
-      payload.demo_cover = demoCover || null;
     }
     if (isService) payload.plans = formattedPlans;
 
@@ -305,36 +303,17 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
             />
           </div>
 
-          <div className="border-t border-white/15 pt-4 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-volt">
-              Preview / Demo de Audio o Vídeo (Opcional)
-            </h3>
-
-            <div>
-              <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
-                URL de Demo (Spotify, YouTube o enlace MP3)
-              </label>
-              <input
-                type="url"
-                value={demoUrl}
-                onChange={(e) => setDemoUrl(e.target.value)}
-                placeholder="https://open.spotify.com/track/... o https://..."
-                className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
-                Portada de la Demo (Opcional para enlaces MP3)
-              </label>
-              <input
-                type="url"
-                value={demoCover}
-                onChange={(e) => setDemoCover(e.target.value)}
-                placeholder="https://..."
-                className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
-              />
-            </div>
+          <div className="border-t border-white/15 pt-4">
+            <label className="mb-1 block text-xs uppercase tracking-widest text-volt font-bold">
+              URL de Preview / Demo (Spotify, YouTube, SoundCloud o enlace MP3)
+            </label>
+            <input
+              type="url"
+              value={demoUrl}
+              onChange={(e) => setDemoUrl(e.target.value)}
+              placeholder="Ej: https://open.spotify.com/track/... o https://..."
+              className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
+            />
           </div>
         </div>
       )}
