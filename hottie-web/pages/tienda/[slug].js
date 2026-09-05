@@ -25,7 +25,7 @@ function ProductDemoPlayer({ demoUrl, fallbackCover }) {
   };
 
   return (
-    <div className="mt-8 rounded-sm border border-white/10 bg-surface p-4">
+    <div className="mt-8 rounded-sm border border-white/10 bg-surface p-4 w-full max-w-md">
       <p className="mb-3 text-xs font-bold uppercase tracking-wider text-volt">Escuchar / Ver Demo</p>
       
       {isSpotify && (
@@ -129,9 +129,6 @@ export default function ProductoDetalle({ product }) {
           <p className="mt-3 text-2xl text-signal">{formatPrice(product.price_cents, product.currency)}</p>
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
 
-          {/* Reproductor con la imagen principal del producto como carátula por defecto */}
-          <ProductDemoPlayer demoUrl={product.demo_url} fallbackCover={product.image_url} />
-
           <div className="mt-8 flex flex-col gap-5 w-full max-w-md">
             {!purchaseDone ? (
               <>
@@ -169,6 +166,9 @@ export default function ProductoDetalle({ product }) {
               </p>
             )}
           </div>
+
+          {/* Reproductor renderizado debajo del bloque de pago */}
+          <ProductDemoPlayer demoUrl={product.demo_url} fallbackCover={product.image_url} />
         </div>
       </section>
 
