@@ -6,6 +6,7 @@ import Footer from '../../components/Footer';
 import PayPalButton from '../../components/PayPalButton';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPrice } from '../../lib/format';
+import { useCart } from '../../context/CartContext';
 
 function ProductDemoPlayer({ demoUrl, fallbackCover }) {
   if (!demoUrl) return null;
@@ -68,6 +69,7 @@ function ProductDemoPlayer({ demoUrl, fallbackCover }) {
 
 export default function ProductoDetalle({ product }) {
   const router = useRouter();
+  const { addToCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [paypalDone, setPaypalDone] = useState(false);
   const stripeSuccess = router.query.compra === 'exito';
@@ -125,7 +127,17 @@ export default function ProductoDetalle({ product }) {
         </div>
 
         <div>
-          <h1 className="font-display text-4xl tracking-wide text-paper">{product.name}</h1>
+          {/* Título y Botón +CARRITO alineados */}
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="font-display text-4xl tracking-wide text-paper">{product.name}</h1>
+            <button
+              onClick={() => addToCart(product, false)}
+              className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs uppercase font-bold tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black shrink-0"
+            >
+              + CARRITO
+            </button>
+          </div>
+
           <p className="mt-3 text-2xl text-signal">{formatPrice(product.price_cents, product.currency)}</p>
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
 
@@ -167,7 +179,7 @@ export default function ProductoDetalle({ product }) {
             )}
           </div>
 
-          {/* Reproductor renderizado debajo del bloque de pago */}
+          {/* Reproductor debajo del bloque de pago */}
           <ProductDemoPlayer demoUrl={product.demo_url} fallbackCover={product.image_url} />
         </div>
       </section>
