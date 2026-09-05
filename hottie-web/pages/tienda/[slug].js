@@ -7,7 +7,7 @@ import PayPalButton from '../../components/PayPalButton';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPrice } from '../../lib/format';
 
-function ProductDemoPlayer({ demoUrl, demoCover }) {
+function ProductDemoPlayer({ demoUrl, fallbackCover }) {
   if (!demoUrl) return null;
 
   const isSpotify = demoUrl.includes('spotify.com');
@@ -53,8 +53,8 @@ function ProductDemoPlayer({ demoUrl, demoCover }) {
 
       {!isSpotify && !isYouTube && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          {demoCover && (
-            <img src={demoCover} alt="Demo Cover" className="h-16 w-16 rounded-sm object-cover" />
+          {fallbackCover && (
+            <img src={fallbackCover} alt="Portada" className="h-16 w-16 rounded-sm object-cover" />
           )}
           <audio controls className="w-full">
             <source src={demoUrl} />
@@ -129,8 +129,8 @@ export default function ProductoDetalle({ product }) {
           <p className="mt-3 text-2xl text-signal">{formatPrice(product.price_cents, product.currency)}</p>
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
 
-          {/* Reproductor de Demo si el producto tiene demo_url */}
-          <ProductDemoPlayer demoUrl={product.demo_url} demoCover={product.demo_cover} />
+          {/* Reproductor con la imagen principal del producto como carátula por defecto */}
+          <ProductDemoPlayer demoUrl={product.demo_url} fallbackCover={product.image_url} />
 
           <div className="mt-8 flex flex-col gap-5 w-full max-w-md">
             {!purchaseDone ? (
