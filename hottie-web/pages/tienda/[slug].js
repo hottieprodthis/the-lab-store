@@ -93,7 +93,10 @@ export default function ProductoDetalle({ product }) {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id }),
+        body: JSON.stringify({ 
+          productId: product.id,
+          returnUrl: window.location.href,
+        }),
       });
       const data = await res.json();
       if (data.url) {
