@@ -22,10 +22,15 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, planName, customPriceCents, items } = req.body;
+  const { productId, isService, planName, customPriceCents, items, returnUrl } = req.body;
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
+    
+    // Si viene la URL exacta de origen (el detalle del producto o los planes), la usamos como cancelUrl
+    const refererHeader = req.headers.referer;
+    let cancelUrl = returnUrl || refererHeader || siteUrl;
+
     let lineItems = [];
     let hasService = false;
     let isClassItem = false;
@@ -39,7 +44,6 @@ export default async function handler(req, res) {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
           
-          // Extraer ID real limpia si era un plan de servicio (ej: "uuid-nombreplan" -> "uuid")
           const cleanId = item.id && String(item.id).includes('-') ? String(item.id).split('-')[0] : item.id;
 
           if (cleanId) {
@@ -72,7 +76,6 @@ export default async function handler(req, res) {
           if (!nameResolved) nameResolved = item.isService ? 'Servicio Digital' : 'Producto Digital';
           if (item.isService) hasService = true;
 
-          // PRIORIDAD ABSOLUTA AL PRECIO ENVIADO POR EL CARRITO
           const finalPriceCents = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
 
           return {
@@ -152,7 +155,6 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Artículo no encontrado.' });
       }
 
-      // SI SE ENVÍA UN PRECIO DE PLAN PERSONALIZADO SE USA, SI NO EL DEL ITEM
       const unitAmount = customPriceCents || item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
       
       if (isService) hasService = true;
@@ -189,17 +191,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No se enviaron productos para la compra.' });
     }
 
-    // Lógica de Redirección
+    // Lógica de Success URL
     let successUrl = `${siteUrl}/gracias?tipo=producto`;
-    let cancelUrl = `${siteUrl}/tienda`;
-
     if (hasService) {
       if (isClassItem) {
         successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
-        cancelUrl = `${siteUrl}/clases`;
       } else {
         successUrl = `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
-        cancelUrl = `${siteUrl}/servicios`;
       }
     }
 
