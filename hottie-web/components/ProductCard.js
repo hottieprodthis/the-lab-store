@@ -1,15 +1,7 @@
 import Link from 'next/link';
 import { formatPrice } from '../lib/format';
-import { useCart } from '../context/CartContext';
 
 export default function ProductCard({ product }) {
-  const { addToCart } = useCart();
-
-  const handleAddToCart = (e) => {
-    e.preventDefault(); // Evita que al hacer clic en el botón se abra el enlace del producto
-    addToCart(product, false); // false indica que es un producto, no un servicio
-  };
-
   return (
     <div className="group block overflow-hidden rounded-sm border border-white/10 bg-surface transition hover:border-volt/60">
       <Link href={`/tienda/${product.slug}`} className="block">
@@ -35,13 +27,13 @@ export default function ProductCard({ product }) {
           <p className="mt-1 text-signal">{formatPrice(product.price_cents, product.currency)}</p>
         </div>
 
-        {/* Botón para Añadir al Carrito */}
-        <button
-          onClick={handleAddToCart}
+        {/* Botón de enlace a detalles del producto */}
+        <Link
+          href={`/tienda/${product.slug}`}
           className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs uppercase font-bold tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black shrink-0"
         >
-          + Carrito
-        </button>
+          +INFO
+        </Link>
       </div>
     </div>
   );
