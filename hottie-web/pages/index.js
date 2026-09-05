@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import BrandsBanner from '../components/BrandsBanner';
 import { supabase } from '../lib/supabaseClient';
 
 export default function Home() {
@@ -184,7 +185,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SECCIÓN TRABAJOS DESTACADOS (DESPUÉS DE NEWSLETTER) */}
+      {/* SECCIÓN TRABAJOS DESTACADOS */}
       <section className="mx-auto max-w-6xl px-5 py-16 border-t border-white/10 space-y-16 font-body">
         {/* BLOQUE 1: Texto Izquierda | YouTube Derecha */}
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
@@ -232,6 +233,21 @@ export default function Home() {
             </p>
           </div>
         </div>
+      </section>
+
+      {/* BANNER DE MARCAS (VERDE VOLT) */}
+      <BrandsBanner />
+
+      {/* SECCIÓN SPOTIFY */}
+      <section className="py-12 text-center">
+        <a
+          href="https://open.spotify.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-3 rounded-full bg-[#1DB954] px-8 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110"
+        >
+          Escuchar en Spotify
+        </a>
       </section>
 
       <Footer />
