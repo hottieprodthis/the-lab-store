@@ -8,7 +8,7 @@ export default function Clases({ classes }) {
   return (
     <>
       <Head>
-        <title>Clases 1 a 1 — The Lab</title>
+        <title>Clases — The Lab</title>
         <meta name="description" content="Aprende producción musical, mezcla y masterización con sesiones personalizadas por reserva." />
       </Head>
 
