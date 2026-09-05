@@ -29,7 +29,8 @@ export default function Clases({ classes }) {
                 key={c.id} 
                 service={{
                   ...c,
-                  isService: true
+                  isClass: true,
+                  isService: false
                 }} 
               />
             ))}
