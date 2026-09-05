@@ -23,7 +23,6 @@ export default function Home() {
     try {
       const emailLimpio = email.trim().toLowerCase();
 
-      // 1. Comprobar si el correo ya existe en la base de datos
       const { data: existente } = await supabase
         .from('suscriptores')
         .select('email')
@@ -36,7 +35,6 @@ export default function Home() {
         return;
       }
 
-      // 2. Si no existe, lo insertamos como un nuevo suscriptor
       const { error } = await supabase
         .from('suscriptores')
         .insert([{ email: emailLimpio }]);
@@ -74,26 +72,22 @@ export default function Home() {
 
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-5 py-24 md:py-32">
-          {/* ONDA DE FIRMA DE LA MARCA */}
           <div className="waveform" aria-hidden="true">
             {Array.from({ length: 8 }).map((_, i) => (
               <span key={i} />
             ))}
           </div>
 
-          {/* TITULAR PRINCIPAL (H1) */}
           <h1 className="font-display text-6xl tracking-wide text-paper md:text-8xl leading-[0.95]">
             TU PRÓXIMO HIT
             <br />
             <span className="text-volt">COMIENZA AQUÍ.</span>
           </h1>
 
-          {/* SUBTÍTULO */}
           <p className="max-w-xl text-lg text-muted font-body leading-relaxed">
             Transforma tu estudio en un laboratorio de sonido sin límites. Kits de producción, mezcla, masterización y clases personalizadas para convertir cualquier idea en un lanzamiento profesional.
           </p>
 
-          {/* BOTONES DE ACCIÓN */}
           <div className="flex flex-wrap gap-4 pt-2">
             <Link
               href="/tienda"
@@ -119,7 +113,6 @@ export default function Home() {
 
       {/* SECCIÓN SOBRE HOTTIE + NEWSLETTER */}
       <section className="mx-auto max-w-4xl px-5 py-20 text-center">
-        {/* FOTO REDONDA DE TU HARDWARE */}
         <div className="mx-auto mb-8 h-36 w-36 overflow-hidden rounded-full border-2 border-volt/40 p-1 shadow-lg shadow-volt/10">
           <img
             src="/sobre-mi-imagen.jpeg"
@@ -132,7 +125,6 @@ export default function Home() {
           Sobre Hottie
         </h2>
 
-        {/* BIOGRAFÍA EXACTA */}
         <div className="mx-auto max-w-2xl space-y-4 font-body text-base text-muted leading-relaxed">
           <p>
             Hottie es un Productor, Ingeniero y Dj de origen Español con residencia en Salamanca especializado en música electrónica, latina y tribal.
@@ -145,7 +137,6 @@ export default function Home() {
           </p>
         </div>
 
-        {/* CUADRO DE CORREO / NEWSLETTER */}
         <div className="mt-14 mx-auto max-w-md rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur">
           <form onSubmit={handleSubscribe} className="space-y-3">
             <div className="flex gap-2">
@@ -187,7 +178,6 @@ export default function Home() {
 
       {/* SECCIÓN TRABAJOS DESTACADOS */}
       <section className="mx-auto max-w-6xl px-5 py-16 border-t border-white/10 space-y-16 font-body">
-        {/* BLOQUE 1: Texto Izquierda | YouTube Derecha */}
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
           <div className="space-y-4 text-left">
             <h3 className="font-display text-2xl font-bold tracking-wide text-paper md:text-3xl">
@@ -212,7 +202,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* BLOQUE 2: YouTube Izquierda | Texto Derecha */}
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
           <div className="order-2 md:order-1 relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
             <iframe
@@ -237,18 +226,6 @@ export default function Home() {
 
       {/* BANNER DE MARCAS (VERDE VOLT) */}
       <BrandsBanner />
-
-      {/* SECCIÓN SPOTIFY */}
-      <section className="py-12 text-center">
-        <a
-          href="https://open.spotify.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-3 rounded-full bg-[#1DB954] px-8 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110"
-        >
-          Escuchar en Spotify
-        </a>
-      </section>
 
       <Footer />
     </>
