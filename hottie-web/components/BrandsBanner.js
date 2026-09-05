@@ -1,9 +1,9 @@
 export default function BrandsBanner() {
   const brands = [
-    { name: 'Behringer', logo: '/brands/behringer.svg' },
-    { name: 'Shure', logo: '/brands/shure.svg' },
-    { name: 'Yamaha', logo: '/brands/yamaha.svg' },
-    { name: 'American Audio', logo: '/brands/american-audio.svg' },
+    { name: 'Behringer', logo: '/brands/behringer.png' },
+    { name: 'Shure', logo: '/brands/shure.png' },
+    { name: 'Yamaha', logo: '/brands/yamaha.png' },
+    { name: 'American Audio', logo: '/brands/american-audio.png' },
   ];
 
   return (
