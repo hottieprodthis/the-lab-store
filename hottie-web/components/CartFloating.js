@@ -117,13 +117,13 @@ export default function CartFloating() {
                   const title = item.title || item.name || item.nombre || 'Producto / Servicio';
                   return (
                     <div
-                      key={`${item.id}-${item.isService ? 'srv' : 'prd'}-${index}`}
+                      key={`${item.id}-${item.isClass ? 'cls' : item.isService ? 'srv' : 'prd'}-${index}`}
                       className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3"
                     >
                       <div className="flex-1">
                         <h4 className="font-semibold text-paper text-sm">{title}</h4>
                         <p className="text-xs text-muted">
-                          {item.isService ? 'Servicio' : 'Producto'}
+                          {item.isClass ? 'Clase' : item.isService ? 'Servicio' : 'Producto'}
                         </p>
                         <p className="text-xs font-bold text-[#CCFF00] mt-1">
                           {price.toFixed(2)} €
