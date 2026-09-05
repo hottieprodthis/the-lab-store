@@ -25,10 +25,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   const [error, setError] = useState('');
   const [slugTouched, setSlugTouched] = useState(isEdit);
 
-  // ESTADO PARA HASTA 3 PLANES / CATEGORÍAS
-  const [plans, setPlans] = useState(
-    initial?.plans || []
-  );
+  // ESTADO PARA PLANES / CATEGORÍAS (SIN LÍMITE)
+  const [plans, setPlans] = useState(initial?.plans || []);
 
   function handleNameChange(value) {
     setName(value);
@@ -36,9 +34,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   }
 
   const addPlan = () => {
-    if (plans.length < 3) {
-      setPlans([...plans, { name: '', price: '', description: '' }]);
-    }
+    setPlans([...plans, { name: '', price: '', description: '' }]);
   };
 
   const removePlan = (index) => {
@@ -88,11 +84,20 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         description: p.description ? p.description.trim() : '',
       }));
 
+    // Si hay planes, el precio base será el del plan más económico para tomar de referencia en los listados
+    let finalPriceCents = null;
+    if (isService && formattedPlans.length > 0) {
+      const minPlanPrice = Math.min(...formattedPlans.map((p) => p.price));
+      finalPriceCents = Math.round(minPlanPrice * 100);
+    } else if (price !== '') {
+      finalPriceCents = Math.round(parseFloat(price) * 100);
+    }
+
     const payload = {
       name: name.trim(),
       slug: slugify(slug),
       description,
-      price_cents: price === '' ? null : Math.round(parseFloat(price) * 100),
+      price_cents: finalPriceCents,
       currency,
       image_url: imageUrl || null,
       active,
@@ -120,6 +125,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
 
     router.push('/admin');
   }
+
+  const hasPlans = isService && plans.length > 0;
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
@@ -165,16 +172,23 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
-            Precio ({currency.toUpperCase()}) — vacío = &quot;a consultar&quot;
+            Precio ({currency.toUpperCase()}) {hasPlans ? '— (Gest. por planes)' : '— vacío = "a consultar"'}
           </label>
           <input
             type="number"
             step="0.01"
             min="0"
-            value={price}
+            disabled={hasPlans}
+            value={hasPlans ? '' : price}
             onChange={(e) => setPrice(e.target.value)}
-            className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
+            placeholder={hasPlans ? 'Definido en los planes' : ''}
+            className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal disabled:opacity-40 disabled:cursor-not-allowed"
           />
+          {hasPlans && (
+            <p className="mt-1 text-[11px] text-muted">
+              Al existir planes, el precio del plan más bajo se usará como referencia (&quot;Desde X €&quot;).
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Moneda</label>
@@ -196,19 +210,17 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold uppercase tracking-wider text-paper">
-                Planes / Categorías (Opcional - Máximo 3)
+                Planes / Categorías (Opcional)
               </h3>
               <p className="text-xs text-muted">Añade precios y descripciones específicas por plan.</p>
             </div>
-            {plans.length < 3 && (
-              <button
-                type="button"
-                onClick={addPlan}
-                className="rounded-sm border border-volt/40 bg-volt/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-volt hover:bg-volt hover:text-ink transition"
-              >
-                + Añadir Plan
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={addPlan}
+              className="rounded-sm border border-volt/40 bg-volt/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-volt hover:bg-volt hover:text-ink transition"
+            >
+              + Añadir Plan
+            </button>
           </div>
 
           <div className="space-y-4">
