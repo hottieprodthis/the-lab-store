@@ -41,35 +41,43 @@ function Section({ title, items, kind, onToggle, onDelete }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-t border-white/10 bg-surface">
-                  <td className="px-4 py-3 text-paper">{item.name}</td>
-                  <td className="px-4 py-3 text-muted">{formatPrice(item.price_cents, item.currency)}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => onToggle(item)}
-                      className={`rounded-sm px-2 py-1 text-xs uppercase tracking-widest ${
-                        item.active ? 'bg-signal/20 text-signal' : 'bg-white/10 text-muted'
-                      }`}
-                    >
-                      {item.active ? 'Publicado' : 'Oculto'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link href={`${baseUrl}/${item.id}`} className="mr-4 text-signal hover:underline">
-                      Editar
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(item)}
-                      className="text-volt hover:underline"
-                    >
-                      Borrar
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {items.map((item) => {
+                const hasPlans = Array.isArray(item.plans) && item.plans.length > 0;
+
+                return (
+                  <tr key={item.id} className="border-t border-white/10 bg-surface">
+                    <td className="px-4 py-3 text-paper">{item.name}</td>
+                    <td className="px-4 py-3 text-muted">
+                      {hasPlans
+                        ? 'Planes / Categorías'
+                        : formatPrice(item.price_cents, item.currency)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => onToggle(item)}
+                        className={`rounded-sm px-2 py-1 text-xs uppercase tracking-widest ${
+                          item.active ? 'bg-signal/20 text-signal' : 'bg-white/10 text-muted'
+                        }`}
+                      >
+                        {item.active ? 'Publicado' : 'Oculto'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link href={`${baseUrl}/${item.id}`} className="mr-4 text-signal hover:underline">
+                        Editar
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(item)}
+                        className="text-volt hover:underline"
+                      >
+                        Borrar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
