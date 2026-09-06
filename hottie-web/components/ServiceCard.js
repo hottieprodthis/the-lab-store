@@ -8,6 +8,8 @@ export default function ServiceCard({ service }) {
   const { addToCart } = useCart();
 
   const hasPlans = Array.isArray(service.plans) && service.plans.length > 0;
+  // Determina la ruta según si es una clase o un servicio
+  const basePath = service.isClass ? '/clases' : '/servicios';
 
   // Si tiene planes, calcular el precio más bajo de entre ellos
   let minPlanPriceCents = null;
@@ -35,6 +37,7 @@ export default function ServiceCard({ service }) {
         body: JSON.stringify({
           productId: service.id,
           isService: true,
+          returnUrl: window.location.href,
         }),
       });
 
@@ -79,9 +82,9 @@ export default function ServiceCard({ service }) {
         {/* ACCIONES Y BOTONES */}
         <div className="flex items-center gap-2">
           {hasPlans ? (
-            /* SI TIENE PLANES: Muestra únicamente "VER OPCIONES" hacia la página del servicio */
+            /* SI TIENE PLANES: Muestra únicamente "VER OPCIONES" hacia la página de la clase/servicio */
             <Link
-              href={`/servicios/${service.slug}`}
+              href={`${basePath}/${service.slug}`}
               className="rounded-sm bg-volt px-4 py-2 text-xs font-bold uppercase tracking-widest text-ink transition hover:brightness-110"
             >
               Ver opciones
