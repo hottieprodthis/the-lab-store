@@ -27,7 +27,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   const [error, setError] = useState('');
   const [slugTouched, setSlugTouched] = useState(isEdit);
 
-  // ESTADO PARA PLANES / CATEGORÍAS (SIN LÍMITE)
+  // ESTADO PARA PLANES / CATEGORÍAS
   const [plans, setPlans] = useState(initial?.plans || []);
 
   function handleNameChange(value) {
@@ -86,7 +86,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         description: p.description ? p.description.trim() : '',
       }));
 
-    // Si hay planes, el precio base será el del plan más económico para tomar de referencia en los listados
+    // Si hay planes, el precio base será el del plan más económico para referencia
     let finalPriceCents = null;
     if (supportsPlans && formattedPlans.length > 0) {
       const minPlanPrice = Math.min(...formattedPlans.map((p) => p.price));
@@ -95,15 +95,20 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       finalPriceCents = Math.round(parseFloat(price) * 100);
     }
 
+    // Construcción del objeto a guardar
     const payload = {
       name: name.trim(),
       slug: slugify(slug),
       description,
       price_cents: finalPriceCents,
       currency,
-      image_url: imageUrl || null,
       active,
     };
+
+    // Solo se envía image_url si la tabla NO es 'classes'
+    if (table !== 'classes') {
+      payload.image_url = imageUrl || null;
+    }
 
     if (hasFileUrl) {
       payload.file_url = fileUrl || null;
@@ -209,7 +214,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       </div>
 
-      {/* PLANES / CATEGORÍAS (Para Servicios y Clases) */}
+      {/* PLANES / CATEGORÍAS (Servicios y Clases) */}
       {supportsPlans && (
         <div className="border-t border-white/15 pt-6">
           <div className="mb-4 flex items-center justify-between">
@@ -279,15 +284,18 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       )}
 
-      <div>
-        <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Imagen</label>
-        {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt="" className="mb-2 h-32 w-32 rounded-sm object-cover" />
-        )}
-        <input type="file" accept="image/*" onChange={handleImageUpload} className="text-sm text-muted" />
-        {uploading && <p className="mt-1 text-xs text-signal">Subiendo…</p>}
-      </div>
+      {/* SECCIÓN DE IMAGEN: Se oculta únicamente cuando es la tabla 'classes' */}
+      {table !== 'classes' && (
+        <div>
+          <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Imagen</label>
+          {imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="" className="mb-2 h-32 w-32 rounded-sm object-cover" />
+          )}
+          <input type="file" accept="image/*" onChange={handleImageUpload} className="text-sm text-muted" />
+          {uploading && <p className="mt-1 text-xs text-signal">Subiendo…</p>}
+        </div>
+      )}
 
       {hasFileUrl && (
         <div className="space-y-4">
