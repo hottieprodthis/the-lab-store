@@ -6,7 +6,8 @@ import { slugify } from '../lib/format';
 export default function ItemForm({ table, initial, hasFileUrl }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
-  const isService = table === 'services';
+  // Permitir planes tanto para Servicios como para Clases
+  const supportsPlans = table === 'services' || table === 'classes';
 
   const [name, setName] = useState(initial?.name || '');
   const [slug, setSlug] = useState(initial?.slug || '');
@@ -87,7 +88,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
 
     // Si hay planes, el precio base será el del plan más económico para tomar de referencia en los listados
     let finalPriceCents = null;
-    if (isService && formattedPlans.length > 0) {
+    if (supportsPlans && formattedPlans.length > 0) {
       const minPlanPrice = Math.min(...formattedPlans.map((p) => p.price));
       finalPriceCents = Math.round(minPlanPrice * 100);
     } else if (price !== '') {
@@ -108,7 +109,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       payload.file_url = fileUrl || null;
       payload.demo_url = demoUrl || null;
     }
-    if (isService) payload.plans = formattedPlans;
+    if (supportsPlans) payload.plans = formattedPlans;
 
     setSaving(true);
     const query = isEdit
@@ -130,7 +131,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
     router.push('/admin');
   }
 
-  const hasPlans = isService && plans.length > 0;
+  const hasPlans = supportsPlans && plans.length > 0;
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
@@ -208,8 +209,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       </div>
 
-      {/* PLANES / CATEGORÍAS (Solo en Servicios) */}
-      {isService && (
+      {/* PLANES / CATEGORÍAS (Para Servicios y Clases) */}
+      {supportsPlans && (
         <div className="border-t border-white/15 pt-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
