@@ -8,6 +8,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   const isEdit = Boolean(initial?.id);
   // Permitir planes tanto para Servicios como para Clases
   const supportsPlans = table === 'services' || table === 'classes';
+  // Ocultar opción de subir imagen en Servicios y Clases (solo activo para Productos)
+  const supportsImage = table === 'products';
 
   const [name, setName] = useState(initial?.name || '');
   const [slug, setSlug] = useState(initial?.slug || '');
@@ -105,8 +107,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       active,
     };
 
-    // Solo se envía image_url si la tabla NO es 'classes'
-    if (table !== 'classes') {
+    // Solo se envía image_url si la tabla es 'products'
+    if (supportsImage) {
       payload.image_url = imageUrl || null;
     }
 
@@ -284,8 +286,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       )}
 
-      {/* SECCIÓN DE IMAGEN: Se oculta únicamente cuando es la tabla 'classes' */}
-      {table !== 'classes' && (
+      {/* SECCIÓN DE IMAGEN: Únicamente visible cuando sea un Producto */}
+      {supportsImage && (
         <div>
           <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Imagen</label>
           {imageUrl && (
