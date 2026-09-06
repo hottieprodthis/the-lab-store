@@ -4,6 +4,7 @@ export default function BrandsBanner() {
     { name: 'Shure', logo: '/brands/shure.png' },
     { name: 'Yamaha', logo: '/brands/yamaha.png' },
     { name: 'American Audio', logo: '/brands/american-audio.png' },
+    { name: 'Midas', logo: '/brands/midas.png' },
   ];
 
   return (
