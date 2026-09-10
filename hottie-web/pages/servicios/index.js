@@ -16,7 +16,7 @@ export default function Servicios({ services }) {
 
       <section className="mx-auto max-w-6xl px-5 py-16">
         <h1 className="font-display text-5xl tracking-wide text-paper">Servicios</h1>
-        <p className="mt-2 text-muted">Producción, mezcla y masterización.</p>
+        <p className="mt-2 text-muted">Producción, edición, mezcla y masterización.</p>
 
         {services.length === 0 ? (
           <p className="mt-12 text-muted">Todavía no hay servicios publicados.</p>
