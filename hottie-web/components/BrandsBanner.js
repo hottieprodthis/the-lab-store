@@ -8,9 +8,12 @@ export default function BrandsBanner() {
   ];
 
   return (
-    <section className="w-full bg-volt py-10 my-12">
+    <section className="w-full py-10 my-12" style={{ backgroundColor: '#CCFF00' }}>
       <div className="mx-auto max-w-7xl px-6">
-        <p className="text-center text-xs font-bold uppercase tracking-widest text-black mb-6">
+        <p
+          className="text-center text-xs font-bold uppercase tracking-widest mb-6"
+          style={{ color: '#000000' }}
+        >
           Equipamiento y marcas con las que trabajamos
         </p>
         <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
@@ -19,7 +22,7 @@ export default function BrandsBanner() {
               <img
                 src={brand.logo}
                 alt={brand.name}
-                className="h-10 md:h-12 w-auto object-contain"
+                className="h-10 md:h-12 w-auto object-contain brightness-0"
               />
             </div>
           ))}
