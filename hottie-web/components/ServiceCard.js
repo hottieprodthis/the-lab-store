@@ -85,9 +85,17 @@ export default function ServiceCard({ service }) {
             /* SI TIENE PLANES: Muestra únicamente "VER OPCIONES" hacia la página de la clase/servicio */
             <Link
               href={`${basePath}/${service.slug}`}
-              className="rounded-sm bg-volt px-4 py-2 text-xs font-bold uppercase tracking-widest text-ink transition hover:brightness-110"
+              style={{ 
+                color: '#000000', 
+                WebkitTextFillColor: '#000000',
+                forcedColorAdjust: 'none',
+                colorScheme: 'only light'
+              }}
+              className="rounded-sm bg-volt px-4 py-2 text-xs font-bold uppercase tracking-widest transition hover:brightness-110"
             >
-              Ver opciones
+              <span style={{ color: '#000000', WebkitTextFillColor: '#000000' }}>
+                Ver opciones
+              </span>
             </Link>
           ) : service.price_cents || service.price ? (
             /* SI ES PRECIO ÚNICO: Permite añadir al carrito y Checkout directo */
