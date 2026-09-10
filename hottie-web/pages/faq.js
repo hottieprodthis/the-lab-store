@@ -21,7 +21,7 @@ const faqCategories = [
       },
       {
         q: "¿Las clases son adaptadas o hay un temario fijo?",
-        a: "Cada clase se adapta 100% a lo que tú quieras aprender (producción, mezcla, mastering o ambas). Antes de comenzar la sesión, coordinamos el contenido que abordaremos ese día."
+        a: "Cada clase se adapta 100% a lo que tú quieras aprender (producción, mezcla y mastering o ambas). Antes de comenzar la sesión, coordinamos el contenido que abordaremos ese día."
       },
       {
         q: "¿Se graban las clases?",
