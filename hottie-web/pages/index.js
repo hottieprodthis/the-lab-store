@@ -146,14 +146,11 @@ export default function Home() {
             className="group flex flex-col items-center gap-2 transition hover:scale-105"
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-volt text-ink shadow-lg shadow-volt/20 transition group-hover:bg-signal">
-              <svg
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-7 w-7"
-                aria-hidden="true"
-              >
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
+              <img
+                src="/muso.png"
+                alt="Muso.ai"
+                className="h-7 w-7 object-contain brightness-0"
+              />
             </div>
             <span className="font-display text-xs font-bold uppercase tracking-widest text-paper group-hover:text-volt">
               VER CRÉDITOS
