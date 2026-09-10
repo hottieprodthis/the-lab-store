@@ -45,27 +45,28 @@ export default function CartFloating() {
     }
   };
 
+  // Icono del carrito vectorizado como Data URI para evitar que el modo oscuro forzado invierta los colores
+  const cartIconBlack = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23000000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'><path d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 000-4z'/></svg>";
+
   return (
     <>
-      {/* 1. BOTÓN FLOTANTE REDONDO #CCFF00 CON CARRITO EN NEGRO Y PROTECCIÓN MODO OSCURO */}
+      {/* 1. BOTÓN FLOTANTE CON PROTECCIÓN DE MODO OSCURO */}
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Ver carrito"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-black shadow-xl shadow-[#CCFF00]/30 transition-all duration-200 hover:scale-110 active:scale-95"
-        style={{ colorScheme: 'light', forcedColorAdjust: 'none' }}
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all duration-200 hover:scale-110 active:scale-95"
+        style={{
+          backgroundColor: '#CCFF00',
+          colorScheme: 'only light',
+          forcedColorAdjust: 'none',
+        }}
       >
-        <svg
-          className="h-7 w-7 text-black stroke-black fill-none"
-          stroke="black"
-          strokeWidth="2.5"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"
-          />
-        </svg>
+        <img 
+          src={cartIconBlack} 
+          alt="Carrito" 
+          className="h-7 w-7 pointer-events-none"
+          style={{ filter: 'none' }}
+        />
 
         {/* Contador de artículos */}
         {totalItems > 0 && (
