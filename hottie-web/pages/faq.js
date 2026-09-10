@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -87,7 +88,7 @@ const faqCategories = [
       },
       {
         q: "¿Puedo vender o redistribuir los sonidos de los kits?",
-        a: "No. La compra te otorga una licencia de uso para tus producciones musicales. Queda estrictamente prohibida la reventa, redistribución o resubida de los archivos de audio de forma individual o en otros paquetes de sonido."
+        a: "No. La compra te otorga una licencia de uso para tus producciones musicales. Queda strictly prohibida la reventa, redistribución o resubida de los archivos de audio de forma individual o en otros paquetes de sonido."
       }
     ]
   },
@@ -156,12 +157,20 @@ export default function FAQ() {
         <div className="mt-16 text-center bg-surface border border-volt/20 rounded-xl p-8">
           <h3 className="text-xl font-bold mb-2">¿Tienes alguna otra duda?</h3>
           <p className="text-muted text-sm mb-6">Estamos aquí para ayudarte. Escríbenos directamente.</p>
-          <a
-            href="mailto:hottieprodthis@gmail.com"
-            className="inline-block rounded-sm bg-volt px-8 py-3 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110"
+          <Link
+            href="/contacto"
+            style={{ 
+              color: '#000000', 
+              WebkitTextFillColor: '#000000',
+              forcedColorAdjust: 'none',
+              colorScheme: 'only light'
+            }}
+            className="inline-block rounded-sm bg-volt px-8 py-3 text-sm font-semibold uppercase tracking-widest transition hover:brightness-110"
           >
-            Contactar por Email
-          </a>
+            <span style={{ color: '#000000', WebkitTextFillColor: '#000000' }}>
+              Contactar
+            </span>
+          </Link>
         </div>
       </main>
 
