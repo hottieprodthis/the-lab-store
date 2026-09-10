@@ -45,6 +45,9 @@ export default function CartFloating() {
     }
   };
 
+  // Icono del carrito vectorizado en alta precisión (ruedas perfectamente alineadas)
+  const cartIconBlack = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'><path d='M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121 0 2.053-.825 2.196-1.94l.827-6.417a1.125 1.125 0 00-1.113-1.268H5.112M7.5 14.25L5.112 5.27M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z'/></svg>";
+
   return (
     <>
       {/* 1. BOTÓN FLOTANTE REDONDO #CCFF00 CON ICONO DE CARRITO LIMPIO Y ALINEADO */}
@@ -53,19 +56,11 @@ export default function CartFloating() {
         aria-label="Ver carrito"
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] shadow-xl shadow-[#CCFF00]/30 transition-all duration-200 hover:scale-110 active:scale-95"
       >
-        <svg
-          className="h-6 w-6 text-black"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121 0 2.053-.825 2.196-1.94l.827-6.417a1.125 1.125 0 00-1.113-1.268H5.112M7.5 14.25L5.112 5.27M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
-          />
-        </svg>
+        <img 
+          src={cartIconBlack} 
+          alt="Carrito" 
+          className="h-6 w-6 pointer-events-none select-none"
+        />
 
         {/* Contador de artículos */}
         {totalItems > 0 && (
@@ -179,9 +174,17 @@ export default function CartFloating() {
                 <button
                   onClick={handleCheckout}
                   disabled={loading}
-                  className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest text-black transition hover:brightness-110 disabled:opacity-50"
+                  style={{ 
+                    color: '#000000', 
+                    WebkitTextFillColor: '#000000',
+                    forcedColorAdjust: 'none',
+                    colorScheme: 'only light'
+                  }}
+                  className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest transition hover:brightness-110 disabled:opacity-50"
                 >
-                  {loading ? "Procesando..." : "Pagar con Stripe / Bizum"}
+                  <span style={{ color: '#000000', WebkitTextFillColor: '#000000' }}>
+                    {loading ? "Procesando..." : "PAGAR CON STRIPE / BIZUM"}
+                  </span>
                 </button>
                 <button
                   onClick={clearCart}
@@ -193,9 +196,17 @@ export default function CartFloating() {
             ) : (
               <button
                 onClick={() => setIsOpen(false)}
-                className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest text-black transition hover:brightness-110"
+                style={{ 
+                  color: '#000000', 
+                  WebkitTextFillColor: '#000000',
+                  forcedColorAdjust: 'none',
+                  colorScheme: 'only light'
+                }}
+                className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest transition hover:brightness-110"
               >
-                Explorar Tienda
+                <span style={{ color: '#000000', WebkitTextFillColor: '#000000' }}>
+                  EXPLORAR TIENDA
+                </span>
               </button>
             )}
           </div>
