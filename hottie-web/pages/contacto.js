@@ -89,9 +89,17 @@ export default function Contacto() {
                 href={item.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-6 inline-block rounded-sm bg-volt px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-widest text-ink transition hover:brightness-110"
+                style={{ 
+                  color: '#000000', 
+                  WebkitTextFillColor: '#000000',
+                  forcedColorAdjust: 'none',
+                  colorScheme: 'only light'
+                }}
+                className="mt-6 inline-block rounded-sm bg-volt px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-widest transition hover:brightness-110"
               >
-                {item.label}
+                <span style={{ color: '#000000', WebkitTextFillColor: '#000000' }}>
+                  {item.label}
+                </span>
               </a>
             </div>
           ))}
