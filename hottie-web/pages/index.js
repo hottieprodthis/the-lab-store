@@ -137,7 +137,31 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="mt-14 mx-auto max-w-md rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+        {/* BOTÓN PERFIL MUSO.AI */}
+        <div className="mt-10 flex justify-center">
+          <a
+            href="https://muso.ai/profile/6f3664ee-3a33-4b81-aeda-d228ac88b0e7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col items-center gap-2 transition hover:scale-105"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-volt text-ink shadow-lg shadow-volt/20 transition group-hover:bg-signal">
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-7 w-7"
+                aria-hidden="true"
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <span className="font-display text-xs font-bold uppercase tracking-widest text-paper group-hover:text-volt">
+              VER CRÉDITOS
+            </span>
+          </a>
+        </div>
+
+        <div className="mt-10 mx-auto max-w-md rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur">
           <form onSubmit={handleSubscribe} className="space-y-3">
             <div className="flex gap-2">
               <input
