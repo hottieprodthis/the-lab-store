@@ -145,14 +145,14 @@ export default function Home() {
             rel="noopener noreferrer"
             className="group flex flex-col items-center gap-2 transition hover:scale-105"
           >
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-volt text-ink shadow-lg shadow-volt/20 transition group-hover:bg-signal p-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-volt text-ink shadow-lg shadow-volt/20 transition p-1 overflow-hidden">
               <img
                 src="/muso.png"
                 alt="Muso.ai"
-                className="h-full w-full object-contain brightness-0"
+                className="h-full w-full object-contain brightness-0 scale-150"
               />
             </div>
-            <span className="font-display text-xs font-bold uppercase tracking-widest text-paper group-hover:text-volt">
+            <span className="font-display text-sm font-bold uppercase tracking-widest text-paper group-hover:text-volt">
               VER CRÉDITOS
             </span>
           </a>
