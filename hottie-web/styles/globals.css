@@ -78,3 +78,15 @@ select:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .waveform span { animation: none; transform: scaleY(0.7); }
 }
+
+/* PROTECCIÓN DE COLOR VERDE CONTRA FILTROS DE MÓVIL Y MODO NOCHE */
+.bg-volt,
+.text-volt,
+.fill-volt,
+.border-volt,
+[class*="bg-volt"],
+[class*="text-volt"] {
+  forced-color-adjust: none !important;
+  color-scheme: only light !important;
+  filter: none !important;
+}
