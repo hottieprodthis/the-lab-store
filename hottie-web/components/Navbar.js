@@ -26,6 +26,10 @@ export default function Navbar() {
               viewBox="14.5 14.5 71 77"
               className="h-[0.68em] w-auto shrink-0 overflow-visible"
               aria-hidden="true"
+              style={{
+                forcedColorAdjust: 'none',
+                colorScheme: 'only light'
+              }}
             >
               <defs>
                 <style>{`
@@ -48,6 +52,10 @@ export default function Navbar() {
               <g clipPath="url(#flask-inner)">
                 <path
                   className="animated-wave fill-volt"
+                  style={{
+                    forcedColorAdjust: 'none',
+                    colorScheme: 'only light'
+                  }}
                   d="M 10 55 Q 35 50, 60 55 T 110 55 L 110 110 L 10 110 Z"
                 />
               </g>
