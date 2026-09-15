@@ -141,22 +141,29 @@ export default function Home() {
           </p>
         </div>
 
-        {/* BOTÓN PERFIL MUSO.AI - TAMAÑO Y FUENTE IDÉNTICOS A SPOTIFY */}
+        {/* BOTÓN PERFIL MUSO.AI - CORREGIDO PARA MÓVIL Y MODO OSCURO */}
         <div className="mt-10 flex justify-center">
           <a
             href="https://muso.ai/profile/6f3664ee-3a33-4b81-aeda-d228ac88b0e7"
             target="_blank"
             rel="noopener noreferrer"
             className="group flex flex-col items-center gap-2 transition hover:scale-105"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-volt text-ink shadow-lg shadow-volt/20 overflow-hidden">
+            <div 
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-volt text-ink shadow-lg shadow-volt/20 overflow-hidden"
+              style={{
+                forcedColorAdjust: 'none',
+                colorScheme: 'only light'
+              }}
+            >
               <img
                 src="/muso.png"
                 alt="Muso.ai"
                 className="h-full w-full object-contain brightness-0 scale-150"
               />
             </div>
-            <span className="font-body text-sm font-bold uppercase tracking-wider text-paper group-hover:text-volt">
+            <span className="font-body text-sm font-bold uppercase tracking-wider text-paper transition duration-200 group-hover:text-volt">
               VER CRÉDITOS
             </span>
           </a>
