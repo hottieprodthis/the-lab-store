@@ -61,7 +61,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>The Lab by Hottie | Hottieprod - Producción Musical</title>
+        <title>The Lab by Hottie | Estudio Profesional</title>
         <meta name="description" content="The Lab es el estudio de producción musical, mezcla y mastering de Hottie (Hottieprod) en Salamanca. Especializado en tech house, electrónica, latina y urbana." />
         <meta name="keywords" content="hottie, the lab, hottieprod, hottieprodthis, productor musical, the lab hottie, estudio de grabacion, salamanca, dj" />
         <meta property="og:title" content="The Lab by Hottie | Producción Musical" />
