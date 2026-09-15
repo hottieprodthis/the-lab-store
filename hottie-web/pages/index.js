@@ -61,12 +61,16 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>The Lab – Hottie</title>
-        <meta
-          name="description"
-          content="Hottie: laboratorio de sonido sin límites. Kits de producción, mezcla, masterización y clases personalizadas."
-        />
+        <title>The Lab by Hottie | Hottieprod - Producción Musical</title>
+        <meta name="description" content="The Lab es el estudio de producción musical, mezcla y mastering de Hottie (Hottieprod) en Salamanca. Especializado en tech house, electrónica, latina y urbana." />
+        <meta name="keywords" content="hottie, the lab, hottieprod, hottieprodthis, productor musical, the lab hottie, estudio de grabacion, salamanca, dj" />
+        <meta property="og:title" content="The Lab by Hottie | Producción Musical" />
+        <meta property="og:description" content="Estudio de producción musical, mezcla y mastering de Hottie (Hottieprod)." />
+        <meta property="og:url" content="https://www.hottieprodthis.com" />
       </Head>
+
+      {/* Título invisible para SEO (Google leerá esto como lo más importante de la página) */}
+      <h1 className="sr-only">The Lab - Estudio de Producción Musical por Hottie (Hottieprod)</h1>
 
       <Navbar />
 
@@ -78,11 +82,11 @@ export default function Home() {
             ))}
           </div>
 
-          <h1 className="font-display text-6xl tracking-wide text-paper md:text-8xl leading-[0.95]">
+          <h2 className="font-display text-6xl tracking-wide text-paper md:text-8xl leading-[0.95]">
             TU PRÓXIMO HIT
             <br />
             <span className="text-volt">COMIENZA AQUÍ.</span>
-          </h1>
+          </h2>
 
           <p className="max-w-xl text-lg text-muted font-body leading-relaxed">
             Transforma tu estudio en un laboratorio de sonido sin límites. Kits de producción, mezcla, masterización y clases personalizadas para convertir cualquier idea en un lanzamiento profesional.
@@ -116,7 +120,7 @@ export default function Home() {
         <div className="mx-auto mb-8 h-36 w-36 overflow-hidden rounded-full border-2 border-volt/40 p-1 shadow-lg shadow-volt/10">
           <img
             src="/sobre-mi-imagen.jpeg"
-            alt="Sobre Hottie"
+            alt="Hottieprod - Productor Musical"
             className="h-full w-full rounded-full object-cover"
           />
         </div>
