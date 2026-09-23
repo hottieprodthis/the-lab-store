@@ -29,28 +29,23 @@ export default function Gracias() {
     }
   }, []);
 
-  // Si viene de una suscripción, activamos al usuario en Supabase
+  // Activamos la suscripción directamente en la tabla profiles que lee el área de clientes
   useEffect(() => {
     async function activateSubscription() {
       if (tipo === 'suscripcion' && session_id) {
         setSubscribing(true);
         try {
-          // Obtenemos el usuario logueado actualmente en Supabase
           const { data: { user } } = await supabase.auth.getUser();
           
           if (user) {
-            // Guardamos o actualizamos su estado de suscripción en la tabla correspondiente
+            // Actualizamos la tabla profiles que es la que revisa el área de clientes
             const { error } = await supabase
-              .from('suscriptores')
-              .upsert({
-                email: user.email,
-                user_id: user.id,
-                subscribed: true,
-                updated_at: new Date()
-              }, { onConflict: 'email' });
+              .from('profiles')
+              .update({ is_subscribed: true })
+              .eq('id', user.id);
 
             if (error) {
-              console.error('Error al actualizar suscripción:', error.message);
+              console.error('Error al actualizar perfil de suscripción:', error.message);
             } else {
               setSubMessage('¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
             }
