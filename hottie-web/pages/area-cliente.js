@@ -33,14 +33,15 @@ export default function AreaClientePage() {
 
       setProfile(profileData);
 
-      // Cargar el precio de la suscripción configurado en el panel admin (desde la tabla settings u otra similar)
+      // Cargar el precio de la suscripción configurado en el panel admin de forma correcta
       const { data: settingsData } = await supabase
         .from('settings')
-        .select('*')
-        .single();
+        .select('value')
+        .eq('key', 'subscription_price')
+        .maybeSingle();
       
-      if (settingsData && (settingsData.subscription_price || settingsData.precio_suscripcion)) {
-        setSubscriptionPrice(settingsData.subscription_price || settingsData.precio_suscripcion);
+      if (settingsData && settingsData.value) {
+        setSubscriptionPrice(settingsData.value);
       }
 
       // Si está suscrito o es admin, cargamos el contenido exclusivo
@@ -65,7 +66,7 @@ export default function AreaClientePage() {
 
   const handleSubscriptionCheckout = async () => {
     try {
-      // Convertimos el precio a céntimos para Stripe (ej: 7.99 -> 799)
+      // Convertimos el precio a céntimos para Stripe (ej: 9.99 -> 999)
       const priceInCents = Math.round(Number(subscriptionPrice) * 100);
 
       const response = await fetch('/api/checkout', {
