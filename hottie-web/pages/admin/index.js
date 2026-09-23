@@ -97,7 +97,7 @@ export default function AdminDashboard() {
       supabase.from('classes').select('*').order('sort_order', { ascending: true }),
       supabase.from('posts').select('*').order('created_at', { ascending: false }),
       supabase.from('packs').select('*').order('created_at', { ascending: false }),
-      supabase.from('settings').select('value').eq('key', 'subscription_price').maybeSingle(),
+      supabase.from('settings').select('value').eq('key', 'subscription_price'),
       supabase.from('suscriptores').select('*', { count: 'exact', head: true }),
     ]);
 
@@ -107,9 +107,8 @@ export default function AdminDashboard() {
     setPosts(postsData || []);
     setPacks(packsData || []);
     
-    // Carga correcta del precio desde Supabase
-    if (settingData && settingData.value) {
-      setSubscriptionPrice(settingData.value);
+    if (settingData && settingData.length > 0 && settingData[0].value) {
+      setSubscriptionPrice(settingData[0].value);
     }
 
     setSubscribersCount(subCount || 0);
@@ -124,17 +123,15 @@ export default function AdminDashboard() {
     e.preventDefault();
     setPriceMessage('');
     
-    // Asegurarnos de actualizar o insertar si no existiera
     const { error } = await supabase
       .from('settings')
-      .update({ value: subscriptionPrice })
-      .eq('key', 'subscription_price');
+      .upsert({ key: 'subscription_price', value: subscriptionPrice }, { onConflict: 'key' });
 
     if (error) {
       setPriceMessage(`Error: ${error.message}`);
     } else {
       setPriceMessage('¡Precio actualizado correctamente!');
-      load(); // Recargamos para verificar
+      load();
     }
   }
 
