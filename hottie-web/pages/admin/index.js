@@ -38,26 +38,35 @@ function Section({ title, items, kind, onDelete }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-t border-white/10 bg-surface">
-                  <td className="px-4 py-3 text-paper">{item.title}</td>
-                  <td className="px-4 py-3 text-muted">
-                    {item.file_key ? `R2: ${item.file_key}` : (item.content ? item.content.substring(0, 50) + '...' : '')}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link href={`/admin/${kind}/${item.id}`} className="mr-4 text-signal hover:underline">
-                      Editar
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(item)}
-                      className="text-volt hover:underline"
-                    >
-                      Borrar
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {items.map((item) => {
+                // Hacemos que busque en todas las posibles columnas de tu base de datos
+                const itemName = item.title || item.name || item.nombre || 'Sin título';
+                const itemDetail = item.description || item.descripcion || item.content || '';
+                const itemFile = item.file_url || item.archivo_url || item.download_url || item.file_key || '';
+
+                return (
+                  <tr key={item.id} className="border-t border-white/10 bg-surface">
+                    <td className="px-4 py-3 text-paper">{itemName}</td>
+                    <td className="px-4 py-3 text-muted">
+                      {itemFile 
+                        ? `🔗 ${itemFile.substring(0, 40)}${itemFile.length > 40 ? '...' : ''}` 
+                        : (itemDetail ? itemDetail.substring(0, 50) + '...' : 'Sin detalles')}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link href={`/admin/${kind}/${item.id}`} className="mr-4 text-signal hover:underline">
+                        Editar
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(item)}
+                        className="text-volt hover:underline"
+                      >
+                        Borrar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -218,7 +227,7 @@ export default function AdminDashboard() {
                     <tbody>
                       {posts.map((post) => (
                         <tr key={post.id} className="border-t border-white/10 bg-surface">
-                          <td className="px-4 py-3 text-paper">{post.title}</td>
+                          <td className="px-4 py-3 text-paper">{post.title || post.name || 'Sin título'}</td>
                           <td className="px-4 py-3 text-muted">{post.content?.substring(0, 60)}...</td>
                           <td className="px-4 py-3 text-right">
                             <Link href={`/admin/areaclientes/${post.id}?type=post`} className="mr-4 text-signal hover:underline">
@@ -255,15 +264,15 @@ export default function AdminDashboard() {
                     <thead className="bg-surface2 text-xs uppercase tracking-widest text-muted">
                       <tr>
                         <th className="px-4 py-3">Título</th>
-                        <th className="px-4 py-3">Archivo R2</th>
+                        <th className="px-4 py-3">Archivo / Enlace</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {packs.map((pack) => (
                         <tr key={pack.id} className="border-t border-white/10 bg-surface">
-                          <td className="px-4 py-3 text-paper">{pack.title}</td>
-                          <td className="px-4 py-3 text-muted">{pack.file_key}</td>
+                          <td className="px-4 py-3 text-paper">{pack.title || pack.name || 'Sin título'}</td>
+                          <td className="px-4 py-3 text-muted">{pack.file_key || pack.file_url || ''}</td>
                           <td className="px-4 py-3 text-right">
                             <Link href={`/admin/areaclientes/${pack.id}?type=pack`} className="mr-4 text-signal hover:underline">
                               Editar
