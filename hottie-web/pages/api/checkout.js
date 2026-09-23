@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl } = req.body;
+  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId } = req.body;
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
@@ -251,6 +251,7 @@ export default async function handler(req, res) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: metadataPayload,
+      client_reference_id: userId || undefined, // <-- ÚNICA LÍNEA AÑADIDA AQUÍ
     });
 
     return res.status(200).json({ url: session.url });
