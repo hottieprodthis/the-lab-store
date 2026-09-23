@@ -10,6 +10,8 @@ function Section({ title, items, kind, onToggle, onDelete }) {
   const getBaseUrl = () => {
     if (kind === 'productos') return '/admin/productos';
     if (kind === 'servicios') return '/admin/servicios';
+    if (kind === 'areaclientes-posts') return '/admin/areaclientes';
+    if (kind === 'areaclientes-packs') return '/admin/areaclientes';
     return '/admin/clases';
   };
 
@@ -20,7 +22,7 @@ function Section({ title, items, kind, onToggle, onDelete }) {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-2xl tracking-wide text-paper">{title}</h2>
         <Link
-          href={`${baseUrl}/nuevo`}
+          href="/admin/areaclientes/nuevo"
           className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
         >
           + Añadir
@@ -34,50 +36,32 @@ function Section({ title, items, kind, onToggle, onDelete }) {
           <table className="w-full text-left text-sm">
             <thead className="bg-surface2 text-xs uppercase tracking-widest text-muted">
               <tr>
-                <th className="px-4 py-3">Nombre</th>
-                <th className="px-4 py-3">Precio</th>
-                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Título / Nombre</th>
+                <th className="px-4 py-3">Detalle / Archivo</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => {
-                const hasPlans = Array.isArray(item.plans) && item.plans.length > 0;
-
-                return (
-                  <tr key={item.id} className="border-t border-white/10 bg-surface">
-                    <td className="px-4 py-3 text-paper">{item.name}</td>
-                    <td className="px-4 py-3 text-muted">
-                      {hasPlans
-                        ? 'Planes / Categorías'
-                        : formatPrice(item.price_cents, item.currency)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => onToggle(item)}
-                        className={`rounded-sm px-2 py-1 text-xs uppercase tracking-widest ${
-                          item.active ? 'bg-signal/20 text-signal' : 'bg-white/10 text-muted'
-                        }`}
-                      >
-                        {item.active ? 'Publicado' : 'Oculto'}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`${baseUrl}/${item.id}`} className="mr-4 text-signal hover:underline">
-                        Editar
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(item)}
-                        className="text-volt hover:underline"
-                      >
-                        Borrar
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map((item) => (
+                <tr key={item.id} className="border-t border-white/10 bg-surface">
+                  <td className="px-4 py-3 text-paper">{item.title}</td>
+                  <td className="px-4 py-3 text-muted">
+                    {item.file_key ? `R2: ${item.file_key}` : (item.content ? item.content.substring(0, 50) + '...' : '')}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Link href={`/admin/areaclientes/${item.id}?type=${kind}`} className="mr-4 text-signal hover:underline">
+                      Editar
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(item)}
+                      className="text-volt hover:underline"
+                    >
+                      Borrar
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -90,20 +74,30 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [packs, setPacks] = useState([]);
+  const [subscriptionPrice, setSubscriptionPrice] = useState('7.99');
+  const [priceMessage, setPriceMessage] = useState('');
   const [subscribersCount, setSubscribersCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
-    const [{ data: p }, { data: s }, { data: c }, { count: subCount }] = await Promise.all([
+    const [{ data: p }, { data: s }, { data: c }, { data: postsData }, { data: packsData }, { data: settingData }, { count: subCount }] = await Promise.all([
       supabase.from('products').select('*').order('sort_order', { ascending: true }),
       supabase.from('services').select('*').order('sort_order', { ascending: true }),
       supabase.from('classes').select('*').order('sort_order', { ascending: true }),
+      supabase.from('posts').select('*').order('created_at', { ascending: false }),
+      supabase.from('packs').select('*').order('created_at', { ascending: false }),
+      supabase.from('settings').select('value').eq('key', 'subscription_price').single(),
       supabase.from('suscriptores').select('*', { count: 'exact', head: true }),
     ]);
     setProducts(p || []);
     setServices(s || []);
     setClasses(c || []);
+    setPosts(postsData || []);
+    setPacks(packsData || []);
+    if (settingData) setSubscriptionPrice(settingData.value);
     setSubscribersCount(subCount || 0);
     setLoading(false);
   }
@@ -112,38 +106,31 @@ export default function AdminDashboard() {
     load();
   }, []);
 
+  async function handleUpdatePrice(e) {
+    e.preventDefault();
+    setPriceMessage('');
+    const { error } = await supabase.from('settings').update({ value: subscriptionPrice }).eq('key', 'subscription_price');
+    if (error) setPriceMessage(`Error: ${error.message}`);
+    else setPriceMessage('¡Precio actualizado correctamente!');
+  }
+
   async function toggleActive(table, item) {
     const { error } = await supabase.from(table).update({ active: !item.active }).eq('id', item.id);
     if (error) {
       alert(`Error al actualizar estado: ${error.message}`);
       return;
     }
-
-    if (table === 'products') {
-      setProducts((prev) => prev.map((p) => (p.id === item.id ? { ...p, active: !p.active } : p)));
-    } else if (table === 'services') {
-      setServices((prev) => prev.map((s) => (s.id === item.id ? { ...s, active: !s.active } : s)));
-    } else {
-      setClasses((prev) => prev.map((c) => (c.id === item.id ? { ...c, active: !c.active } : c)));
-    }
+    load();
   }
 
   async function remove(table, item) {
+    if (!confirm('¿Estás seguro de que quieres borrar este elemento?')) return;
     const { error } = await supabase.from(table).delete().eq('id', item.id);
-
     if (error) {
       alert(`No se pudo borrar: ${error.message}`);
-      console.error('Error al borrar en Supabase:', error);
       return;
     }
-
-    if (table === 'products') {
-      setProducts((prev) => prev.filter((p) => p.id !== item.id));
-    } else if (table === 'services') {
-      setServices((prev) => prev.filter((s) => s.id !== item.id));
-    } else {
-      setClasses((prev) => prev.filter((c) => c.id !== item.id));
-    }
+    load();
   }
 
   return (
@@ -157,6 +144,27 @@ export default function AdminDashboard() {
           <p className="text-muted">Cargando…</p>
         ) : (
           <>
+            {/* CONTROL DE PRECIO DE SUSCRIPCIÓN */}
+            <div className="mb-12 rounded-sm border border-white/10 bg-surface p-6">
+              <h2 className="font-display text-xl tracking-wide text-paper mb-4">Precio de la Suscripción Mensual (Área Clientes)</h2>
+              <form onSubmit={handleUpdatePrice} className="flex items-center gap-4">
+                <input
+                  type="text"
+                  value={subscriptionPrice}
+                  onChange={(e) => setSubscriptionPrice(e.target.value)}
+                  className="rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:outline-none focus:border-volt w-32"
+                />
+                <span className="text-muted">€ / mes</span>
+                <button
+                  type="submit"
+                  className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                >
+                  Guardar Precio
+                </button>
+              </form>
+              {priceMessage && <p className="mt-3 text-xs text-volt">{priceMessage}</p>}
+            </div>
+
             <Section
               title="Productos"
               kind="productos"
@@ -175,9 +183,97 @@ export default function AdminDashboard() {
               title="Clases"
               kind="clases"
               items={classes}
-              onToggle={(item) => toggleActive('classes', item)}
-              onDelete={(item) => remove('classes', item)}
+              onToggle={(item) => toggleActive('clases', item)}
+              onDelete={(item) => remove('clases', item)}
             />
+
+            {/* SECCIÓN POSTS EXCLUSIVOS */}
+            <div className="mb-12">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-2xl tracking-wide text-paper">Posts Exclusivos (Área Clientes)</h2>
+                <Link
+                  href="/admin/areaclientes/nuevo"
+                  className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                >
+                  + Añadir Post
+                </Link>
+              </div>
+              {posts.length === 0 ? (
+                <p className="text-sm text-muted">No hay posts exclusivos publicados.</p>
+              ) : (
+                <div className="overflow-hidden rounded-sm border border-white/10">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-surface2 text-xs uppercase tracking-widest text-muted">
+                      <tr>
+                        <th className="px-4 py-3">Título</th>
+                        <th className="px-4 py-3">Extracto</th>
+                        <th className="px-4 py-3 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {posts.map((post) => (
+                        <tr key={post.id} className="border-t border-white/10 bg-surface">
+                          <td className="px-4 py-3 text-paper">{post.title}</td>
+                          <td className="px-4 py-3 text-muted">{post.content?.substring(0, 60)}...</td>
+                          <td className="px-4 py-3 text-right">
+                            <Link href={`/admin/areaclientes/${post.id}?type=post`} className="mr-4 text-signal hover:underline">
+                              Editar
+                            </Link>
+                            <button type="button" onClick={() => remove('posts', post)} className="text-volt hover:underline">
+                              Borrar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* SECCIÓN PACKS DE DESCARGA */}
+            <div className="mb-12">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-2xl tracking-wide text-paper">Kits / Packs (Área Clientes)</h2>
+                <Link
+                  href="/admin/areaclientes/nuevo"
+                  className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                >
+                  + Añadir Pack
+                </Link>
+              </div>
+              {packs.length === 0 ? (
+                <p className="text-sm text-muted">No hay packs de descarga publicados.</p>
+              ) : (
+                <div className="overflow-hidden rounded-sm border border-white/10">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-surface2 text-xs uppercase tracking-widest text-muted">
+                      <tr>
+                        <th className="px-4 py-3">Título</th>
+                        <th className="px-4 py-3">Archivo R2</th>
+                        <th className="px-4 py-3 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {packs.map((pack) => (
+                        <tr key={pack.id} className="border-t border-white/10 bg-surface">
+                          <td className="px-4 py-3 text-paper">{pack.title}</td>
+                          <td className="px-4 py-3 text-muted">{pack.file_key}</td>
+                          <td className="px-4 py-3 text-right">
+                            <Link href={`/admin/areaclientes/${pack.id}?type=pack`} className="mr-4 text-signal hover:underline">
+                              Editar
+                            </Link>
+                            <button type="button" onClick={() => remove('packs', pack)} className="text-volt hover:underline">
+                              Borrar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
             {/* SECCIÓN SUSCRIPTORES */}
             <div className="mb-12">
