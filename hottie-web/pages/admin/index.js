@@ -4,25 +4,21 @@ import Head from 'next/head';
 import AdminGuard from '../../components/AdminGuard';
 import AdminHeader from '../../components/AdminHeader';
 import { supabase } from '../../lib/supabaseClient';
-import { formatPrice } from '../../lib/format';
 
-function Section({ title, items, kind, onToggle, onDelete }) {
-  const getBaseUrl = () => {
-    if (kind === 'productos') return '/admin/productos';
-    if (kind === 'servicios') return '/admin/servicios';
-    if (kind === 'areaclientes-posts') return '/admin/areaclientes';
-    if (kind === 'areaclientes-packs') return '/admin/areaclientes';
-    return '/admin/clases';
+function Section({ title, items, kind, onDelete }) {
+  const getAddUrl = () => {
+    if (kind === 'productos') return '/admin/productos/nuevo';
+    if (kind === 'servicios') return '/admin/servicios/nuevo';
+    if (kind === 'clases') return '/admin/clases/nuevo';
+    return '/admin';
   };
-
-  const baseUrl = getBaseUrl();
 
   return (
     <div className="mb-12">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-2xl tracking-wide text-paper">{title}</h2>
         <Link
-          href="/admin/areaclientes/nuevo"
+          href={getAddUrl()}
           className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
         >
           + Añadir
@@ -49,7 +45,7 @@ function Section({ title, items, kind, onToggle, onDelete }) {
                     {item.file_key ? `R2: ${item.file_key}` : (item.content ? item.content.substring(0, 50) + '...' : '')}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/admin/areaclientes/${item.id}?type=${kind}`} className="mr-4 text-signal hover:underline">
+                    <Link href={`/admin/${kind}/${item.id}`} className="mr-4 text-signal hover:underline">
                       Editar
                     </Link>
                     <button
@@ -135,15 +131,6 @@ export default function AdminDashboard() {
     }
   }
 
-  async function toggleActive(table, item) {
-    const { error } = await supabase.from(table).update({ active: !item.active }).eq('id', item.id);
-    if (error) {
-      alert(`Error al actualizar estado: ${error.message}`);
-      return;
-    }
-    load();
-  }
-
   async function remove(table, item) {
     if (!confirm('¿Estás seguro de que quieres borrar este elemento?')) return;
     const { error } = await supabase.from(table).delete().eq('id', item.id);
@@ -190,22 +177,19 @@ export default function AdminDashboard() {
               title="Productos"
               kind="productos"
               items={products}
-              onToggle={(item) => toggleActive('products', item)}
               onDelete={(item) => remove('products', item)}
             />
             <Section
               title="Servicios"
               kind="servicios"
               items={services}
-              onToggle={(item) => toggleActive('services', item)}
               onDelete={(item) => remove('services', item)}
             />
             <Section
               title="Clases"
               kind="clases"
               items={classes}
-              onToggle={(item) => toggleActive('clases', item)}
-              onDelete={(item) => remove('clases', item)}
+              onDelete={(item) => remove('classes', item)}
             />
 
             {/* SECCIÓN POSTS EXCLUSIVOS */}
@@ -213,7 +197,7 @@ export default function AdminDashboard() {
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-display text-2xl tracking-wide text-paper">Posts Exclusivos (Área Clientes)</h2>
                 <Link
-                  href="/admin/areaclientes/nuevo"
+                  href="/admin/areaclientes/nuevo-post"
                   className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
                 >
                   + Añadir Post
@@ -257,7 +241,7 @@ export default function AdminDashboard() {
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-display text-2xl tracking-wide text-paper">Kits / Packs (Área Clientes)</h2>
                 <Link
-                  href="/admin/areaclientes/nuevo"
+                  href="/admin/areaclientes/nuevo-pack"
                   className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
                 >
                   + Añadir Pack
@@ -296,7 +280,7 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* SECCIÓN SUSCRIPTORES */}
+            {/* SUSCRIPTORES */}
             <div className="mb-12">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-display text-2xl tracking-wide text-paper">Suscriptores</h2>
