@@ -6,10 +6,12 @@ import { slugify } from '../lib/format';
 export default function ItemForm({ table, initial, hasFileUrl }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
-  // Permitir planes tanto para Servicios como para Clases
+  
+  // Permitir planes para Servicios y Clases
   const supportsPlans = table === 'services' || table === 'classes';
-  // Ocultar opción de subir imagen en Servicios y Clases (solo activo para Productos)
-  const supportsImage = table === 'products';
+  
+  // ¡CORREGIDO!: Ahora permitimos subir imagen en TODAS las secciones (Productos, Servicios y Clases)
+  const supportsImage = true; 
 
   const [name, setName] = useState(initial?.name || '');
   const [slug, setSlug] = useState(initial?.slug || '');
@@ -97,7 +99,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       finalPriceCents = Math.round(parseFloat(price) * 100);
     }
 
-    // Construcción del objeto a guardar
+    // Construcción del objeto exacto para guardar en Supabase
     const payload = {
       name: name.trim(),
       slug: slugify(slug),
@@ -105,18 +107,17 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       price_cents: finalPriceCents,
       currency,
       active,
+      image_url: imageUrl || null,
     };
-
-    // Solo se envía image_url si la tabla es 'products'
-    if (supportsImage) {
-      payload.image_url = imageUrl || null;
-    }
 
     if (hasFileUrl) {
       payload.file_url = fileUrl || null;
       payload.demo_url = demoUrl || null;
     }
-    if (supportsPlans) payload.plans = formattedPlans;
+    
+    if (supportsPlans) {
+      payload.plans = formattedPlans;
+    }
 
     setSaving(true);
     const query = isEdit
@@ -216,13 +217,13 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       </div>
 
-      {/* PLANES / CATEGORÍAS (Servicios y Clases) */}
+      {/* PLANES / CATEGORÍAS (Solo para Servicios y Clases) */}
       {supportsPlans && (
         <div className="border-t border-white/15 pt-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold uppercase tracking-wider text-paper">
-                Planes / Categorías (Opcional)
+                Planes / Tarifas (Opcional)
               </h3>
               <p className="text-xs text-muted">Añade precios y descripciones específicas por plan.</p>
             </div>
@@ -248,7 +249,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs text-muted">Nombre del Plan</label>
+                    <label className="mb-1 block text-xs text-muted">Nombre del Plan (ej: Premium)</label>
                     <input
                       type="text"
                       required
@@ -258,7 +259,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-muted">Precio (€)</label>
+                    <label className="mb-1 block text-xs text-muted">Precio del Plan</label>
                     <input
                       type="number"
                       step="0.01"
@@ -277,7 +278,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
                     value={plan.description}
                     onChange={(e) => updatePlan(index, 'description', e.target.value)}
                     className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
-                    placeholder="En el plan..."
+                    placeholder="Incluye..."
                   />
                 </div>
               </div>
@@ -286,21 +287,22 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       )}
 
-      {/* SECCIÓN DE IMAGEN: Únicamente visible cuando sea un Producto */}
+      {/* SECCIÓN DE IMAGEN: Ahora visible para Productos, Servicios y Clases */}
       {supportsImage && (
-        <div>
-          <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Imagen</label>
+        <div className="border-t border-white/15 pt-6">
+          <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Imagen de portada</label>
           {imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imageUrl} alt="" className="mb-2 h-32 w-32 rounded-sm object-cover" />
           )}
           <input type="file" accept="image/*" onChange={handleImageUpload} className="text-sm text-muted" />
-          {uploading && <p className="mt-1 text-xs text-signal">Subiendo…</p>}
+          {uploading && <p className="mt-1 text-xs text-signal">Subiendo imagen al servidor…</p>}
         </div>
       )}
 
+      {/* ARCHIVOS DESCARGABLES: Solo para Productos */}
       {hasFileUrl && (
-        <div className="space-y-4">
+        <div className="space-y-4 border-t border-white/15 pt-6">
           <div>
             <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
               Enlace de descarga (se muestra al comprador tras pagar)
@@ -314,7 +316,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
             />
           </div>
 
-          <div className="border-t border-white/15 pt-4">
+          <div>
             <label className="mb-1 block text-xs uppercase tracking-widest text-volt font-bold">
               URL de Preview / Demo (Spotify, YouTube, SoundCloud o enlace MP3)
             </label>
@@ -329,23 +331,25 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-sm text-paper">
-        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        Publicado (visible en la web)
-      </label>
+      <div className="border-t border-white/15 pt-6">
+        <label className="flex items-center gap-2 text-sm text-paper cursor-pointer">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="cursor-pointer" />
+          Publicado (visible en la web)
+        </label>
+      </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-4">
         <button
           type="submit"
           disabled={saving || uploading}
-          className="rounded-sm bg-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-ink hover:brightness-110 disabled:opacity-50"
+          className="rounded-sm bg-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-ink hover:brightness-110 disabled:opacity-50 transition"
         >
-          {saving ? 'Guardando…' : 'Guardar'}
+          {saving ? 'Guardando…' : 'Guardar y Publicar'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/admin')}
-          className="rounded-sm border border-white/20 px-6 py-3 text-sm uppercase tracking-widest text-paper hover:border-signal hover:text-signal"
+          className="rounded-sm border border-white/20 px-6 py-3 text-sm uppercase tracking-widest text-paper hover:border-signal hover:text-signal transition"
         >
           Cancelar
         </button>
