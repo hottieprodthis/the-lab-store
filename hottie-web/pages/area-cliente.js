@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../lib/supabaseClient';
-import AdminHeader from '../components/AdminHeader'; // O tu cabecera pública si prefieres
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -11,6 +10,7 @@ export default function AreaClientePage() {
   const [posts, setPosts] = useState([]);
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [subscriptionPrice, setSubscriptionPrice] = useState(7.99); // Valor por defecto
   const router = useRouter();
 
   useEffect(() => {
@@ -33,6 +33,16 @@ export default function AreaClientePage() {
 
       setProfile(profileData);
 
+      // Cargar el precio de la suscripción configurado en el panel admin (desde la tabla settings u otra similar)
+      const { data: settingsData } = await supabase
+        .from('settings')
+        .select('*')
+        .single();
+      
+      if (settingsData && (settingsData.subscription_price || settingsData.precio_suscripcion)) {
+        setSubscriptionPrice(settingsData.subscription_price || settingsData.precio_suscripcion);
+      }
+
       // Si está suscrito o es admin, cargamos el contenido exclusivo
       if (profileData?.is_subscribed || profileData?.is_admin) {
         const { data: postsData } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -51,6 +61,36 @@ export default function AreaClientePage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
+  };
+
+  const handleSubscriptionCheckout = async () => {
+    try {
+      // Convertimos el precio a céntimos para Stripe (ej: 7.99 -> 799)
+      const priceInCents = Math.round(Number(subscriptionPrice) * 100);
+
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isSubscription: true,
+          customPriceCents: priceInCents,
+          planName: 'Suscripción Área de Clientes',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Error al iniciar el pago con Stripe: ' + (data.error || 'Desconocido'));
+      }
+    } catch (err) {
+      console.error('Error de conexión:', err);
+      alert('Hubo un error al conectar con el servidor de pagos.');
+    }
   };
 
   if (loading) {
@@ -98,13 +138,13 @@ export default function AreaClientePage() {
           <div className="rounded-sm border border-white/10 bg-surface p-8 text-center max-w-lg mx-auto my-12">
             <h2 className="font-display text-2xl mb-3 text-paper">🔒 Contenido Exclusivo Bloqueado</h2>
             <p className="text-sm text-muted mb-6 leading-relaxed">
-              Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo 7,99 €/mes.
+              Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo {subscriptionPrice} €/mes.
             </p>
             <button 
-              onClick={() => alert('Próximamente enlace directo de Stripe Checkout')} 
+              onClick={handleSubscriptionCheckout} 
               className="rounded-sm bg-volt px-6 py-3 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
             >
-              Suscribirse Ahora (7,99 €/mes)
+              Suscribirse Ahora ({subscriptionPrice} €/mes)
             </button>
           </div>
         ) : (
