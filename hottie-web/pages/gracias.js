@@ -29,23 +29,35 @@ export default function Gracias() {
     }
   }, []);
 
-  // Activamos la suscripción directamente en la tabla profiles que lee el área de clientes
+  // Activación blindada de la suscripción
   useEffect(() => {
     async function activateSubscription() {
       if (tipo === 'suscripcion' && session_id) {
         setSubscribing(true);
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          // Nos aseguramos de obtener la sesión actual antes de invocar la función
+          const { data: { session } } = await supabase.auth.getSession();
           
-          if (user) {
-            // Actualizamos mediante la función segura RPC de Supabase para evitar bloqueos RLS
+          if (session) {
+            console.log('Sesión activa encontrada. Activando suscripción vía RPC...');
             const { error } = await supabase.rpc('activar_mi_suscripcion');
 
             if (error) {
-              console.error('Error al actualizar perfil de suscripción:', error.message);
+              console.error('Error al activar suscripción:', error.message);
+              setSubMessage('Hubo un error al activar tu suscripción. Contacta con soporte.');
             } else {
+              console.log('¡Suscripción marcada como true en la base de datos con éxito!');
               setSubMessage('¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
             }
+          } else {
+            console.warn('Esperando a que la sesión se sincronice...');
+            // Pequeño reintento por si la sesión tarda un segundo en cargarse tras el redirect de Stripe
+            setTimeout(async () => {
+              const { error } = await supabase.rpc('activar_mi_suscripcion');
+              if (!error) {
+                setSubMessage('¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
+              }
+            }, 1500);
           }
         } catch (err) {
           console.error('Error procesando suscripción:', err);
@@ -94,7 +106,7 @@ export default function Gracias() {
               'Hemos recibido los datos de tu proyecto correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para comenzar.'
             )}
             {esMixto && (
-              'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los enlaces de descarga y en breve nos pondremos en contacto contigo para coordinar el trabajo práctico.'
+              'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder al enlace de descarga y en breve nos pondremos en contacto contigo.'
             )}
             {!esServicio && !esClase && !esMixto && !esSuscripcion && (
               'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los archivos y enlaces de descarga.'
