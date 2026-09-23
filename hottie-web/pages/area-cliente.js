@@ -122,6 +122,26 @@ export default function AreaClientePage() {
     }
   };
 
+  // NUEVA FUNCIÓN: Enviar email para cambiar contraseña
+  const handleResetPassword = async () => {
+    try {
+      // Pedimos a Supabase que envíe el correo al email del usuario actual
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        // Esto le dice a Supabase a qué página redirigir al usuario cuando haga clic en el correo
+        redirectTo: `${window.location.origin}/reset-password`, 
+      });
+
+      if (error) {
+        alert('Hubo un error al intentar enviar el correo: ' + error.message);
+      } else {
+        alert('¡Listo! Te hemos enviado un correo con un enlace seguro para cambiar tu contraseña. Por favor, revisa también tu carpeta de Spam.');
+      }
+    } catch (err) {
+      console.error('Error al solicitar cambio de contraseña:', err);
+      alert('Ocurrió un error inesperado de conexión.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-ink text-paper flex items-center justify-center font-body">
@@ -300,13 +320,13 @@ export default function AreaClientePage() {
               <div className="border-t border-white/10 pt-6">
                 <p className="text-xs uppercase tracking-widest text-muted mb-2">Seguridad</p>
                 <button 
-                  onClick={() => alert('Próximamente: El sistema te enviará un email para cambiar tu contraseña.')}
+                  onClick={handleResetPassword} // <-- AQUÍ SE CONECTA LA FUNCIÓN
                   className="text-xs text-volt hover:underline"
                 >
                   Cambiar mi contraseña
                 </button>
                 <p className="text-[11px] text-muted mt-2 leading-relaxed">
-                  Por seguridad, tu contraseña actual está encriptada y no se puede mostrar.
+                  Te enviaremos un correo electrónico con un enlace seguro para que puedas establecer una nueva contraseña.
                 </p>
               </div>
 
