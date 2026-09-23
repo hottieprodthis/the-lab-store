@@ -78,6 +78,7 @@ export default function AreaClientePage() {
           isSubscription: true,
           customPriceCents: priceInCents,
           planName: 'Suscripción Área de Clientes',
+          userId: user?.id, // <-- AQUÍ SE ENVÍA EL ID DEL USUARIO A STRIPE
         }),
       });
 
