@@ -83,21 +83,35 @@ export default function AdminDashboard() {
 
   async function load() {
     setLoading(true);
-    const [{ data: p }, { data: s }, { data: c }, { data: postsData }, { data: packsData }, { data: settingData }, { count: subCount }] = await Promise.all([
+    const [
+      { data: p }, 
+      { data: s }, 
+      { data: c }, 
+      { data: postsData }, 
+      { data: packsData }, 
+      { data: settingData }, 
+      { count: subCount }
+    ] = await Promise.all([
       supabase.from('products').select('*').order('sort_order', { ascending: true }),
       supabase.from('services').select('*').order('sort_order', { ascending: true }),
       supabase.from('classes').select('*').order('sort_order', { ascending: true }),
       supabase.from('posts').select('*').order('created_at', { ascending: false }),
       supabase.from('packs').select('*').order('created_at', { ascending: false }),
-      supabase.from('settings').select('value').eq('key', 'subscription_price').single(),
+      supabase.from('settings').select('value').eq('key', 'subscription_price').maybeSingle(),
       supabase.from('suscriptores').select('*', { count: 'exact', head: true }),
     ]);
+
     setProducts(p || []);
     setServices(s || []);
     setClasses(c || []);
     setPosts(postsData || []);
     setPacks(packsData || []);
-    if (settingData) setSubscriptionPrice(settingData.value);
+    
+    // Carga correcta del precio desde Supabase
+    if (settingData && settingData.value) {
+      setSubscriptionPrice(settingData.value);
+    }
+
     setSubscribersCount(subCount || 0);
     setLoading(false);
   }
@@ -109,9 +123,19 @@ export default function AdminDashboard() {
   async function handleUpdatePrice(e) {
     e.preventDefault();
     setPriceMessage('');
-    const { error } = await supabase.from('settings').update({ value: subscriptionPrice }).eq('key', 'subscription_price');
-    if (error) setPriceMessage(`Error: ${error.message}`);
-    else setPriceMessage('¡Precio actualizado correctamente!');
+    
+    // Asegurarnos de actualizar o insertar si no existiera
+    const { error } = await supabase
+      .from('settings')
+      .update({ value: subscriptionPrice })
+      .eq('key', 'subscription_price');
+
+    if (error) {
+      setPriceMessage(`Error: ${error.message}`);
+    } else {
+      setPriceMessage('¡Precio actualizado correctamente!');
+      load(); // Recargamos para verificar
+    }
   }
 
   async function toggleActive(table, item) {
