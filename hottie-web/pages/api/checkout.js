@@ -22,12 +22,11 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, planName, customPriceCents, items, returnUrl } = req.body;
+  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl } = req.body;
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
     
-    // Si viene la URL exacta de origen (el detalle del producto o los planes), la usamos como cancelUrl
     const refererHeader = req.headers.referer;
     let cancelUrl = returnUrl || refererHeader || siteUrl;
 
@@ -36,9 +35,36 @@ export default async function handler(req, res) {
     let isClassItem = false;
     let driveLink = '';
     let metadataPayload = {};
+    let checkoutMode = 'payment';
 
-    // OPCIÓN A: Compra acumulada desde el Carrito
-    if (items && Array.isArray(items) && items.length > 0) {
+    // OPCIÓN 1: SUSCRIPCIÓN MENSUAL (Área de Clientes)
+    if (isSubscription) {
+      checkoutMode = 'subscription';
+      const unitAmount = customPriceCents || 799; // 7.99 € por defecto
+      
+      lineItems = [
+        {
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: planName || 'Suscripción The Lab — Área de Clientes',
+              description: 'Acceso mensual a todos los packs y posts exclusivos',
+            },
+            unit_amount: unitAmount,
+            recurring: {
+              interval: 'month',
+            },
+          },
+          quantity: 1,
+        },
+      ];
+
+      metadataPayload = {
+        type: 'subscription',
+      };
+    } 
+    // OPCIÓN 2: Compra acumulada desde el Carrito
+    else if (items && Array.isArray(items) && items.length > 0) {
       const enrichedCart = await Promise.all(
         items.map(async (item) => {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
@@ -116,7 +142,7 @@ export default async function handler(req, res) {
         ),
       };
     } 
-    // OPCIÓN B: Compra directa instantánea
+    // OPCIÓN 3: Compra directa instantánea de un producto/clase/servicio
     else if (productId) {
       let item = null;
 
@@ -188,12 +214,14 @@ export default async function handler(req, res) {
         file_url: driveLink,
       };
     } else {
-      return res.status(400).json({ error: 'No se enviaron productos para la compra.' });
+      return res.status(400).json({ error: 'No se enviaron artículos para la compra.' });
     }
 
-    // Lógica de Success URL
+    // Lógica de Success URL (A dónde va después de pagar con éxito)
     let successUrl = `${siteUrl}/gracias?tipo=producto`;
-    if (hasService) {
+    if (isSubscription) {
+      successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
+    } else if (hasService) {
       if (isClassItem) {
         successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
       } else {
@@ -202,8 +230,8 @@ export default async function handler(req, res) {
     }
 
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card', 'klarna', 'link', 'bizum'],
+      mode: checkoutMode,
+      payment_method_types: isSubscription ? ['card'] : ['card', 'klarna', 'link', 'bizum'],
       allow_promotion_codes: true,
       line_items: lineItems,
       success_url: successUrl,
