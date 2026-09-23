@@ -116,8 +116,8 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* ICONO DE USUARIO EMPUJADO AL EXTREMO DERECHO CON ML-AUTO */}
-        <div className="hidden md:flex items-center ml-auto pl-10 shrink-0">
+        {/* ICONO DE CLIENTES APARTADO A LA DERECHA CON MARGEN AMPLIO */}
+        <div className="hidden md:flex items-center ml-16 shrink-0">
           <Link
             href={userDestination}
             className="text-volt hover:brightness-110 transition flex items-center justify-center p-1"
