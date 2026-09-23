@@ -1,12 +1,9 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminGuard from '../../../components/AdminGuard';
 import AdminHeader from '../../../components/AdminHeader';
 import { supabase } from '../../../lib/supabaseClient';
-
-export class EditAreaClienteItem extends React.Component { // Se maneja como funcional abajo
-}
 
 export default function EditItemPage() {
   const router = useRouter();
@@ -23,10 +20,8 @@ export default function EditItemPage() {
   useEffect(() => {
     if (!id) return;
     async function fetchItem() {
-      // Intentamos adivinar o usar el query param 'type' (post o pack)
       let detectedType = type;
       if (!detectedType) {
-        // Buscar primero en posts
         const { data: post } = await supabase.from('posts').select('*').eq('id', id).single();
         if (post) {
           detectedType = 'post';
@@ -82,13 +77,15 @@ export default function EditItemPage() {
       </Head>
       <AdminHeader />
       <div className="mx-auto max-w-2xl px-5 py-10">
-        <h1 className="font-display text-2xl tracking-wide text-paper mb-6">Editar {itemType === 'post' ? 'Post Exclusivo' : 'Pack de Descarga'}</h1>
+        <h1 className="font-display text-2xl tracking-wide text-paper mb-6">
+          Editar {itemType === 'post' ? 'Post Exclusivo' : 'Pack de Descarga'}
+        </h1>
 
         {loading ? (
           <p className="text-muted">Cargando...</p>
         ) : (
           <form onSubmit={handleUpdate} className="space-y-6 rounded-sm border border-white/10 bg-surface p-6">
-            {message && <div className="rounded bg-volt/20 p-3 text-xs text-volt">{message}</div>}
+            {message && <div className="rounded bg-volt/25 p-3 text-xs text-volt">{message}</div>}
 
             <div>
               <label className="block text-xs uppercase tracking-widest text-muted mb-2">Título</label>
@@ -128,7 +125,7 @@ export default function EditItemPage() {
                   <input
                     type="text"
                     value={fileKey}
-                    onChange={(matching) => setFileKey(matching.target.value)}
+                    onChange={(e) => setFileKey(e.target.value)}
                     required
                     className="w-full rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:border-volt focus:outline-none"
                   />
