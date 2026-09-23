@@ -10,7 +10,8 @@ export default function AreaClientePage() {
   const [posts, setPosts] = useState([]);
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [subscriptionPrice, setSubscriptionPrice] = useState(7.99); // Valor por defecto
+  const [subscriptionPrice, setSubscriptionPrice] = useState(7.99);
+  const [showSettings, setShowSettings] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -24,7 +25,6 @@ export default function AreaClientePage() {
 
       setUser(session.user);
 
-      // Cargar perfil (para ver si está suscrito o es admin)
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -33,7 +33,6 @@ export default function AreaClientePage() {
 
       setProfile(profileData);
 
-      // Cargar el precio de la suscripción configurado en el panel admin de forma correcta
       const { data: settingsData } = await supabase
         .from('settings')
         .select('value')
@@ -44,7 +43,6 @@ export default function AreaClientePage() {
         setSubscriptionPrice(settingsData.value);
       }
 
-      // Si está suscrito o es admin, cargamos el contenido exclusivo
       if (profileData?.is_subscribed || profileData?.is_admin) {
         const { data: postsData } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
         const { data: packsData } = await supabase.from('packs').select('*').order('created_at', { ascending: false });
@@ -66,7 +64,6 @@ export default function AreaClientePage() {
 
   const handleSubscriptionCheckout = async () => {
     try {
-      // Convertimos el precio a céntimos para Stripe (ej: 9.99 -> 999)
       const priceInCents = Math.round(Number(subscriptionPrice) * 100);
 
       const response = await fetch('/api/checkout', {
@@ -78,7 +75,7 @@ export default function AreaClientePage() {
           isSubscription: true,
           customPriceCents: priceInCents,
           planName: 'Suscripción Área de Clientes',
-          userId: user?.id, // <-- AQUÍ SE ENVÍA EL ID DEL USUARIO A STRIPE
+          userId: user?.id,
         }),
       });
 
@@ -95,7 +92,6 @@ export default function AreaClientePage() {
     }
   };
 
-  // Función para manejar la cancelación de la suscripción
   const handleCancelSubscription = async () => {
     if (!confirm('¿Estás seguro de que deseas cancelar tu suscripción? Perderás el acceso al contenido exclusivo.')) {
       return;
@@ -135,31 +131,55 @@ export default function AreaClientePage() {
   }
 
   return (
-    <div className="min-h-screen bg-ink text-paper">
+    <div className="min-h-screen bg-ink text-paper relative">
       <Head>
         <title>Área de Clientes — The Lab</title>
       </Head>
 
       <div className="mx-auto max-w-5xl px-5 py-10">
         
-        {/* Cabecera */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-6 mb-10 gap-4">
+        {/* Botón de volver arriba */}
+        <div className="mb-8">
+          <Link 
+            href="/"
+            className="inline-flex items-center gap-2 rounded-sm border border-white/20 px-4 py-2 text-xs uppercase tracking-widest text-paper hover:border-signal hover:text-signal transition"
+          >
+            <span>&larr;</span> Volver a la web
+          </Link>
+        </div>
+
+        {/* Cabecera con título y botones */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/10 pb-6 mb-10 gap-4">
           <div>
             <h1 className="font-display text-3xl tracking-wide text-paper mb-1">Área de Clientes</h1>
             <p className="text-xs text-muted uppercase tracking-widest">{user?.email}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {profile?.is_admin && (
               <Link 
                 href="/admin" 
-                className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110 transition"
               >
                 Panel Admin
               </Link>
             )}
+            
+            {/* Botón de Ajustes */}
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="flex items-center gap-2 rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper hover:border-volt hover:text-volt transition"
+              title="Ajustes de cuenta"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Ajustes
+            </button>
+
             <button 
               onClick={handleLogout} 
-              className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted hover:text-paper"
+              className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted hover:text-paper transition"
             >
               Cerrar Sesión
             </button>
@@ -232,11 +252,11 @@ export default function AreaClientePage() {
               )}
             </div>
 
-            {/* Botón para cancelar la suscripción (Solo visible para suscritos) */}
+            {/* Botón para cancelar la suscripción */}
             <div className="border-t border-white/10 pt-8 text-center">
               <button
                 onClick={handleCancelSubscription}
-                className="rounded-sm border border-red-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-red-400 hover:bg-red-500/10"
+                className="rounded-sm border border-red-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition"
               >
                 Cancelar mi suscripción
               </button>
@@ -246,6 +266,62 @@ export default function AreaClientePage() {
         )}
 
       </div>
+
+      {/* Modal de Ajustes (Se abre al pulsar el botón del engranaje) */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-sm border border-white/20 bg-ink p-8 shadow-2xl relative">
+            
+            <button 
+              onClick={() => setShowSettings(false)}
+              className="absolute top-4 right-4 text-muted hover:text-white transition"
+              title="Cerrar"
+            >
+              ✕
+            </button>
+            
+            <h3 className="font-display text-2xl tracking-wide text-paper mb-6 border-b border-white/10 pb-4">
+              Tus Ajustes
+            </h3>
+            
+            <div className="space-y-6">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-muted mb-1">Email de la cuenta</p>
+                <p className="text-sm text-paper">{user?.email}</p>
+              </div>
+              
+              <div>
+                <p className="text-xs uppercase tracking-widest text-muted mb-1">Miembro desde</p>
+                <p className="text-sm text-paper">
+                  {user?.created_at ? new Date(user.created_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Fecha desconocida'}
+                </p>
+              </div>
+
+              <div className="border-t border-white/10 pt-6">
+                <p className="text-xs uppercase tracking-widest text-muted mb-2">Seguridad</p>
+                <button 
+                  onClick={() => alert('Próximamente: El sistema te enviará un email para cambiar tu contraseña.')}
+                  className="text-xs text-volt hover:underline"
+                >
+                  Cambiar mi contraseña
+                </button>
+                <p className="text-[11px] text-muted mt-2 leading-relaxed">
+                  Por seguridad, tu contraseña actual está encriptada y no se puede mostrar.
+                </p>
+              </div>
+
+              <div className="border-t border-white/10 pt-6">
+                <p className="text-xs uppercase tracking-widest text-muted mb-2">Historial de Compras</p>
+                <div className="rounded-sm bg-white/5 p-4 text-center">
+                  <p className="text-sm text-muted">Aún no hay compras registradas en tu historial.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
