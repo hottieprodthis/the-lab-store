@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/router';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import Head from 'next/head';
+import Link from 'next/link';
+import { supabase } from '../lib/supabaseClient';
+import AdminHeader from '../components/AdminHeader'; // O tu cabecera pública si prefieres
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -55,26 +54,40 @@ export default function AreaClientePage() {
   };
 
   if (loading) {
-    return <div style={{ background: '#0f0f0f', color: '#fff', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Cargando área privada...</div>;
+    return (
+      <div className="min-h-screen bg-ink text-paper flex items-center justify-center font-body">
+        <p className="text-muted">Cargando área privada...</p>
+      </div>
+    );
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0f0f0f', color: '#fff', padding: '40px 20px', fontFamily: 'sans-serif' }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <div className="min-h-screen bg-ink text-paper">
+      <Head>
+        <title>Área de Clientes — The Lab</title>
+      </Head>
+
+      <div className="mx-auto max-w-5xl px-5 py-10">
         
         {/* Cabecera */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '20px', marginBottom: '30px' }}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-6 mb-10 gap-4">
           <div>
-            <h1 style={{ fontSize: '28px', margin: '0 0 5px 0' }}>The Lab - Área de Clientes</h1>
-            <p style={{ color: '#aaa', margin: 0 }}>{user?.email}</p>
+            <h1 className="font-display text-3xl tracking-wide text-paper mb-1">Área de Clientes</h1>
+            <p className="text-xs text-muted uppercase tracking-widest">{user?.email}</p>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="flex items-center gap-3">
             {profile?.is_admin && (
-              <button onClick={() => router.push('/admin')} style={{ padding: '10px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+              <Link 
+                href="/admin" 
+                className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+              >
                 Panel Admin
-              </button>
+              </Link>
             )}
-            <button onClick={handleLogout} style={{ padding: '10px 16px', background: '#333', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+            <button 
+              onClick={handleLogout} 
+              className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted hover:text-paper"
+            >
               Cerrar Sesión
             </button>
           </div>
@@ -82,35 +95,40 @@ export default function AreaClientePage() {
 
         {/* Verificación de suscripción */}
         {!profile?.is_subscribed && !profile?.is_admin ? (
-          <div style={{ background: '#1a1a1a', padding: '40px', borderRadius: '12px', textAlign: 'center', border: '1px solid #333' }}>
-            <h2 style={{ fontSize: '22px', marginBottom: '15px' }}>🔒 Contenido Exclusivo Bloqueado</h2>
-            <p style={{ color: '#aaa', marginBottom: '25px', maxWidth: '500px', margin: '0 auto 25px auto' }}>
-              Para acceder a todos los Packs de descargas y Posts exclusivos, suscríbete por solo 7,99 €/mes.
+          <div className="rounded-sm border border-white/10 bg-surface p-8 text-center max-w-lg mx-auto my-12">
+            <h2 className="font-display text-2xl mb-3 text-paper">🔒 Contenido Exclusivo Bloqueado</h2>
+            <p className="text-sm text-muted mb-6 leading-relaxed">
+              Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo 7,99 €/mes.
             </p>
             <button 
               onClick={() => alert('Próximamente enlace directo de Stripe Checkout')} 
-              style={{ padding: '14px 28px', background: '#e50914', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}
+              className="rounded-sm bg-volt px-6 py-3 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
             >
               Suscribirse Ahora (7,99 €/mes)
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+          <div className="space-y-12">
             
-            {/* Seccion Packs */}
+            {/* Sección Packs */}
             <div>
-              <h2 style={{ fontSize: '22px', marginBottom: '20px', borderLeft: '4px solid #e50914', paddingLeft: '10px' }}>Kits / Packs Exclusivos</h2>
+              <h2 className="font-display text-2xl tracking-wide text-paper mb-6 border-l-4 border-volt pl-3">
+                Kits y Packs Exclusivos
+              </h2>
               {packs.length === 0 ? (
-                <p style={{ color: '#666' }}>No hay packs publicados todavía.</p>
+                <p className="text-sm text-muted">No hay packs publicados todavía.</p>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {packs.map((pack) => (
-                    <div key={pack.id} style={{ background: '#1a1a1a', borderRadius: '8px', padding: '20px', border: '1px solid #333' }}>
-                      <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>{pack.title}</h3>
-                      <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '15px' }}>{pack.description}</p>
+                    <div key={pack.id} className="rounded-sm border border-white/10 bg-surface p-6 flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-display text-lg text-paper mb-2">{pack.title}</h3>
+                        <p className="text-xs text-muted mb-4">{pack.description || 'Sin descripción'}</p>
+                      </div>
                       <a 
-                        href={`#`} 
-                        style={{ display: 'inline-block', padding: '8px 14px', background: '#e50914', color: '#fff', borderRadius: '4px', textDecoration: 'none', fontSize: '14px', fontWeight: 'bold' }}
+                        href="#" 
+                        onClick={(e) => { e.preventDefault(); alert(`Descargando: ${pack.file_key}`); }}
+                        className="inline-block rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink text-center hover:brightness-110"
                       >
                         Descargar Pack
                       </a>
@@ -120,18 +138,22 @@ export default function AreaClientePage() {
               )}
             </div>
 
-            {/* Seccion Posts */}
+            {/* Sección Posts */}
             <div>
-              <h2 style={{ fontSize: '22px', marginBottom: '20px', borderLeft: '4px solid #3b82f6', paddingLeft: '10px' }}>Posts y Novedades Exclusivas</h2>
+              <h2 className="font-display text-2xl tracking-wide text-paper mb-6 border-l-4 border-volt pl-3">
+                Posts y Novedades Exclusivas
+              </h2>
               {posts.length === 0 ? (
-                <p style={{ color: '#666' }}>No hay posts publicados todavía.</p>
+                <p className="text-sm text-muted">No hay posts publicados todavía.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div className="space-y-6">
                   {posts.map((post) => (
-                    <div key={post.id} style={{ background: '#1a1a1a', borderRadius: '8px', padding: '20px', border: '1px solid #333' }}>
-                      <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>{post.title}</h3>
-                      <p style={{ color: '#ccc', fontSize: '15px', lineHeight: '1.5', margin: 0 }}>{post.content}</p>
-                    </div>
+                    <article key={post.id} className="rounded-sm border border-white/10 bg-surface p-6">
+                      <h3 className="font-display text-xl text-paper mb-3">{post.title}</h3>
+                      <div className="text-sm text-paper/90 whitespace-pre-line leading-relaxed">
+                        {post.content}
+                      </div>
+                    </article>
                   ))}
                 </div>
               )}
