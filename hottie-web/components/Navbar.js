@@ -116,8 +116,8 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* CONTENEDOR EXTREMO DERECHO CON AMPLIO ESPACIO (SEPARADO APROPIDIADAMENTE) */}
-        <div className="hidden md:flex items-center ml-12 shrink-0">
+        {/* ICONO DE USUARIO EMPUJADO AL EXTREMO DERECHO CON ML-AUTO */}
+        <div className="hidden md:flex items-center ml-auto pl-10 shrink-0">
           <Link
             href={userDestination}
             className="text-volt hover:brightness-110 transition flex items-center justify-center p-1"
@@ -126,7 +126,7 @@ export default function Navbar() {
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="w-7 h-7"
+              className="w-6 h-6"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -143,7 +143,7 @@ export default function Navbar() {
 
         {/* BOTÓN MENÚ MÓVIL */}
         <button
-          className="text-paper md:hidden"
+          className="text-paper md:hidden ml-auto"
           onClick={() => setOpen((v) => !v)}
           aria-label="Abrir menú"
           aria-expanded={open}
