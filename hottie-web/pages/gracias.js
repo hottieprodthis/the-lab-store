@@ -1,17 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useCart } from '../context/CartContext';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Gracias() {
   const router = useRouter();
-  const { tipo } = router.query;
+  const { tipo, session_id } = router.query;
   const { clearCart } = useCart();
+  const [subscribing, setSubscribing] = useState(false);
+  const [subMessage, setSubMessage] = useState('');
 
   useEffect(() => {
-    // Se ejecuta una sola vez al cargar la página
+    // Vaciamos el carrito de compras local
     try {
       if (typeof clearCart === 'function') {
         clearCart();
@@ -24,11 +27,51 @@ export default function Gracias() {
     } catch (e) {
       console.error('Error vaciando carrito:', e);
     }
-  }, []); // Sin dependencias para evitar bucles de renderizado
+  }, []);
+
+  // Si viene de una suscripción, activamos al usuario en Supabase
+  useEffect(() => {
+    async function activateSubscription() {
+      if (tipo === 'suscripcion' && session_id) {
+        setSubscribing(true);
+        try {
+          // Obtenemos el usuario logueado actualmente en Supabase
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            // Guardamos o actualizamos su estado de suscripción en la tabla correspondiente
+            const { error } = await supabase
+              .from('suscriptores')
+              .upsert({
+                email: user.email,
+                user_id: user.id,
+                subscribed: true,
+                updated_at: new Date()
+              }, { onConflict: 'email' });
+
+            if (error) {
+              console.error('Error al actualizar suscripción:', error.message);
+            } else {
+              setSubMessage('¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
+            }
+          }
+        } catch (err) {
+          console.error('Error procesando suscripción:', err);
+        } finally {
+          setSubscribing(false);
+        }
+      }
+    }
+
+    if (router.isReady) {
+      activateSubscription();
+    }
+  }, [router.isReady, tipo, session_id]);
 
   const esServicio = tipo === 'servicio';
   const esClase = tipo === 'clase';
   const esMixto = tipo === 'mixto';
+  const esSuscripcion = tipo === 'suscripcion';
 
   return (
     <>
@@ -45,10 +88,13 @@ export default function Gracias() {
           </div>
 
           <h1 className="font-display text-4xl md:text-5xl text-paper tracking-wide">
-            ¡MUCHAS GRACIAS POR TU COMPRA!
+            {esSuscripcion ? '¡SUSCRIPCIÓN ACTIVADA!' : '¡MUCHAS GRACIAS POR TU COMPRA!'}
           </h1>
 
           <p className="mt-4 text-muted text-lg max-w-lg mx-auto">
+            {esSuscripcion && (
+              subMessage || 'Tu pago mensual se ha procesado correctamente. Ya tienes acceso completo al Área de Clientes.'
+            )}
             {esClase && (
               'Hemos recibido la reserva de tu clase correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para coordinar la sesión.'
             )}
@@ -58,18 +104,27 @@ export default function Gracias() {
             {esMixto && (
               'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los enlaces de descarga y en breve nos pondremos en contacto contigo para coordinar el trabajo práctico.'
             )}
-            {!esServicio && !esClase && !esMixto && (
+            {!esServicio && !esClase && !esMixto && !esSuscripcion && (
               'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los archivos y enlaces de descarga.'
             )}
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="/"
-              className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110 inline-block"
-            >
-              Inicio
-            </a>
+            {esSuscripcion ? (
+              <a
+                href="/area-cliente"
+                className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110 inline-block"
+              >
+                Ir al Área de Clientes
+              </a>
+            ) : (
+              <a
+                href="/"
+                className="w-full sm:w-auto bg-volt text-ink font-bold px-8 py-3 text-sm uppercase tracking-wider transition hover:brightness-110 inline-block"
+              >
+                Inicio
+              </a>
+            )}
 
             <a
               href="/contacto"
