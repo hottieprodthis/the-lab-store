@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SearchBar from './SearchBar';
+import { supabase } from '../lib/supabaseClient';
 
 const links = [
   { href: '/tienda', label: 'Tienda' },
@@ -12,6 +13,19 @@ const links = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [userDestination, setUserDestination] = useState('/login');
+
+  useEffect(() => {
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUserDestination('/area-cliente');
+      } else {
+        setUserDestination('/login');
+      }
+    }
+    checkSession();
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/90 backdrop-blur">
@@ -89,30 +103,56 @@ export default function Navbar() {
         {/* BUSCADOR NEÓN INTEGRADO */}
         <SearchBar />
 
-        {/* NAVEGACIÓN EN ESCRITORIO */}
-        <nav className="hidden gap-8 md:flex shrink-0">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-signal"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+        {/* ZONA DERECHA: NAVEGACIÓN Y ACCESO CLIENTE */}
+        <div className="flex items-center gap-6 shrink-0">
+          {/* NAVEGACIÓN EN ESCRITORIO */}
+          <nav className="hidden gap-8 md:flex">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-signal"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
 
-        {/* BOTÓN MENÚ MÓVIL */}
-        <button
-          className="text-paper md:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Abrir menú"
-          aria-expanded={open}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+          {/* ICONO DE USUARIO INTELIGENTE (COLOR #ccff00 / text-volt) */}
+          <Link
+            href={userDestination}
+            className="text-volt hover:brightness-110 transition flex items-center justify-center p-1"
+            aria-label="Área de Clientes"
+            title="Área de Clientes / Acceso"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="1.75"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+              />
+            </svg>
+          </Link>
+
+          {/* BOTÓN MENÚ MÓVIL */}
+          <button
+            className="text-paper md:hidden"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Abrir menú"
+            aria-expanded={open}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* MENÚ MÓVIL DESPLEGABLE */}
@@ -128,6 +168,14 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          {/* Enlace al área de clientes también en móvil */}
+          <Link
+            href={userDestination}
+            className="py-2 font-body text-sm uppercase tracking-widest text-volt hover:brightness-110"
+            onClick={() => setOpen(false)}
+          >
+            Área de Clientes
+          </Link>
         </nav>
       )}
     </header>
