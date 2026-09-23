@@ -1,10 +1,6 @@
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/router';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '../lib/supabaseClient';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -32,9 +28,9 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f0f0f', color: '#fff', fontFamily: 'sans-serif' }}>
-      <div style={{ background: '#1a1a1a', padding: '40px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
-        <h1 style={{ fontSize: '24px', marginBottom: '20px', textAlign: 'center' }}>
-          {isSignUp ? 'Crear Cuenta - The Lab' : 'Acceso Clientes - The Lab'}
+      <div style={{ background: '#1a1a1a', padding: '40px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '20px', textAlign: 'center', fontFamily: 'monospace', letterSpacing: '1px' }}>
+          {isSignUp ? 'Crear Cuenta — The Lab' : 'Acceso Clientes — The Lab'}
         </h1>
 
         <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -44,7 +40,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{ padding: '12px', borderRadius: '6px', border: '1px solid #333', background: '#262626', color: '#fff' }}
+            style={{ padding: '12px', borderRadius: '6px', border: '1px solid #333', background: '#262626', color: '#fff', outline: 'none' }}
           />
           <input
             type="password"
@@ -52,11 +48,11 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{ padding: '12px', borderRadius: '6px', border: '1px solid #333', background: '#262626', color: '#fff' }}
+            style={{ padding: '12px', borderRadius: '6px', border: '1px solid #333', background: '#262626', color: '#fff', outline: 'none' }}
           />
           <button
             type="submit"
-            style={{ padding: '12px', borderRadius: '6px', border: 'none', background: '#e50914', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '12px', borderRadius: '6px', border: 'none', background: '#ccff00', color: '#0f0f0f', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}
           >
             {isSignUp ? 'Registrarse' : 'Iniciar Sesión'}
           </button>
@@ -66,13 +62,13 @@ export default function LoginPage() {
           {isSignUp ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'} {' '}
           <button
             onClick={() => setIsSignUp(!isSignUp)}
-            style={{ background: 'none', border: 'none', color: '#e50914', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{ background: 'none', border: 'none', color: '#ccff00', cursor: 'pointer', fontWeight: 'bold' }}
           >
             {isSignUp ? 'Inicia sesión aquí' : 'Regístrate aquí'}
           </button>
         </p>
 
-        {message && <p style={{ marginTop: '15px', textAlign: 'center', color: '#4ade80', fontSize: '14px' }}>{message}</p>}
+        {message && <p style={{ marginTop: '15px', textAlign: 'center', color: '#ccff00', fontSize: '14px' }}>{message}</p>}
       </div>
     </div>
   );
