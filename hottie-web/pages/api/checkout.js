@@ -37,10 +37,24 @@ export default async function handler(req, res) {
     let metadataPayload = {};
     let checkoutMode = 'payment';
 
-    // OPCIÓN 1: SUSCRIPCIÓN MENSUAL (Área de Clientes)
+    // OPCIÓN 1: SUSCRIPCIÓN MENSUAL (Área de Clientes) - Lee el precio dinámico de Supabase
     if (isSubscription) {
       checkoutMode = 'subscription';
-      const unitAmount = customPriceCents || 799; // 7.99 € por defecto
+      
+      let finalPriceCents = customPriceCents;
+      if (!finalPriceCents) {
+        const { data: settingData } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'subscription_price')
+          .single();
+        
+        if (settingData && settingData.value) {
+          finalPriceCents = Math.round(Number(settingData.value) * 100);
+        } else {
+          finalPriceCents = 799; // Valor por defecto si no encuentra nada
+        }
+      }
       
       lineItems = [
         {
@@ -50,7 +64,7 @@ export default async function handler(req, res) {
               name: planName || 'Suscripción The Lab — Área de Clientes',
               description: 'Acceso mensual a todos los packs y posts exclusivos',
             },
-            unit_amount: unitAmount,
+            unit_amount: finalPriceCents,
             recurring: {
               interval: 'month',
             },
@@ -217,7 +231,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No se enviaron artículos para la compra.' });
     }
 
-    // Lógica de Success URL (A dónde va después de pagar con éxito)
+    // Lógica de Success URL
     let successUrl = `${siteUrl}/gracias?tipo=producto`;
     if (isSubscription) {
       successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
