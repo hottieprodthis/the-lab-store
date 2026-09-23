@@ -200,7 +200,7 @@ export default function AreaClientePage() {
                       </div>
                       <a 
                         href="#" 
-                        onClick={(e) => { e.preventDefault(); alert(`Descargando: ${pack.file_key}`); }}
+                        onClick={(e) => { e.preventDefault(); window.open(pack.file_key, '_blank'); }}
                         className="inline-block rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink text-center hover:brightness-110"
                       >
                         Descargar Pack
