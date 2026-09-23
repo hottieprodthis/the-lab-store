@@ -103,24 +103,21 @@ export default function Navbar() {
         {/* BUSCADOR NEÓN INTEGRADO */}
         <SearchBar />
 
-        {/* CONTENEDOR DERECHO CON SEPARACIÓN CLARA PARA EL ICONO */}
-        <div className="flex items-center gap-6 shrink-0">
-          {/* NAVEGACIÓN EN ESCRITORIO */}
-          <nav className="hidden gap-8 md:flex">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-signal"
-              >
-                {l.label}
-              </Link>
-            ))}
-          </nav>
+        {/* NAVEGACIÓN EN ESCRITORIO */}
+        <nav className="hidden gap-8 md:flex shrink-0">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-signal"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
 
-          {/* SEPARADOR VISIBLE Y ICONO DE USUARIO APARTADO A LA DERECHA */}
-          <div className="hidden md:block h-5 w-[1px] bg-white/15 ml-2 mr-1"></div>
-
+        {/* CONTENEDOR EXTREMO DERECHO CON AMPLIO ESPACIO (SEPARADO APROPIDIADAMENTE) */}
+        <div className="hidden md:flex items-center ml-12 shrink-0">
           <Link
             href={userDestination}
             className="text-volt hover:brightness-110 transition flex items-center justify-center p-1"
@@ -129,7 +126,7 @@ export default function Navbar() {
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="w-6 h-6"
+              className="w-7 h-7"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -142,19 +139,19 @@ export default function Navbar() {
               />
             </svg>
           </Link>
-
-          {/* BOTÓN MENÚ MÓVIL */}
-          <button
-            className="text-paper md:hidden"
-            onClick={() => setOpen((v) => !v)}
-            aria-label="Abrir menú"
-            aria-expanded={open}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
         </div>
+
+        {/* BOTÓN MENÚ MÓVIL */}
+        <button
+          className="text-paper md:hidden"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Abrir menú"
+          aria-expanded={open}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
 
       {/* MENÚ MÓVIL DESPLEGABLE */}
