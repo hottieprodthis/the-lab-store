@@ -103,7 +103,7 @@ export default function Navbar() {
         {/* BUSCADOR NEÓN INTEGRADO */}
         <SearchBar />
 
-        {/* ZONA DERECHA: NAVEGACIÓN Y ACCESO CLIENTE */}
+        {/* CONTENEDOR DERECHO CON SEPARACIÓN CLARA PARA EL ICONO */}
         <div className="flex items-center gap-6 shrink-0">
           {/* NAVEGACIÓN EN ESCRITORIO */}
           <nav className="hidden gap-8 md:flex">
@@ -118,12 +118,14 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* ICONO DE USUARIO INTELIGENTE (COLOR #ccff00 / text-volt) */}
+          {/* SEPARADOR VISIBLE Y ICONO DE USUARIO APARTADO A LA DERECHA */}
+          <div className="hidden md:block h-5 w-[1px] bg-white/15 ml-2 mr-1"></div>
+
           <Link
             href={userDestination}
             className="text-volt hover:brightness-110 transition flex items-center justify-center p-1"
             aria-label="Área de Clientes"
-            title="Área de Clientes / Acceso"
+            title="Área de Clientes / Perfil"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -168,13 +170,12 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
-          {/* Enlace al área de clientes también en móvil */}
           <Link
             href={userDestination}
-            className="py-2 font-body text-sm uppercase tracking-widest text-volt hover:brightness-110"
+            className="py-2 font-body text-sm uppercase tracking-widest text-volt hover:brightness-110 border-t border-white/10 mt-2 pt-3"
             onClick={() => setOpen(false)}
           >
-            Área de Clientes
+            Área de Clientes / Perfil
           </Link>
         </nav>
       )}
