@@ -94,6 +94,37 @@ export default function AreaClientePage() {
     }
   };
 
+  // Función para manejar la cancelación de la suscripción
+  const handleCancelSubscription = async () => {
+    if (!confirm('¿Estás seguro de que deseas cancelar tu suscripción? Perderás el acceso al contenido exclusivo.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Tu suscripción ha sido cancelada con éxito.');
+        window.location.reload();
+      } else {
+        alert('Error al cancelar: ' + (data.error || 'Desconocido'));
+      }
+    } catch (err) {
+      console.error('Error de conexión:', err);
+      alert('Hubo un error al conectar con el servidor.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-ink text-paper flex items-center justify-center font-body">
@@ -198,6 +229,16 @@ export default function AreaClientePage() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Botón para cancelar la suscripción (Solo visible para suscritos) */}
+            <div className="border-t border-white/10 pt-8 text-center">
+              <button
+                onClick={handleCancelSubscription}
+                className="rounded-sm border border-red-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-red-400 hover:bg-red-500/10"
+              >
+                Cancelar mi suscripción
+              </button>
             </div>
 
           </div>
