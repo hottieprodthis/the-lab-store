@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminGuard from '../../../components/AdminGuard';
@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabaseClient';
 
 export default function NuevoItemPage() {
   const router = useRouter();
-  const [itemType, setItemType] = useState('post'); // 'post' o 'pack'
+  const [itemType, setItemType] = useState('post');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [description, setDescription] = useState('');
@@ -49,7 +49,7 @@ export default function NuevoItemPage() {
         <h1 className="font-display text-2xl tracking-wide text-paper mb-6">Añadir Contenido al Área de Clientes</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6 rounded-sm border border-white/10 bg-surface p-6">
-          {message && <div className="rounded bg-volt/20 p-3 text-xs text-volt">{message}</div>}
+          {message && <div className="rounded bg-volt/25 p-3 text-xs text-volt">{message}</div>}
 
           <div>
             <label className="block text-xs uppercase tracking-widest text-muted mb-2">Tipo de Contenido</label>
