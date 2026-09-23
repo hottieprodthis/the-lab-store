@@ -28,8 +28,8 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 gap-4">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/90 backdrop-blur w-full">
+      <div className="flex w-full items-center justify-between px-6 py-4">
         
         {/* LOGO CON MATRAZ ALINEADO EN LA MISMA LÍNEA BASE */}
         <Link href="/" className="font-display text-3xl sm:text-4xl tracking-wide text-paper inline-flex items-baseline gap-2.5 group shrink-0">
@@ -101,26 +101,28 @@ export default function Navbar() {
         </Link>
 
         {/* BUSCADOR NEÓN INTEGRADO */}
-        <SearchBar />
+        <div className="hidden lg:block mx-6 flex-1 max-w-md">
+          <SearchBar />
+        </div>
 
-        {/* NAVEGACIÓN EN ESCRITORIO */}
-        <nav className="hidden gap-8 md:flex shrink-0">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-signal"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+        {/* NAVEGACIÓN EN ESCRITORIO + ICONO AL EXTREMO */}
+        <div className="flex items-center gap-8 md:gap-12 shrink-0 pr-4">
+          <nav className="hidden gap-8 md:flex">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-signal"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
 
-        {/* ICONO DE CLIENTES APARTADO A LA DERECHA CON MARGEN AMPLIO */}
-        <div className="hidden md:flex items-center ml-16 shrink-0">
+          {/* ICONO DE CLIENTES SEPARADO Y LLEVADO A LA DERECHA */}
           <Link
             href={userDestination}
-            className="text-volt hover:brightness-110 transition flex items-center justify-center p-1"
+            className="hidden md:flex text-volt hover:brightness-110 transition items-center justify-center p-1 ml-6"
             aria-label="Área de Clientes"
             title="Área de Clientes / Perfil"
           >
@@ -139,19 +141,19 @@ export default function Navbar() {
               />
             </svg>
           </Link>
-        </div>
 
-        {/* BOTÓN MENÚ MÓVIL */}
-        <button
-          className="text-paper md:hidden ml-auto"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Abrir menú"
-          aria-expanded={open}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+          {/* BOTÓN MENÚ MÓVIL */}
+          <button
+            className="text-paper md:hidden"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Abrir menú"
+            aria-expanded={open}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* MENÚ MÓVIL DESPLEGABLE */}
