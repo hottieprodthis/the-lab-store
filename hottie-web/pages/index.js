@@ -12,12 +12,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Datos estructurados JSON-LD para Google (Nombre del sitio y Logo)
+  // Datos estructurados JSON-LD con conexión a perfiles oficiales
   const schemaData = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "The Lab by Hottie",
-    "alternateName": "Hottieprod",
+    "alternateName": ["Hottieprod", "hottieprodthis", "The Lab"],
     "url": "https://www.hottieprodthis.com/",
     "publisher": {
       "@type": "Organization",
@@ -25,7 +25,11 @@ export default function Home() {
       "logo": {
         "@type": "ImageObject",
         "url": "https://www.hottieprodthis.com/sobre-mi-imagen.jpeg"
-      }
+      },
+      "sameAs": [
+        "https://www.instagram.com/hottieprodthis/",
+        "https://muso.ai/profile/6f3664ee-3a33-4b81-aeda-d228ac88b0e7"
+      ]
     }
   };
 
