@@ -12,6 +12,23 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Datos estructurados JSON-LD para Google (Nombre del sitio y Logo)
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "The Lab by Hottie",
+    "alternateName": "Hottieprod",
+    "url": "https://www.hottieprodthis.com/",
+    "publisher": {
+      "@type": "Organization",
+      "name": "The Lab by Hottie",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.hottieprodthis.com/sobre-mi-imagen.jpeg"
+      }
+    }
+  };
+
   const handleSubscribe = async (e) => {
     e.preventDefault();
     if (!email) return;
@@ -67,9 +84,13 @@ export default function Home() {
         <meta property="og:title" content="The Lab by Hottie | Producción Musical" />
         <meta property="og:description" content="Estudio de producción musical, mezcla y mastering de Hottie (Hottieprod)." />
         <meta property="og:url" content="https://www.hottieprodthis.com" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        />
       </Head>
 
-      {/* Título invisible para SEO (Google leerá esto como lo más importante de la página) */}
+      {/* Título invisible para SEO */}
       <h1 className="sr-only">The Lab - Estudio de Producción Musical por Hottie (Hottieprod)</h1>
 
       <Navbar />
@@ -141,7 +162,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* BOTÓN PERFIL MUSO.AI - CORREGIDO PARA MÓVIL Y MODO OSCURO */}
+        {/* BOTÓN PERFIL MUSO.AI */}
         <div className="mt-10 flex justify-center">
           <a
             href="https://muso.ai/profile/6f3664ee-3a33-4b81-aeda-d228ac88b0e7"
