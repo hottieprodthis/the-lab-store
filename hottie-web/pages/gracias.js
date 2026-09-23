@@ -38,11 +38,8 @@ export default function Gracias() {
           const { data: { user } } = await supabase.auth.getUser();
           
           if (user) {
-            // Actualizamos la tabla profiles que es la que revisa el área de clientes
-            const { error } = await supabase
-              .from('profiles')
-              .update({ is_subscribed: true })
-              .eq('id', user.id);
+            // Actualizamos mediante la función segura RPC de Supabase para evitar bloqueos RLS
+            const { error } = await supabase.rpc('activar_mi_suscripcion');
 
             if (error) {
               console.error('Error al actualizar perfil de suscripción:', error.message);
