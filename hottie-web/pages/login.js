@@ -14,7 +14,12 @@ export default function LoginPage() {
     setMessage('');
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp(
+        { email, password },
+        {
+          emailRedirectTo: `${window.location.origin}/area-cliente`,
+        }
+      );
       if (error) setMessage(`Error en registro: ${error.message}`);
       else setMessage('¡Registro exitoso! Revisa tu correo o inicia sesión.');
     } else {
