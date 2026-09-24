@@ -9,6 +9,7 @@ export default function AreaClientePage() {
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [packs, setPacks] = useState([]);
+  const [purchases, setPurchases] = useState([]); // Nuevo estado para las compras
   const [loading, setLoading] = useState(true);
   const [subscriptionPrice, setSubscriptionPrice] = useState(7.99);
   const [showSettings, setShowSettings] = useState(false);
@@ -24,6 +25,17 @@ export default function AreaClientePage() {
       }
 
       setUser(session.user);
+
+      // Consulta del historial de compras
+      const { data: purchasesData } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (purchasesData) {
+        setPurchases(purchasesData);
+      }
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -328,18 +340,37 @@ export default function AreaClientePage() {
                 </p>
               </div>
 
+              {/* NUEVA SECCIÓN: Historial de Compras Dinámico */}
               <div className="border-t border-white/10 pt-6">
                 <p className="text-xs uppercase tracking-widest text-muted mb-2">Historial de Compras</p>
-                <div className="rounded-sm bg-white/5 p-4 text-center">
-                  <p className="text-sm text-muted">Aún no hay compras registradas en tu historial.</p>
-                </div>
+                
+                {purchases.length === 0 ? (
+                  <div className="rounded-sm bg-white/5 p-4 text-center">
+                    <p className="text-sm text-muted">Aún no hay compras registradas en tu historial.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                    {purchases.map((purchase) => (
+                      <div key={purchase.id} className="flex justify-between items-center rounded-sm border border-white/10 bg-white/5 p-3">
+                        <div>
+                          <p className="text-sm text-paper">{purchase.plan_name || 'Compra en la tienda'}</p>
+                          <p className="text-xs text-muted">
+                            {new Date(purchase.created_at).toLocaleDateString('es-ES')}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold text-volt">
+                          {purchase.amount} €
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
 
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
