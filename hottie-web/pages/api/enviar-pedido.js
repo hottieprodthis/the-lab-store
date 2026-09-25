@@ -3,10 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// 1. Inicializamos Supabase para poder interactuar con tu base de datos
+// 1. Inicializamos Supabase con la Service Role Key para evitar bloqueos de RLS
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
 export const config = {
@@ -46,13 +46,13 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const emailCliente = session.customer_details?.email;
+    const emailCliente = session.customer_details?.email || session.customer_email;
     const nombreCliente = session.customer_details?.name || 'Cliente';
     const metadata = session.metadata || {};
 
     // 2. Extraemos los datos exactos que necesitamos para el historial
-    const userId = session.client_reference_id; // ID que enviamos desde checkout.js
-    const totalAmount = session.amount_total / 100; // Pasamos los céntimos a euros (ej: 0, 15, 7.99)
+    let userId = session.client_reference_id; // ID que enviamos desde checkout.js
+    const totalAmount = session.amount_total ? session.amount_total / 100 : 0; // Pasamos los céntimos a euros (ej: 0, 15, 7.99)
     let planNameToSave = 'Compra en tienda';
 
     let linksHtml = '';
@@ -159,6 +159,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // --- SALVAVIDAS: SI NO LLEGA EL USER_ID, LO BUSCAMOS POR EL EMAIL ---
+    if (!userId && emailCliente) {
+      try {
+        const { data: userData } = await supabase.auth.admin.listUsers();
+        const foundUser = userData?.users?.find(u => u.email?.toLowerCase() === emailCliente.trim().toLowerCase());
+        if (foundUser) {
+          userId = foundUser.id;
+        }
+      } catch (err) {
+        console.error('Error buscando usuario por email:', err);
+      }
+    }
+
     // 3. Insertamos el registro de la compra en tu tabla Supabase
     if (userId) {
       try {
@@ -180,6 +193,8 @@ export default async function handler(req, res) {
       } catch (e) {
         console.error('Excepción guardando historial de compra:', e);
       }
+    } else {
+      console.warn('No se pudo encontrar un usuario en Supabase para asociar esta compra.');
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -218,9 +233,9 @@ export default async function handler(req, res) {
           subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
           html: `
             <h2>¡Nuevo pago completado en Stripe!</h2>
-            <p><strong>Cliente:</strong> ${nombreCliente}</p>
+            <p><strong>Cliente:</strong> ${nombreClient}</p>
             <p><strong>Email:</strong> ${emailCliente}</p>
-            <p><strong>Total pagado:</strong> ${totalAmount} ${session.currency.toUpperCase()}</p>
+            <p><strong>Total pagado:</strong> ${totalAmount} €</p>
             <p><strong>Artículos/Enlaces:</strong> ${linksText}</p>
           `,
         }),
