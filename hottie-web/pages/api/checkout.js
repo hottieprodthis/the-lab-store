@@ -26,14 +26,11 @@ export default async function handler(req, res) {
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
-    
-    const refererHeader = req.headers.referer;
-    let cancelUrl = returnUrl || refererHeader || siteUrl;
+    const cancelUrl = returnUrl || req.headers.referer || siteUrl;
 
-    // --- DETECCIÓN AUTOMÁTICA DE USUARIO EN EL SERVIDOR ---
+    // --- DETECCIÓN AUTOMÁTICA Y BLINDADA DEL USUARIO ---
     let resolvedUserId = bodyUserId;
 
-    // Si no viene en el body, intentamos extraerlo del token de autorización o cookies si las hubiera
     if (!resolvedUserId) {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -44,7 +41,7 @@ export default async function handler(req, res) {
         }
       }
     }
-    // ------------------------------------------------------
+    // --------------------------------------------------
 
     let lineItems = [];
     let hasService = false;
@@ -55,11 +52,11 @@ export default async function handler(req, res) {
     };
     let checkoutMode = 'payment';
 
-    // OPCIÓN 1: SUSCRIPCIÓN MENSUAL (Área de Clientes)
+    // 1. SUSCRIPCIÓN
     if (isSubscription) {
       checkoutMode = 'subscription';
-      
       let finalPriceCents = customPriceCents;
+      
       if (!finalPriceCents) {
         const { data: settingData } = await supabase
           .from('settings')
@@ -67,58 +64,45 @@ export default async function handler(req, res) {
           .eq('key', 'subscription_price')
           .single();
         
-        if (settingData && settingData.value) {
-          finalPriceCents = Math.round(Number(settingData.value) * 100);
-        } else {
-          finalPriceCents = 799; 
-        }
+        finalPriceCents = settingData?.value ? Math.round(Number(settingData.value) * 100) : 799;
       }
       
-      lineItems = [
-        {
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: planName || 'Suscripción The Lab — Área de Clientes',
-              description: 'Acceso mensual a todos los packs y posts exclusivos',
-            },
-            unit_amount: finalPriceCents,
-            recurring: {
-              interval: 'month',
-            },
+      lineItems = [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: planName || 'Suscripción The Lab — Área de Clientes',
+            description: 'Acceso mensual exclusivo',
           },
-          quantity: 1,
+          unit_amount: finalPriceCents,
+          recurring: { interval: 'month' },
         },
-      ];
+        quantity: 1,
+      }];
 
-      metadataPayload = {
-        ...metadataPayload,
-        type: 'subscription',
-      };
+      metadataPayload = { ...metadataPayload, type: 'subscription' };
     } 
-    // OPCIÓN 2: Compra acumulada desde el Carrito
+    // 2. CARRITO DE COMPRAS
     else if (items && Array.isArray(items) && items.length > 0) {
       const enrichedCart = await Promise.all(
         items.map(async (item) => {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
-          
           const cleanId = item.id && String(item.id).includes('-') ? String(item.id).split('-')[0] : item.id;
 
           if (cleanId) {
             let dbItem = null;
-
-            const { data: serviceData } = await supabase.from('services').select('*').eq('id', cleanId).single();
-            if (serviceData) {
-              dbItem = serviceData;
+            const { data: sData } = await supabase.from('services').select('*').eq('id', cleanId).single();
+            if (sData) {
+              dbItem = sData;
             } else {
-              const { data: classData } = await supabase.from('classes').select('*').eq('id', cleanId).single();
-              if (classData) {
-                dbItem = classData;
+              const { data: cData } = await supabase.from('classes').select('*').eq('id', cleanId).single();
+              if (cData) {
+                dbItem = cData;
                 isClassItem = true;
               } else {
-                const { data: productData } = await supabase.from('products').select('*').eq('id', cleanId).single();
-                if (productData) dbItem = productData;
+                const { data: pData } = await supabase.from('products').select('*').eq('id', cleanId).single();
+                if (pData) dbItem = pData;
               }
             }
 
@@ -167,48 +151,29 @@ export default async function handler(req, res) {
       metadataPayload = {
         ...metadataPayload,
         cart_data: JSON.stringify(
-          enrichedCart.map(i => ({
-            id: i.id,
-            title: i.title,
-            isService: i.isService,
-            file_url: i.file_url
-          }))
+          enrichedCart.map(i => ({ id: i.id, title: i.title, isService: i.isService, file_url: i.file_url }))
         ),
       };
     } 
-    // OPCIÓN 3: Compra directa instantánea de un producto/clase/servicio
+    // 3. COMPRA DIRECTA DE UN PRODUCTO AISLADO
     else if (productId) {
       let item = null;
 
       if (isService) {
-        const { data: serviceData } = await supabase
-          .from('services')
-          .select('*')
-          .eq('id', productId)
-          .single();
-        if (serviceData) item = serviceData;
+        const { data: sData } = await supabase.from('services').select('*').eq('id', productId).single();
+        if (sData) item = sData;
       }
-
       if (!item) {
-        const { data: classData } = await supabase
-          .from('classes')
-          .select('*')
-          .eq('id', productId)
-          .single();
-        if (classData) {
-          item = classData;
+        const { data: cData } = await supabase.from('classes').select('*').eq('id', productId).single();
+        if (cData) {
+          item = cData;
           hasService = true;
           isClassItem = true;
         }
       }
-
       if (!item) {
-        const { data: productData } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', productId)
-          .single();
-        if (productData) item = productData;
+        const { data: pData } = await supabase.from('products').select('*').eq('id', productId).single();
+        if (pData) item = pData;
       }
 
       if (!item) {
@@ -216,29 +181,24 @@ export default async function handler(req, res) {
       }
 
       const unitAmount = customPriceCents || item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
-      
       if (isService) hasService = true;
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
       
       let nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
-      if (planName) {
-        nameResolved = `${nameResolved} (${planName})`;
-      }
+      if (planName) nameResolved = `${nameResolved} (${planName})`;
 
-      lineItems = [
-        {
-          price_data: {
-            currency: (item.moneda || item.currency || 'eur').toLowerCase(),
-            product_data: {
-              name: nameResolved,
-              description: item.description ? item.description.slice(0, 300) : undefined,
-              images: item.image_url || item.imagen_url ? [item.image_url || item.imagen_url] : undefined,
-            },
-            unit_amount: unitAmount,
+      lineItems = [{
+        price_data: {
+          currency: (item.moneda || item.currency || 'eur').toLowerCase(),
+          product_data: {
+            name: nameResolved,
+            description: item.description ? item.description.slice(0, 300) : undefined,
+            images: item.image_url || item.imagen_url ? [item.image_url || item.imagen_url] : undefined,
           },
-          quantity: 1,
+          unit_amount: unitAmount,
         },
-      ];
+        quantity: 1,
+      }];
 
       metadataPayload = {
         ...metadataPayload,
@@ -252,16 +212,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No se enviaron artículos para la compra.' });
     }
 
-    // Lógica de Success URL
     let successUrl = `${siteUrl}/gracias?tipo=producto`;
     if (isSubscription) {
       successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
     } else if (hasService) {
-      if (isClassItem) {
-        successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
-      } else {
-        successUrl = `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
-      }
+      successUrl = isClassItem ? `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}` : `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
     }
 
     const session = await stripe.checkout.sessions.create({
