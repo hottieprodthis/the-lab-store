@@ -51,6 +51,7 @@ export default async function handler(req, res) {
       user_id: resolvedUserId || '',
     };
     let checkoutMode = 'payment';
+    let totalCents = 0; // Para comprobar si el carrito es de 0€
 
     // 1. SUSCRIPCIÓN
     if (isSubscription) {
@@ -67,6 +68,7 @@ export default async function handler(req, res) {
         finalPriceCents = settingData?.value ? Math.round(Number(settingData.value) * 100) : 799;
       }
       
+      totalCents += finalPriceCents;
       lineItems = [{
         price_data: {
           currency: 'eur',
@@ -120,6 +122,7 @@ export default async function handler(req, res) {
           if (item.isService) hasService = true;
 
           const finalPriceCents = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
+          totalCents += finalPriceCents * (item.quantity || 1);
 
           return {
             id: item.id,
@@ -148,11 +151,20 @@ export default async function handler(req, res) {
         quantity: item.quantity,
       }));
 
+      // APLICAMOS LA CORRECCIÓN DE STRIPE METADATA LÍMITE 500 CHARS
+      const compactCartData = enrichedCart.map(i => ({ 
+        id: i.id, 
+        title: String(i.title).substring(0, 25), // Acortamos nombres largos
+        isService: i.isService, 
+        file_url: i.file_url 
+      }));
+      
+      const jsonCart = JSON.stringify(compactCartData);
+      
       metadataPayload = {
         ...metadataPayload,
-        cart_data: JSON.stringify(
-          enrichedCart.map(i => ({ id: i.id, title: i.title, isService: i.isService, file_url: i.file_url }))
-        ),
+        // Nos aseguramos firmemente de que no exceda 500 caracteres, cortando si fuera necesario
+        cart_data: jsonCart.length > 490 ? jsonCart.substring(0, 490) : jsonCart,
       };
     } 
     // 3. COMPRA DIRECTA DE UN PRODUCTO AISLADO
@@ -181,6 +193,8 @@ export default async function handler(req, res) {
       }
 
       const unitAmount = customPriceCents || item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
+      totalCents += unitAmount;
+
       if (isService) hasService = true;
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
       
@@ -203,13 +217,18 @@ export default async function handler(req, res) {
       metadataPayload = {
         ...metadataPayload,
         product_id: String(item.id),
-        product_name: nameResolved,
+        product_name: String(nameResolved).substring(0, 50),
         is_service: hasService ? 'true' : 'false',
-        driveUrl: driveLink,
-        file_url: driveLink,
+        driveUrl: String(driveLink).substring(0, 200), // Protegemos enlaces sueltos inmensamente largos
+        file_url: String(driveLink).substring(0, 200),
       };
     } else {
       return res.status(400).json({ error: 'No se enviaron artículos para la compra.' });
+    }
+
+    // APLICAMOS LA CORRECCIÓN DE STRIPE DE 0 EUROS (MIN 50 céntimos / 0.50€)
+    if (totalCents > 0 && totalCents < 50) {
+      return res.status(400).json({ error: 'Stripe requiere un importe mínimo de 0.50€' });
     }
 
     let successUrl = `${siteUrl}/gracias?tipo=producto`;
@@ -217,6 +236,11 @@ export default async function handler(req, res) {
       successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
     } else if (hasService) {
       successUrl = isClassItem ? `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}` : `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
+    }
+
+    // Si el carrito entero cuesta 0.00€, redirigimos a gracias automáticamente sin pasar por Stripe
+    if (totalCents === 0 && checkoutMode !== 'subscription') {
+      return res.status(200).json({ url: successUrl, freeCheckout: true });
     }
 
     const session = await stripe.checkout.sessions.create({
