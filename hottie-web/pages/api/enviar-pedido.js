@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// 1. Inicializamos Supabase EXCLUSIVAMENTE con la Service Role Key para evitar bloqueos de RLS
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -50,9 +49,8 @@ export default async function handler(req, res) {
     const nombreCliente = session.customer_details?.name || 'Cliente';
     const metadata = session.metadata || {};
 
-    // 2. Extraemos los datos exactos que necesitamos para el historial
-    let userId = session.client_reference_id; // ID que enviamos desde checkout.js
-    const totalAmount = session.amount_total ? session.amount_total / 100 : 0; // Pasamos los céntimos a euros (ej: 0, 15, 7.99)
+    let userId = session.client_reference_id;
+    const totalAmount = session.amount_total ? session.amount_total / 100 : 0;
     let planNameToSave = 'Compra en tienda';
 
     let linksHtml = '';
@@ -64,8 +62,6 @@ export default async function handler(req, res) {
     if (metadata.cart_data) {
       try {
         const cartItems = JSON.parse(metadata.cart_data);
-        
-        // Creamos el nombre para el historial (ej: "Pack de Beats + Servicio de Mezcla")
         const itemNames = cartItems.map(i => i.title || i.name || 'Artículo').join(' + ');
         planNameToSave = itemNames;
 
@@ -127,7 +123,6 @@ export default async function handler(req, res) {
         singleTitle = metadata.is_service === 'true' ? 'Servicio Digital' : 'Producto Digital';
       }
 
-      // Nombramos la compra para el historial
       if (metadata.type === 'subscription') {
         planNameToSave = 'Suscripción Área de Clientes';
       } else {
@@ -159,21 +154,22 @@ export default async function handler(req, res) {
       }
     }
 
-    // --- SALVAVIDAS INFALIBLE: SI NO LLEGA EL USER_ID, LO BUSCAMOS POR EL EMAIL ---
+    // --- BÚSQUEDA INFALIBLE DE USUARIO ---
     if (!userId && emailCliente) {
       try {
-        const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
-          email_input: emailCliente.trim()
-        });
-        if (foundId) {
-          userId = foundId;
+        const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+        if (!listError && users) {
+          const matchedUser = users.find(u => u.email?.toLowerCase() === emailCliente.trim().toLowerCase());
+          if (matchedUser) {
+            userId = matchedUser.id;
+          }
         }
       } catch (err) {
         console.error('Error buscando usuario por email:', err);
       }
     }
 
-    // 3. Insertamos el registro de la compra en tu tabla Supabase
+    // --- INSERCIÓN EN SUPABASE ---
     if (userId) {
       try {
         const { error: dbError } = await supabase
@@ -187,15 +183,15 @@ export default async function handler(req, res) {
           ]);
           
         if (dbError) {
-          console.error('Error guardando historial de compra:', dbError.message);
+          console.error('❌ Error guardando historial de compra:', dbError.message);
         } else {
-          console.log(`Compra de ${planNameToSave} por ${totalAmount}€ guardada para el usuario ${userId}`);
+          console.log(`✅ Compra de ${planNameToSave} por ${totalAmount}€ guardada para el usuario ${userId}`);
         }
       } catch (e) {
-        console.error('Excepción guardando historial de compra:', e);
+        console.error('❌ Excepción guardando historial de compra:', e);
       }
     } else {
-      console.warn('No se pudo encontrar un usuario en Supabase para asociar esta compra.');
+      console.warn('⚠️ No se pudo encontrar un usuario en Supabase para asociar esta compra.');
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;
