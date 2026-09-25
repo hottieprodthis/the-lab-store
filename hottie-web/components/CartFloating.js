@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
+import { supabase } from '../lib/supabaseClient'; // <-- 1. Importamos Supabase
 
 export default function CartFloating() {
   const { 
@@ -14,6 +15,18 @@ export default function CartFloating() {
   } = useCart();
   
   const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState(null); // <-- 2. Estado para guardar el ID del usuario
+
+  // 3. Cargamos el usuario si ha iniciado sesión al abrir o cargar el componente
+  useEffect(() => {
+    async function getUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUserId(session.user.id);
+      }
+    }
+    getUser();
+  }, []);
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -27,6 +40,7 @@ export default function CartFloating() {
         },
         body: JSON.stringify({
           items: cart,
+          userId: userId, // <-- 4. Enviamos el ID del usuario directamente a Stripe
         }),
       });
 
