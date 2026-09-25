@@ -45,13 +45,15 @@ export default async function handler(req, res) {
 
     let lineItems = [];
     let hasService = false;
-    let isClassItem = false;
+    let hasClass = false;
+    let hasProduct = false;
     let driveLink = '';
     let metadataPayload = {
       user_id: resolvedUserId || '',
     };
     let checkoutMode = 'payment';
-    let totalCents = 0; // Para comprobar si el carrito es de 0€
+    let totalCents = 0;
+    let planNameToSave = 'Compra en tienda';
 
     // 1. SUSCRIPCIÓN
     if (isSubscription) {
@@ -69,6 +71,7 @@ export default async function handler(req, res) {
       }
       
       totalCents += finalPriceCents;
+      planNameToSave = 'Suscripción Área de Clientes';
       lineItems = [{
         price_data: {
           currency: 'eur',
@@ -91,12 +94,16 @@ export default async function handler(req, res) {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
           const cleanId = item.id && String(item.id).includes('-') ? String(item.id).split('-')[0] : item.id;
+          
+          let isClassItem = false;
+          let isServiceItem = item.isService;
 
           if (cleanId) {
             let dbItem = null;
             const { data: sData } = await supabase.from('services').select('*').eq('id', cleanId).single();
             if (sData) {
               dbItem = sData;
+              isServiceItem = true;
             } else {
               const { data: cData } = await supabase.from('classes').select('*').eq('id', cleanId).single();
               if (cData) {
@@ -104,22 +111,29 @@ export default async function handler(req, res) {
                 isClassItem = true;
               } else {
                 const { data: pData } = await supabase.from('products').select('*').eq('id', cleanId).single();
-                if (pData) dbItem = pData;
+                if (pData) {
+                  dbItem = pData;
+                  hasProduct = true;
+                }
               }
             }
 
             if (dbItem) {
-              if (!downloadUrl && !item.isService) {
+              if (!downloadUrl && !isServiceItem && !isClassItem) {
                 downloadUrl = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
               }
               if (!nameResolved) {
                 nameResolved = dbItem.name || dbItem.title || dbItem.nombre || '';
               }
             }
+          } else {
+            if (item.isService) isServiceItem = true;
+            else hasProduct = true;
           }
 
-          if (!nameResolved) nameResolved = item.isService ? 'Servicio Digital' : 'Producto Digital';
-          if (item.isService) hasService = true;
+          if (!nameResolved) nameResolved = isServiceItem ? 'Servicio Digital' : (isClassItem ? 'Clase Digital' : 'Producto Digital');
+          if (isServiceItem) hasService = true;
+          if (isClassItem) hasClass = true;
 
           const finalPriceCents = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
           totalCents += finalPriceCents * (item.quantity || 1);
@@ -127,7 +141,8 @@ export default async function handler(req, res) {
           return {
             id: item.id,
             title: nameResolved,
-            isService: !!item.isService,
+            isService: isServiceItem,
+            isClass: isClassItem,
             file_url: downloadUrl,
             quantity: item.quantity || 1,
             price_cents: finalPriceCents,
@@ -137,6 +152,8 @@ export default async function handler(req, res) {
           };
         })
       );
+
+      planNameToSave = enrichedCart.map(i => i.title).join(' + ');
 
       lineItems = enrichedCart.map((item) => ({
         price_data: {
@@ -151,20 +168,18 @@ export default async function handler(req, res) {
         quantity: item.quantity,
       }));
 
-      // APLICAMOS LA CORRECCIÓN DE STRIPE METADATA LÍMITE 500 CHARS
-      const compactCartData = enrichedCart.map(i => ({ 
-        id: i.id, 
-        title: String(i.title).substring(0, 25), // Acortamos nombres largos
-        isService: i.isService, 
-        file_url: i.file_url 
+      // JSON SEGURO PARA STRIPE (Evita sobrepasar los 500 caracteres)
+      const compactCartData = enrichedCart.map(i => ({
+        title: String(i.title).substring(0, 30),
+        isService: i.isService || i.isClass, 
+        file_url: i.file_url ? String(i.file_url).split('?')[0].substring(0, 100) : '' 
       }));
       
       const jsonCart = JSON.stringify(compactCartData);
       
       metadataPayload = {
         ...metadataPayload,
-        // Nos aseguramos firmemente de que no exceda 500 caracteres, cortando si fuera necesario
-        cart_data: jsonCart.length > 490 ? jsonCart.substring(0, 490) : jsonCart,
+        cart_data: jsonCart.length > 500 ? JSON.stringify([{title: 'Pedido Múltiple', isService: hasService, file_url: ''}]) : jsonCart,
       };
     } 
     // 3. COMPRA DIRECTA DE UN PRODUCTO AISLADO
@@ -173,19 +188,15 @@ export default async function handler(req, res) {
 
       if (isService) {
         const { data: sData } = await supabase.from('services').select('*').eq('id', productId).single();
-        if (sData) item = sData;
+        if (sData) { item = sData; hasService = true; }
       }
       if (!item) {
         const { data: cData } = await supabase.from('classes').select('*').eq('id', productId).single();
-        if (cData) {
-          item = cData;
-          hasService = true;
-          isClassItem = true;
-        }
+        if (cData) { item = cData; hasClass = true; }
       }
       if (!item) {
         const { data: pData } = await supabase.from('products').select('*').eq('id', productId).single();
-        if (pData) item = pData;
+        if (pData) { item = pData; hasProduct = true; }
       }
 
       if (!item) {
@@ -195,11 +206,11 @@ export default async function handler(req, res) {
       const unitAmount = customPriceCents || item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
       totalCents += unitAmount;
 
-      if (isService) hasService = true;
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
       
       let nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
       if (planName) nameResolved = `${nameResolved} (${planName})`;
+      planNameToSave = nameResolved;
 
       lineItems = [{
         price_data: {
@@ -218,28 +229,55 @@ export default async function handler(req, res) {
         ...metadataPayload,
         product_id: String(item.id),
         product_name: String(nameResolved).substring(0, 50),
-        is_service: hasService ? 'true' : 'false',
-        driveUrl: String(driveLink).substring(0, 200), // Protegemos enlaces sueltos inmensamente largos
-        file_url: String(driveLink).substring(0, 200),
+        is_service: (hasService || hasClass) ? 'true' : 'false',
+        file_url: String(driveLink).split('?')[0].substring(0, 150),
       };
     } else {
       return res.status(400).json({ error: 'No se enviaron artículos para la compra.' });
     }
 
-    // APLICAMOS LA CORRECCIÓN DE STRIPE DE 0 EUROS (MIN 50 céntimos / 0.50€)
     if (totalCents > 0 && totalCents < 50) {
       return res.status(400).json({ error: 'Stripe requiere un importe mínimo de 0.50€' });
     }
 
-    let successUrl = `${siteUrl}/gracias?tipo=producto`;
+    // --- DETERMINAR EL TIPO EXACTO PARA LA PÁGINA DE GRACIAS ---
+    let tipoQuery = 'producto';
+    const totalCategories = (hasService ? 1 : 0) + (hasClass ? 1 : 0) + (hasProduct ? 1 : 0);
+
     if (isSubscription) {
-      successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
+      tipoQuery = 'suscripcion';
+    } else if (totalCategories > 1) {
+      tipoQuery = 'mixto'; // Si hay mezcla de clases, servicios o productos
     } else if (hasService) {
-      successUrl = isClassItem ? `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}` : `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
+      tipoQuery = 'servicio';
+    } else if (hasClass) {
+      tipoQuery = 'clase';
     }
 
-    // Si el carrito entero cuesta 0.00€, redirigimos a gracias automáticamente sin pasar por Stripe
+    let successUrl = `${siteUrl}/gracias?tipo=${tipoQuery}`;
+    if (isSubscription) {
+      successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
+    } else if (hasService && totalCategories === 1) {
+      successUrl = `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
+    } else if (hasClass && totalCategories === 1) {
+      successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
+    }
+
+    // --- SI EL CARRITO ES DE 0.00€ (GUARDAMOS DIRECTAMENTE EN SUPABASE) ---
     if (totalCents === 0 && checkoutMode !== 'subscription') {
+      if (resolvedUserId) {
+        try {
+          await supabase.from('purchases').insert([
+            {
+              user_id: resolvedUserId,
+              amount: 0,
+              plan_name: planNameToSave
+            }
+          ]);
+        } catch (e) {
+          console.error('Error guardando compra de 0€ en Supabase:', e);
+        }
+      }
       return res.status(200).json({ url: successUrl, freeCheckout: true });
     }
 
