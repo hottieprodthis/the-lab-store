@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId } = req.body;
+  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId } = req.body;
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
@@ -30,14 +30,32 @@ export default async function handler(req, res) {
     const refererHeader = req.headers.referer;
     let cancelUrl = returnUrl || refererHeader || siteUrl;
 
+    // --- DETECCIÓN AUTOMÁTICA DE USUARIO EN EL SERVIDOR ---
+    let resolvedUserId = bodyUserId;
+
+    // Si no viene en el body, intentamos extraerlo del token de autorización o cookies si las hubiera
+    if (!resolvedUserId) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (user && !error) {
+          resolvedUserId = user.id;
+        }
+      }
+    }
+    // ------------------------------------------------------
+
     let lineItems = [];
     let hasService = false;
     let isClassItem = false;
     let driveLink = '';
-    let metadataPayload = {};
+    let metadataPayload = {
+      user_id: resolvedUserId || '',
+    };
     let checkoutMode = 'payment';
 
-    // OPCIÓN 1: SUSCRIPCIÓN MENSUAL (Área de Clientes) - Lee el precio dinámico de Supabase
+    // OPCIÓN 1: SUSCRIPCIÓN MENSUAL (Área de Clientes)
     if (isSubscription) {
       checkoutMode = 'subscription';
       
@@ -52,7 +70,7 @@ export default async function handler(req, res) {
         if (settingData && settingData.value) {
           finalPriceCents = Math.round(Number(settingData.value) * 100);
         } else {
-          finalPriceCents = 799; // Valor por defecto si no encuentra nada
+          finalPriceCents = 799; 
         }
       }
       
@@ -74,6 +92,7 @@ export default async function handler(req, res) {
       ];
 
       metadataPayload = {
+        ...metadataPayload,
         type: 'subscription',
       };
     } 
@@ -146,6 +165,7 @@ export default async function handler(req, res) {
       }));
 
       metadataPayload = {
+        ...metadataPayload,
         cart_data: JSON.stringify(
           enrichedCart.map(i => ({
             id: i.id,
@@ -221,6 +241,7 @@ export default async function handler(req, res) {
       ];
 
       metadataPayload = {
+        ...metadataPayload,
         product_id: String(item.id),
         product_name: nameResolved,
         is_service: hasService ? 'true' : 'false',
@@ -251,7 +272,7 @@ export default async function handler(req, res) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: metadataPayload,
-      client_reference_id: userId || undefined, // <-- ÚNICA LÍNEA AÑADIDA AQUÍ
+      client_reference_id: resolvedUserId || undefined,
     });
 
     return res.status(200).json({ url: session.url });
