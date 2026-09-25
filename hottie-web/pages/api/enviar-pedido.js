@@ -3,10 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// 1. Inicializamos Supabase con la Service Role Key para evitar bloqueos de RLS
+// 1. Inicializamos Supabase EXCLUSIVAMENTE con la Service Role Key para evitar bloqueos de RLS
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
 export const config = {
@@ -234,7 +234,7 @@ export default async function handler(req, res) {
           subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
           html: `
             <h2>¡Nuevo pago completado en Stripe!</h2>
-            <p><strong>Cliente:</strong> ${nombreCliente}</p> <!-- CORREGIDO AQUÍ -->
+            <p><strong>Cliente:</strong> ${nombreCliente}</p>
             <p><strong>Email:</strong> ${emailCliente}</p>
             <p><strong>Total pagado:</strong> ${totalAmount} €</p>
             <p><strong>Artículos/Enlaces:</strong> ${linksText}</p>
