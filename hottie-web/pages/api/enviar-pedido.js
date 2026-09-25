@@ -46,7 +46,7 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const emailCliente = session.customer_details?.email || session.customer_email;
+    const emailCliente = session.customer_details?.email || session.customer_email || session.metadata?.customer_email;
     const nombreCliente = session.customer_details?.name || 'Cliente';
     const metadata = session.metadata || {};
 
@@ -159,13 +159,14 @@ export default async function handler(req, res) {
       }
     }
 
-    // --- SALVAVIDAS: SI NO LLEGA EL USER_ID, LO BUSCAMOS POR EL EMAIL ---
+    // --- SALVAVIDAS INFALIBLE: SI NO LLEGA EL USER_ID, LO BUSCAMOS POR EL EMAIL ---
     if (!userId && emailCliente) {
       try {
-        const { data: userData } = await supabase.auth.admin.listUsers();
-        const foundUser = userData?.users?.find(u => u.email?.toLowerCase() === emailCliente.trim().toLowerCase());
-        if (foundUser) {
-          userId = foundUser.id;
+        const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
+          email_input: emailCliente.trim()
+        });
+        if (foundId) {
+          userId = foundId;
         }
       } catch (err) {
         console.error('Error buscando usuario por email:', err);
@@ -233,7 +234,7 @@ export default async function handler(req, res) {
           subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
           html: `
             <h2>¡Nuevo pago completado en Stripe!</h2>
-            <p><strong>Cliente:</strong> ${nombreClient}</p>
+            <p><strong>Cliente:</strong> ${nombreCliente}</p> <!-- CORREGIDO AQUÍ -->
             <p><strong>Email:</strong> ${emailCliente}</p>
             <p><strong>Total pagado:</strong> ${totalAmount} €</p>
             <p><strong>Artículos/Enlaces:</strong> ${linksText}</p>
