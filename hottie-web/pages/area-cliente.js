@@ -152,6 +152,24 @@ export default function AreaClientePage() {
     }
   };
 
+  // NUEVA FUNCIÓN: Eliminar compra del historial
+  const eliminarCompra = async (idCompra) => {
+    const confirmar = window.confirm("¿Seguro que quieres borrar este registro del historial? Esta acción no se puede deshacer.");
+    if (!confirmar) return;
+
+    const { error } = await supabase
+      .from('purchases')
+      .delete()
+      .eq('id', idCompra);
+
+    if (error) {
+      console.error('Error al borrar la compra:', error.message);
+      alert('Hubo un error al borrar el registro.');
+    } else {
+      setPurchases(purchases.filter(compra => compra.id !== idCompra));
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-ink text-paper flex items-center justify-center font-body">
@@ -340,7 +358,7 @@ export default function AreaClientePage() {
                 </p>
               </div>
 
-              {/* NUEVA SECCIÓN: Historial de Compras Dinámico */}
+              {/* Historial de Compras Dinámico */}
               <div className="border-t border-white/10 pt-6">
                 <p className="text-xs uppercase tracking-widest text-muted mb-2">Historial de Compras</p>
                 
@@ -351,16 +369,28 @@ export default function AreaClientePage() {
                 ) : (
                   <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                     {purchases.map((purchase) => (
-                      <div key={purchase.id} className="flex justify-between items-center rounded-sm border border-white/10 bg-white/5 p-3">
+                      <div key={purchase.id} className="flex justify-between items-center rounded-sm border border-white/10 bg-white/5 p-3 group">
                         <div>
                           <p className="text-sm text-paper">{purchase.plan_name || 'Compra en la tienda'}</p>
                           <p className="text-xs text-muted">
                             {new Date(purchase.created_at).toLocaleDateString('es-ES')}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold text-volt">
-                          {purchase.amount} €
-                        </p>
+                        <div className="flex items-center gap-3">
+                          <p className="text-sm font-semibold text-volt">
+                            {purchase.amount} €
+                          </p>
+                          <button 
+                            onClick={() => eliminarCompra(purchase.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-400 p-1"
+                            title="Eliminar del historial"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
