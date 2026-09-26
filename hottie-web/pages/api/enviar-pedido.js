@@ -127,7 +127,7 @@ export default async function handler(req, res) {
         singleTitle = metadata.is_service === 'true' ? 'Servicio Digital' : 'Producto Digital';
       }
 
-      // Nombramos la compra para el historial
+      // Nombramos la compra para el historial de forma robusta tanto en compra directa como pasarela
       if (metadata.type === 'subscription') {
         planNameToSave = 'Suscripción Área de Clientes';
       } else {
@@ -173,7 +173,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 3. Insertamos el registro de la compra en tu tabla Supabase
+    // 3. Insertamos el registro de la compra en tu tabla Supabase (Ya cubierto para Directo, Carrito y Pasarela)
     if (userId) {
       try {
         const { error: dbError } = await supabase
