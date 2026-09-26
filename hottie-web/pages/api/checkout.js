@@ -32,7 +32,6 @@ export default async function handler(req, res) {
     // --- DETECCIÓN AUTOMÁTICA Y BLINDADA DEL USUARIO ---
     let resolvedUserId = bodyUserId;
 
-    // 1. Si no viene en el body, probamos con el Header Authorization (Bearer Token)
     if (!resolvedUserId) {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -44,7 +43,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2. Si sigue sin resolverse, intentamos extraerlo de las cookies de la petición
     if (!resolvedUserId && req.cookies) {
       const cookieKey = Object.keys(req.cookies).find(k => k.includes('auth-token') || k.includes('supabase'));
       if (cookieKey) {
@@ -189,7 +187,6 @@ export default async function handler(req, res) {
         quantity: item.quantity,
       }));
 
-      // HTML para correos de carrito múltiple de 0€
       const itemsList = enrichedCart.map((item) => {
         if (item.isService || item.isClass) {
           return `<li style="margin-bottom: 24px;">
@@ -352,6 +349,23 @@ export default async function handler(req, res) {
         }
       }
 
+      // Salvavidas extra por si viene autenticado por cabecera
+      if (!resolvedUserId && req.headers.authorization) {
+        try {
+          const token = req.headers.authorization.split(' ')[1];
+          const { data: { user } } = await supabase.auth.getUser(token);
+          if (user) resolvedUserId = user.id;
+        } catch (e) {}
+      }
+
+      let destinoEmail = userEmail;
+      if (!destinoEmail && resolvedUserId) {
+        try {
+          const { data: userData } = await supabase.auth.admin.getUserById(resolvedUserId);
+          if (userData?.user?.email) destinoEmail = userData.user.email;
+        } catch (e) {}
+      }
+
       if (resolvedUserId) {
         try {
           await supabase.from('purchases').insert([
@@ -366,14 +380,12 @@ export default async function handler(req, res) {
         }
       }
 
-      // Envío de correos mediante Resend para pedidos gratuitos de 0€
       const resendApiKey = process.env.RESEND_API_KEY;
-      const destinoEmail = userEmail || (resolvedUserId ? await supabase.auth.admin.getUserById(resolvedUserId).then(u => u.data.user?.email) : null);
-      const nombreClienteReal = clientName || 'Cliente';
+      const nombreClienteReal = clientName || (destinoEmail ? destinoEmail.split('@')[0] : 'Cliente');
 
       if (resendApiKey && destinoEmail) {
         try {
-          // 1. Correo para ti (admin)
+          // 1. Notificación para el admin
           await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
@@ -383,18 +395,18 @@ export default async function handler(req, res) {
             body: JSON.stringify({
               from: 'The Lab System <pedidos@hottieprodthis.com>',
               to: ['pedidos.thelab@gmail.com'],
-              subject: `🚨 NUEVO PEDIDO GRATUITO (0€): ${nombreClienteReal}`,
+              subject: `🚨 NUEVO PEDIDO / RESERVA GRATUITA (0€): ${nombreClienteReal}`,
               html: `
-                <h2>¡Nuevo pedido gratuito registrado!</h2>
+                <h2>¡Nuevo pedido o reserva gratuita registrada!</h2>
                 <p><strong>Cliente:</strong> ${nombreClienteReal}</p>
                 <p><strong>Email:</strong> ${destinoEmail}</p>
                 <p><strong>Total:</strong> 0.00 €</p>
-                <p><strong>Artículos/Servicios:</strong> ${linksText || planNameToSave}</p>
+                <p><strong>Concepto:</strong> ${linksText || planNameToSave}</p>
               `,
             }),
           });
 
-          // 2. Correo para el cliente con los accesos o confirmación
+          // 2. Correo de confirmación para el cliente
           const fullEmailHtml = `
             <!DOCTYPE html>
             <html>
@@ -404,8 +416,8 @@ export default async function handler(req, res) {
             </head>
             <body style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:20px;">
               <h2 style="color:#ffffff;">¡Gracias por tu solicitud, ${nombreClienteReal}!</h2>
-              <p style="color:#dddddd;">Tu pedido gratuito se ha registrado correctamente.</p>
-              <p style="color:#dddddd;">Aquí tienes la información y acceso a tus artículos:</p>
+              <p style="color:#dddddd;">Tu pedido o reserva gratuita se ha registrado correctamente.</p>
+              <p style="color:#dddddd;">Aquí tienes los detalles y accesos correspondientes:</p>
               ${linksHtml || `<p style="color:#dddddd;">${planNameToSave}</p>`}
             </body>
             </html>
@@ -421,12 +433,12 @@ export default async function handler(req, res) {
               from: 'The Lab <pedidos@hottieprodthis.com>',
               reply_to: 'pedidos.thelab@gmail.com',
               to: [destinoEmail],
-              subject: 'Tu pedido en The Lab - Confirmación y Accesos',
+              subject: 'Tu solicitud en The Lab - Confirmación y Accesos',
               html: fullEmailHtml,
             }),
           });
         } catch (emailError) {
-          console.error('Error enviando correos de pedido gratuito con Resend:', emailError);
+          console.error('Error enviando correos de 0€ con Resend:', emailError);
         }
       }
 
