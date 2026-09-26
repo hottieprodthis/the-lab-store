@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId, userEmail } = req.body;
+  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId, userEmail, clientName } = req.body;
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
@@ -44,9 +44,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2. Si sigue sin resolverse, intentamos extraerlo de las cookies de la petición (cookies de Supabase)
+    // 2. Si sigue sin resolverse, intentamos extraerlo de las cookies de la petición
     if (!resolvedUserId && req.cookies) {
-      // Buscamos cualquier cookie que contenga el token de sesión de Supabase
       const cookieKey = Object.keys(req.cookies).find(k => k.includes('auth-token') || k.includes('supabase'));
       if (cookieKey) {
         try {
@@ -56,9 +55,7 @@ export default async function handler(req, res) {
             const { data: { user } } = await supabase.auth.getUser(token);
             if (user) resolvedUserId = user.id;
           }
-        } catch (e) {
-          // Si el formato de la cookie no es JSON puro, intentamos validar de forma segura
-        }
+        } catch (e) {}
       }
     }
     // --------------------------------------------------
@@ -74,6 +71,10 @@ export default async function handler(req, res) {
     let checkoutMode = 'payment';
     let totalCents = 0;
     let planNameToSave = 'Compra en tienda';
+    let linksHtml = '';
+    let linksText = '';
+
+    const btnStyle = 'background-color:#CCFF00 !important; color:#000000 !important; padding:14px 22px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:900; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; border:none;';
 
     // 1. SUSCRIPCIÓN
     if (isSubscription) {
@@ -188,7 +189,39 @@ export default async function handler(req, res) {
         quantity: item.quantity,
       }));
 
-      // JSON SEGURO PARA STRIPE
+      // HTML para correos de carrito múltiple de 0€
+      const itemsList = enrichedCart.map((item) => {
+        if (item.isService || item.isClass) {
+          return `<li style="margin-bottom: 24px;">
+            <strong style="font-size: 16px; color:#ffffff;">${item.title} <span style="color:#aaaaaa; font-weight:normal;">(Servicio/Clase)</span></strong><br/>
+            <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</span>
+          </li>`;
+        } else if (item.file_url) {
+          return `<li style="margin-bottom: 24px;">
+            <strong style="font-size: 16px; color:#ffffff;">${item.title} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong><br/>
+            <div style="margin-top:10px;">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td align="center" bgcolor="#CCFF00" style="border-radius:6px; background-color:#CCFF00;">
+                    <a href="${item.file_url}" target="_blank" style="${btnStyle}">
+                      Descargar / Acceder
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </li>`;
+        } else {
+          return `<li style="margin-bottom: 24px;">
+            <strong style="font-size: 16px; color:#ffffff;">${item.title}</strong><br/>
+            <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Pedido registrado correctamente.</span>
+          </li>`;
+        }
+      });
+
+      linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
+      linksText = enrichedCart.map(i => `${i.title}: ${i.file_url || 'Servicio/Clase'}`).join(' | ');
+
       const compactCartData = enrichedCart.map(i => ({
         title: String(i.title).substring(0, 30),
         isService: i.isService || i.isClass, 
@@ -196,7 +229,6 @@ export default async function handler(req, res) {
       }));
       
       const jsonCart = JSON.stringify(compactCartData);
-      
       metadataPayload = {
         ...metadataPayload,
         cart_data: jsonCart.length > 500 ? JSON.stringify([{title: 'Pedido Múltiple', isService: hasService, file_url: ''}]) : jsonCart,
@@ -245,6 +277,30 @@ export default async function handler(req, res) {
         quantity: 1,
       }];
 
+      if (hasService || hasClass) {
+        linksHtml = `<p><strong style="font-size:16px; color:#ffffff;">${nameResolved} <span style="color:#aaaaaa; font-weight:normal;">(Servicio/Clase)</span></strong></p><p style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</p>`;
+        linksText = `${nameResolved} (Servicio/Clase)`;
+      } else if (driveLink) {
+        linksHtml = `
+          <p><strong style="font-size:16px; color:#ffffff;">${nameResolved} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong></p>
+          <div style="margin-top:10px;">
+            <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+              <tr>
+                <td align="center" bgcolor="#CCFF00" style="border-radius:6px; background-color:#CCFF00;">
+                  <a href="${driveLink}" target="_blank" style="${btnStyle}">
+                    Descargar / Acceder
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </div>
+        `;
+        linksText = `${nameResolved}: ${driveLink}`;
+      } else {
+        linksHtml = `<p style="color:#cccccc;">Pedido gratuito registrado correctamente.</p>`;
+        linksText = nameResolved;
+      }
+
       metadataPayload = {
         ...metadataPayload,
         product_id: String(item.id),
@@ -283,9 +339,8 @@ export default async function handler(req, res) {
       successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
     }
 
-    // --- SI EL TOTAL ES 0.00€ (GUARDADO AUTOMÁTICO BLINDADO EN SUPABASE) ---
+    // --- SI EL TOTAL ES 0.00€ (GUARDADO EN SUPABASE + ENVÍO DE CORREOS RESEND) ---
     if (totalCents === 0 && checkoutMode !== 'subscription') {
-      // Si aún no tenemos usuario pero nos pasan el email, buscamos por RPC
       if (!resolvedUserId && userEmail) {
         try {
           const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
@@ -299,23 +354,80 @@ export default async function handler(req, res) {
 
       if (resolvedUserId) {
         try {
-          const { error: insertError } = await supabase.from('purchases').insert([
+          await supabase.from('purchases').insert([
             {
               user_id: resolvedUserId,
               amount: 0,
               plan_name: planNameToSave
             }
           ]);
-          if (insertError) {
-            console.error('Error al insertar compra de 0€ en Supabase:', insertError.message);
-          } else {
-            console.log(`Compra gratuita de "${planNameToSave}" guardada con éxito para el usuario ${resolvedUserId}`);
-          }
         } catch (e) {
-          console.error('Excepción guardando compra de 0€:', e);
+          console.error('Error guardando compra de 0€ en Supabase:', e);
         }
-      } else {
-        console.warn('Checkout 0€: No se pudo determinar el usuario para guardar el historial.');
+      }
+
+      // Envío de correos mediante Resend para pedidos gratuitos de 0€
+      const resendApiKey = process.env.RESEND_API_KEY;
+      const destinoEmail = userEmail || (resolvedUserId ? await supabase.auth.admin.getUserById(resolvedUserId).then(u => u.data.user?.email) : null);
+      const nombreClienteReal = clientName || 'Cliente';
+
+      if (resendApiKey && destinoEmail) {
+        try {
+          // 1. Correo para ti (admin)
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'The Lab System <pedidos@hottieprodthis.com>',
+              to: ['pedidos.thelab@gmail.com'],
+              subject: `🚨 NUEVO PEDIDO GRATUITO (0€): ${nombreClienteReal}`,
+              html: `
+                <h2>¡Nuevo pedido gratuito registrado!</h2>
+                <p><strong>Cliente:</strong> ${nombreClienteReal}</p>
+                <p><strong>Email:</strong> ${destinoEmail}</p>
+                <p><strong>Total:</strong> 0.00 €</p>
+                <p><strong>Artículos/Servicios:</strong> ${linksText || planNameToSave}</p>
+              `,
+            }),
+          });
+
+          // 2. Correo para el cliente con los accesos o confirmación
+          const fullEmailHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta name="color-scheme" content="light dark">
+              <meta name="supported-color-schemes" content="light dark">
+            </head>
+            <body style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:20px;">
+              <h2 style="color:#ffffff;">¡Gracias por tu solicitud, ${nombreClienteReal}!</h2>
+              <p style="color:#dddddd;">Tu pedido gratuito se ha registrado correctamente.</p>
+              <p style="color:#dddddd;">Aquí tienes la información y acceso a tus artículos:</p>
+              ${linksHtml || `<p style="color:#dddddd;">${planNameToSave}</p>`}
+            </body>
+            </html>
+          `;
+
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'The Lab <pedidos@hottieprodthis.com>',
+              reply_to: 'pedidos.thelab@gmail.com',
+              to: [destinoEmail],
+              subject: 'Tu pedido en The Lab - Confirmación y Accesos',
+              html: fullEmailHtml,
+            }),
+          });
+        } catch (emailError) {
+          console.error('Error enviando correos de pedido gratuito con Resend:', emailError);
+        }
       }
 
       return res.status(200).json({ url: successUrl, freeCheckout: true });
