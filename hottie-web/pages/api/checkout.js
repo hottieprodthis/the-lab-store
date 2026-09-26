@@ -5,9 +5,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 });
 
+// Inicializamos Supabase con la Service Role Key para tener permisos completos en backend
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
 export default async function handler(req, res) {
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId } = req.body;
+  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId, userEmail } = req.body;
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
@@ -31,6 +32,7 @@ export default async function handler(req, res) {
     // --- DETECCIÓN AUTOMÁTICA Y BLINDADA DEL USUARIO ---
     let resolvedUserId = bodyUserId;
 
+    // 1. Si no viene en el body, probamos con el Header Authorization (Bearer Token)
     if (!resolvedUserId) {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -38,6 +40,24 @@ export default async function handler(req, res) {
         const { data: { user }, error } = await supabase.auth.getUser(token);
         if (user && !error) {
           resolvedUserId = user.id;
+        }
+      }
+    }
+
+    // 2. Si sigue sin resolverse, intentamos extraerlo de las cookies de la petición (cookies de Supabase)
+    if (!resolvedUserId && req.cookies) {
+      // Buscamos cualquier cookie que contenga el token de sesión de Supabase
+      const cookieKey = Object.keys(req.cookies).find(k => k.includes('auth-token') || k.includes('supabase'));
+      if (cookieKey) {
+        try {
+          const cookieValue = JSON.parse(req.cookies[cookieKey]);
+          const token = Array.isArray(cookieValue) ? cookieValue[0] : cookieValue?.access_token;
+          if (token) {
+            const { data: { user } } = await supabase.auth.getUser(token);
+            if (user) resolvedUserId = user.id;
+          }
+        } catch (e) {
+          // Si el formato de la cookie no es JSON puro, intentamos validar de forma segura
         }
       }
     }
@@ -168,7 +188,7 @@ export default async function handler(req, res) {
         quantity: item.quantity,
       }));
 
-      // JSON SEGURO PARA STRIPE (Evita sobrepasar los 500 caracteres)
+      // JSON SEGURO PARA STRIPE
       const compactCartData = enrichedCart.map(i => ({
         title: String(i.title).substring(0, 30),
         isService: i.isService || i.isClass, 
@@ -247,7 +267,7 @@ export default async function handler(req, res) {
     if (isSubscription) {
       tipoQuery = 'suscripcion';
     } else if (totalCategories > 1) {
-      tipoQuery = 'mixto'; // Si hay mezcla de clases, servicios o productos
+      tipoQuery = 'mixto';
     } else if (hasService) {
       tipoQuery = 'servicio';
     } else if (hasClass) {
@@ -263,21 +283,41 @@ export default async function handler(req, res) {
       successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
     }
 
-    // --- SI EL CARRITO ES DE 0.00€ (GUARDAMOS DIRECTAMENTE EN SUPABASE) ---
+    // --- SI EL TOTAL ES 0.00€ (GUARDADO AUTOMÁTICO BLINDADO EN SUPABASE) ---
     if (totalCents === 0 && checkoutMode !== 'subscription') {
+      // Si aún no tenemos usuario pero nos pasan el email, buscamos por RPC
+      if (!resolvedUserId && userEmail) {
+        try {
+          const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
+            email_input: userEmail.trim()
+          });
+          if (foundId) resolvedUserId = foundId;
+        } catch (err) {
+          console.error('Error buscando usuario por email en checkout de 0€:', err);
+        }
+      }
+
       if (resolvedUserId) {
         try {
-          await supabase.from('purchases').insert([
+          const { error: insertError } = await supabase.from('purchases').insert([
             {
               user_id: resolvedUserId,
               amount: 0,
               plan_name: planNameToSave
             }
           ]);
+          if (insertError) {
+            console.error('Error al insertar compra de 0€ en Supabase:', insertError.message);
+          } else {
+            console.log(`Compra gratuita de "${planNameToSave}" guardada con éxito para el usuario ${resolvedUserId}`);
+          }
         } catch (e) {
-          console.error('Error guardando compra de 0€ en Supabase:', e);
+          console.error('Excepción guardando compra de 0€:', e);
         }
+      } else {
+        console.warn('Checkout 0€: No se pudo determinar el usuario para guardar el historial.');
       }
+
       return res.status(200).json({ url: successUrl, freeCheckout: true });
     }
 
