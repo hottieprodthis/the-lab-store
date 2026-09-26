@@ -50,9 +50,13 @@ export default async function handler(req, res) {
     const nombreCliente = session.customer_details?.name || 'Cliente';
     const metadata = session.metadata || {};
 
+    console.log('--- WEBHOOK STRIPE RECIBIDO ---');
+    console.log('Email cliente:', emailCliente);
+    console.log('Metadata recibida:', metadata);
+
     // 2. Extraemos los datos exactos que necesitamos para el historial
     let userId = session.client_reference_id; // ID que enviamos desde checkout.js
-    const totalAmount = session.amount_total ? session.amount_total / 100 : 0; // Pasamos los céntimos a euros (ej: 0, 15, 7.99)
+    const totalAmount = session.amount_total ? session.amount_total / 100 : 0; // Pasamos los céntimos a euros
     let planNameToSave = 'Compra en tienda';
 
     let linksHtml = '';
@@ -66,13 +70,13 @@ export default async function handler(req, res) {
         const cartItems = JSON.parse(metadata.cart_data);
         
         // Creamos el nombre para el historial (ej: "Pack de Beats + Servicio de Mezcla")
-        const itemNames = cartItems.map(i => i.title || i.name || 'Artículo').join(' + ');
+        const itemNames = cartItems.map(i => i.title || i.name || i.nombre || 'Artículo').join(' + ');
         planNameToSave = itemNames;
 
         const itemsList = cartItems.map((item) => {
-          let itemTitle = item.title;
-          if (itemTitle === undefined || itemTitle === null || itemTitle === '') {
-            itemTitle = item.name || item.nombre || (item.isService ? 'Servicio Digital' : 'Producto Digital');
+          let itemTitle = item.title || item.name || item.nombre;
+          if (!itemTitle) {
+            itemTitle = item.isService ? 'Servicio Digital' : 'Producto Digital';
           }
           
           const itemUrl = item.file_url || item.driveUrl || item.drive_url || item.link || '';
@@ -106,13 +110,13 @@ export default async function handler(req, res) {
         });
 
         linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
-        linksText = cartItems.map(i => `${i.title}: ${i.file_url || 'Servicio'}`).join(' | ');
+        linksText = cartItems.map(i => `${i.title || i.name || i.nombre}: ${i.file_url || 'Servicio'}`).join(' | ');
       } catch (e) {
         console.error('Error al parsear cart_data:', e);
       }
     }
 
-    // 2. Compra individual (fallback)
+    // 2. Compra individual / Directa (fallback)
     if (!linksHtml) {
       const enlaceDrive = 
         metadata.driveUrl || 
@@ -123,11 +127,11 @@ export default async function handler(req, res) {
         '';
       
       let singleTitle = metadata.product_name;
-      if (singleTitle === undefined || singleTitle === null || singleTitle === '') {
+      if (!singleTitle) {
         singleTitle = metadata.is_service === 'true' ? 'Servicio Digital' : 'Producto Digital';
       }
 
-      // Nombramos la compra para el historial de forma robusta tanto en compra directa como pasarela
+      // Nombramos la compra para el historial de forma robusta
       if (metadata.type === 'subscription') {
         planNameToSave = 'Suscripción Área de Clientes';
       } else {
@@ -159,6 +163,9 @@ export default async function handler(req, res) {
       }
     }
 
+    console.log('Nombre de plan que se guardará:', planNameToSave);
+    console.log('UserId inicial recibido de Stripe:', userId);
+
     // --- SALVAVIDAS INFALIBLE VÍA RPC (RÁPIDO Y LIGERO) ---
     if (!userId && emailCliente) {
       try {
@@ -167,13 +174,16 @@ export default async function handler(req, res) {
         });
         if (foundId) {
           userId = foundId;
+          console.log('UserId encontrado mediante RPC por email:', userId);
+        } else {
+          console.warn('RPC no encontró usuario registrado con el email:', emailCliente);
         }
       } catch (err) {
-        console.error('Error buscando usuario por email:', err);
+        console.error('Error buscando usuario por email vía RPC:', err);
       }
     }
 
-    // 3. Insertamos el registro de la compra en tu tabla Supabase (Ya cubierto para Directo, Carrito y Pasarela)
+    // 3. Insertamos el registro de la compra en tu tabla Supabase
     if (userId) {
       try {
         const { error: dbError } = await supabase
@@ -187,15 +197,15 @@ export default async function handler(req, res) {
           ]);
           
         if (dbError) {
-          console.error('Error guardando historial de compra:', dbError.message);
+          console.error('ERROR de Supabase al guardar historial:', dbError.message);
         } else {
-          console.log(`Compra de ${planNameToSave} por ${totalAmount}€ guardada para el usuario ${userId}`);
+          console.log(`¡ÉXITO! Compra de "${planNameToSave}" (${totalAmount}€) guardada para el usuario ${userId}`);
         }
       } catch (e) {
-        console.error('Excepción guardando historial de compra:', e);
+        console.error('Excepción crítica guardando historial en Supabase:', e);
       }
     } else {
-      console.warn('No se pudo encontrar un usuario en Supabase para asociar esta compra.');
+      console.error('AVISO: No se pudo asociar la compra a ningún usuario (userId nulo).');
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;
