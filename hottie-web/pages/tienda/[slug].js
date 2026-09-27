@@ -90,11 +90,15 @@ export default function ProductoDetalle({ product }) {
   async function buyWithStripe() {
     setLoading(true);
     try {
+      // Adjuntamos el usuario logueado (si lo hay) para que el historial
+      // del área de clientes pueda asociarle la compra desde el primer
+      // momento, igual que ya ocurre con las compras hechas por carrito.
       const { data: { session } } = await supabase.auth.getSession();
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           productId: product.id,
           returnUrl: window.location.href,
           userId: session?.user?.id || null,
@@ -114,32 +118,33 @@ export default function ProductoDetalle({ product }) {
     }
   }
 
+  // Registra en el historial del área de clientes (y envía los correos de
+  // confirmación) una compra pagada con PayPal. Antes, pagar con PayPal
+  // aquí no dejaba ningún rastro en "purchases".
   async function handlePaypalSuccess(details) {
     setPaypalDone(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      const payerEmail = details?.payer?.email_address || null;
+      const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
+        .filter(Boolean)
+        .join(' ');
+
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paypalOrderId: details?.id || null,
-          payerEmail: details?.payer?.email_address || null,
-          item: {
-            id: product.id,
-            name: product.name,
-            isService: false,
-            isClass: false,
-            price_cents: product.price_cents,
-            currency: product.currency,
-            file_url: product.file_url,
-          },
+          tipo: 'producto',
+          itemId: product.id,
           userId: session?.user?.id || null,
-          userEmail: session?.user?.email || null,
-          clientName: details?.payer?.name?.given_name || null,
+          userEmail: session?.user?.email || payerEmail,
+          payerEmail,
+          payerName,
+          paypalOrderId: details?.id || null,
         }),
       });
     } catch (err) {
-      console.error('Error registrando el pago de PayPal:', err);
+      console.error('No se pudo registrar el pago de PayPal en el historial:', err);
     }
   }
 
@@ -198,7 +203,7 @@ export default function ProductoDetalle({ product }) {
                     amount={product.price_cents / 100}
                     currency={(product.currency || 'eur').toUpperCase()}
                     label={product.name}
-                    onSuccess={(details) => handlePaypalSuccess(details)}
+                    onSuccess={handlePaypalSuccess}
                   />
                 </div>
               </>
