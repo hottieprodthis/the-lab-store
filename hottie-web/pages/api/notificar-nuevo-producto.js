@@ -12,7 +12,15 @@ export default async function handler(req, res) {
     const titulo = payload.title || payload.name || payload.nombre || 'Nuevo Lanzamiento';
     const descripcion = payload.description || payload.descripcion || '';
     const precio = payload.price || payload.precio || null;
-    const esServicio = payload.type === 'servicio' || payload.tipo === 'servicio';
+    const tipoRaw = payload.type || payload.tipo || '';
+    // Antes esto solo distinguía "servicio" (todo lo demás se etiquetaba
+    // como "PRODUCTO", así que una clase nueva se anunciaba mal). Ahora
+    // distingue las tres categorías reales del catálogo.
+    const tipoEtiqueta = tipoRaw === 'servicio' ? 'SERVICIO' : tipoRaw === 'clase' ? 'CLASE' : 'PRODUCTO';
+    // Permite reutilizar este mismo endpoint para avisar de una bajada/
+    // subida de precio en un producto/servicio/clase ya publicado, sin
+    // crear un endpoint ni una tabla nueva para ello.
+    const esCambioPrecio = payload.motivo === 'cambio_precio';
 
     // Enlace directo a la página principal / inicio
     const enlace = 'https://hottieprodthis.com';
@@ -47,11 +55,13 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: 'The Lab <pedidos@hottieprodthis.com>',
         to: listaEmails,
-        subject: `🔥 NUEVO ${esServicio ? 'SERVICIO' : 'PRODUCTO'}: ${titulo}`,
+        subject: esCambioPrecio
+          ? `💸 NUEVO PRECIO EN ${tipoEtiqueta}: ${titulo}`
+          : `🔥 NUEVO ${tipoEtiqueta}: ${titulo}`,
         html: `
           <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px; text-align:center;">
             <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px; margin-bottom:10px;">THE LAB — NOTIFICACIONES</p>
-            <h1 style="color:#ffffff; margin-top:0;">¡NUEVO LANZAMIENTO!</h1>
+            <h1 style="color:#ffffff; margin-top:0;">${esCambioPrecio ? '¡PRECIO ACTUALIZADO!' : '¡NUEVO LANZAMIENTO!'}</h1>
             <h2 style="color:#CCFF00; font-size:24px;">${titulo}</h2>
             ${descripcion ? `<p style="color:#cccccc; font-size:15px; max-width:500px; margin:20px auto;">${descripcion}</p>` : ''}
             ${precio ? `<p style="font-size:22px; font-weight:bold; color:#ffffff; margin:15px 0;">Precio: ${precio}€</p>` : ''}
