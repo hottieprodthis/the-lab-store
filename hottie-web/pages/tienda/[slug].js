@@ -90,12 +90,15 @@ export default function ProductoDetalle({ product }) {
   async function buyWithStripe() {
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           productId: product.id,
           returnUrl: window.location.href,
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || null,
         }),
       });
       const data = await res.json();
@@ -108,6 +111,35 @@ export default function ProductoDetalle({ product }) {
     } catch (err) {
       alert('No se ha podido iniciar el pago. Inténtalo de nuevo.');
       setLoading(false);
+    }
+  }
+
+  async function handlePaypalSuccess(details) {
+    setPaypalDone(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch('/api/registrar-pago-paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paypalOrderId: details?.id || null,
+          payerEmail: details?.payer?.email_address || null,
+          item: {
+            id: product.id,
+            name: product.name,
+            isService: false,
+            isClass: false,
+            price_cents: product.price_cents,
+            currency: product.currency,
+            file_url: product.file_url,
+          },
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || null,
+          clientName: details?.payer?.name?.given_name || null,
+        }),
+      });
+    } catch (err) {
+      console.error('Error registrando el pago de PayPal:', err);
     }
   }
 
