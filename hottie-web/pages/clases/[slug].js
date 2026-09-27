@@ -62,15 +62,23 @@ export default function DetalleClase({ clase }) {
 
   const handleAddToCartPlan = (plan) => {
     const planPriceCents = Math.round(parseFloat(plan.price) * 100);
+    // OJO: antes esto ponía "isService: true" y nada de "isClass", así que
+    // el carrito y el checkout no tenían forma de saber que esto era una
+    // CLASE (la trataban como un servicio más). Por eso un pedido de
+    // servicio+clase (o producto+clase) solo pedía el formulario y la
+    // página de gracias de servicio. Ahora se marca explícitamente como
+    // clase, y "addToCart(planItem, false)" evita que el segundo
+    // parámetro (que fuerza isService) la vuelva a marcar como servicio.
     const planItem = {
       ...clase,
       id: `${clase.id}-${plan.name.toLowerCase().replace(/\s+/g, '-')}`,
       name: `${clase.name} (${plan.name})`,
       price_cents: planPriceCents,
       price: parseFloat(plan.price),
-      isService: true,
+      isClass: true,
+      isService: false,
     };
-    addToCart(planItem, true);
+    addToCart(planItem, false);
   };
 
   return (
