@@ -22,6 +22,22 @@ export default function NuevoPostPage() {
       setMessage(`Error al crear post: ${error.message}`);
       setLoading(false);
     } else {
+      // Avisa a los clientes con suscripción activa de que hay un post
+      // nuevo. Si falla el envío no bloqueamos nada: el post ya se guardó
+      // correctamente.
+      try {
+        await fetch('/api/notificar-contenido-exclusivo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: 'post',
+            titulo: title,
+            descripcion: content ? content.slice(0, 200) : '',
+          }),
+        });
+      } catch (notifyErr) {
+        console.error('No se pudo avisar a los suscriptores del nuevo post:', notifyErr);
+      }
       router.push('/admin');
     }
   }
