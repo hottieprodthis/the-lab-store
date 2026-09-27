@@ -16,6 +16,7 @@ export default function CartFloating() {
   
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(null); // <-- 2. Estado para guardar el ID del usuario
+  const [userEmail, setUserEmail] = useState(null);
 
   // 3. Cargamos el usuario si ha iniciado sesión al abrir o cargar el componente
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function CartFloating() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUserId(session.user.id);
+        setUserEmail(session.user.email);
       }
     }
     getUser();
@@ -41,6 +43,11 @@ export default function CartFloating() {
         body: JSON.stringify({
           items: cart,
           userId: userId, // <-- 4. Enviamos el ID del usuario directamente a Stripe
+          // Antes esto no se mandaba, así que un pedido hecho por carrito
+          // (aunque el cliente estuviera logeado) dejaba el email de Stripe
+          // en blanco y editable. Mandándolo, Stripe lo precarga y lo
+          // bloquea igual que ya pasaba al comprar un solo artículo.
+          userEmail: userEmail,
         }),
       });
 
