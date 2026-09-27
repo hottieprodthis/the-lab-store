@@ -198,7 +198,7 @@ export default function ProductoDetalle({ product }) {
                     amount={product.price_cents / 100}
                     currency={(product.currency || 'eur').toUpperCase()}
                     label={product.name}
-                    onSuccess={() => setPaypalDone(true)}
+                    onSuccess={(details) => handlePaypalSuccess(details)}
                   />
                 </div>
               </>
