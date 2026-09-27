@@ -32,7 +32,10 @@ export default function ServiceCard({ service }) {
     setLoading(true);
 
     try {
+      // Adjuntamos el usuario logueado (si lo hay) para que esta reserva
+      // también quede asociada a su historial en el área de clientes.
       const { data: { session } } = await supabase.auth.getSession();
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
