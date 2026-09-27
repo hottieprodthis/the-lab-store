@@ -72,10 +72,47 @@ export default function Gracias() {
     }
   }, [router.isReady, tipo, session_id]);
 
-  const esServicio = tipo === 'servicio';
-  const esClase = tipo === 'clase';
-  const esMixto = tipo === 'mixto';
-  const esSuscripcion = tipo === 'suscripcion';
+  // El "tipo" puede venir ahora como una cadena compuesta y
+  // order-independent (ej. "producto_servicio", "servicio_clase",
+  // "producto_servicio_clase") generada en pages/api/checkout.js.
+  // Usamos .includes() en vez de comparación estricta para que
+  // cualquier combinación se detecte correctamente, sin importar en
+  // qué orden se añadieron los artículos al carrito.
+  const tipoStr = typeof tipo === 'string' ? tipo : '';
+  const esSuscripcion = tipoStr === 'suscripcion';
+  const esMixtoLegado = tipoStr === 'mixto'; // compatibilidad con enlaces antiguos
+
+  const tieneProducto = tipoStr.includes('producto');
+  const tieneServicio = tipoStr.includes('servicio');
+  const tieneClase = tipoStr.includes('clase');
+  const totalCategorias = [tieneProducto, tieneServicio, tieneClase].filter(Boolean).length;
+
+  const esCompuesto = !esSuscripcion && (esMixtoLegado || totalCategorias > 1);
+  const esServicio = !esCompuesto && !esSuscripcion && tieneServicio;
+  const esClase = !esCompuesto && !esSuscripcion && tieneClase;
+  const esMixto = esCompuesto;
+
+  let mensajeMixto = 'Tu pedido ha sido procesado con éxito.';
+  if (esCompuesto) {
+    const partes = [];
+    if (tieneProducto || esMixtoLegado) {
+      partes.push('revisa tu correo electrónico para acceder a los archivos y enlaces de descarga de tus productos');
+    }
+    if (tieneServicio && tieneClase) {
+      partes.push('nos pondremos en contacto contigo por correo o WhatsApp para coordinar el servicio y la clase que has reservado');
+    } else if (tieneServicio) {
+      partes.push('nos pondremos en contacto contigo por correo o WhatsApp para comenzar con tu servicio');
+    } else if (tieneClase) {
+      partes.push('nos pondremos en contacto contigo por correo o WhatsApp para coordinar tu clase');
+    }
+    if (esMixtoLegado && partes.length === 0) {
+      partes.push('revisa tu correo electrónico para ver el detalle de tu pedido');
+    }
+    if (partes.length > 0) {
+      const partesCapitalizadas = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+      mensajeMixto = 'Tu pedido ha sido procesado con éxito. ' + partesCapitalizadas.join('. ') + '.';
+    }
+  }
 
   return (
     <>
@@ -105,9 +142,7 @@ export default function Gracias() {
             {esServicio && (
               'Hemos recibido los datos de tu proyecto correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para comenzar.'
             )}
-            {esMixto && (
-              'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder al enlace de descarga y en breve nos pondremos en contacto contigo.'
-            )}
+            {esMixto && mensajeMixto}
             {!esServicio && !esClase && !esMixto && !esSuscripcion && (
               'Tu pedido ha sido procesado con éxito. Revisa tu correo electrónico para acceder a los archivos y enlaces de descarga.'
             )}
