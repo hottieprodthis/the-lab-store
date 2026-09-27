@@ -13,7 +13,26 @@ export default function AreaClientePage() {
   const [loading, setLoading] = useState(true);
   const [subscriptionPrice, setSubscriptionPrice] = useState(7.99);
   const [showSettings, setShowSettings] = useState(false);
+  const [expandedPurchases, setExpandedPurchases] = useState(new Set());
   const router = useRouter();
+
+  const toggleExpandPurchase = (id) => {
+    setExpandedPurchases((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const formatItemType = (type) => {
+    if (type === 'servicio') return 'Servicio';
+    if (type === 'clase') return 'Clase';
+    return 'Producto';
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -368,31 +387,123 @@ export default function AreaClientePage() {
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                    {purchases.map((purchase) => (
-                      <div key={purchase.id} className="flex justify-between items-center rounded-sm border border-white/10 bg-white/5 p-3 group">
-                        <div>
-                          <p className="text-sm text-paper">{purchase.plan_name || 'Compra en la tienda'}</p>
-                          <p className="text-xs text-muted">
-                            {new Date(purchase.created_at).toLocaleDateString('es-ES')}
-                          </p>
+                    {purchases.map((purchase) => {
+                      // "items" solo existe (y solo tiene sentido mostrarlo
+                      // como desplegable) para pedidos con 2 o más
+                      // artículos: carritos mixtos o compras individuales
+                      // ya guardan aquí su desglose real desde la base de
+                      // datos. Los pedidos antiguos o de un solo artículo
+                      // no tienen "items" (o tienen 1 solo) y se muestran
+                      // exactamente igual que siempre.
+                      const items = Array.isArray(purchase.items) ? purchase.items : null;
+                      const isMultiple = items && items.length > 1;
+
+                      if (!isMultiple) {
+                        return (
+                          <div key={purchase.id} className="flex justify-between items-center rounded-sm border border-white/10 bg-white/5 p-3 group">
+                            <div>
+                              <p className="text-sm text-paper">{purchase.plan_name || 'Compra en la tienda'}</p>
+                              <p className="text-xs text-muted">
+                                {new Date(purchase.created_at).toLocaleDateString('es-ES')}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <p className="text-sm font-semibold text-volt">
+                                {purchase.amount} €
+                              </p>
+                              <button
+                                onClick={() => eliminarCompra(purchase.id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-400 p-1"
+                                title="Eliminar del historial"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"></polyline>
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      const isExpanded = expandedPurchases.has(purchase.id);
+
+                      return (
+                        <div key={purchase.id} className="rounded-sm border border-white/10 bg-white/5 group overflow-hidden">
+                          <div className="flex justify-between items-center p-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandPurchase(purchase.id)}
+                              className="flex-1 flex items-center gap-2 text-left min-w-0"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                className={`shrink-0 text-volt transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                              >
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                              </svg>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm text-paper truncate">{purchase.plan_name || 'Pedido múltiple'}</p>
+                                  <span className="shrink-0 text-[9px] uppercase tracking-widest text-volt bg-volt/10 px-1.5 py-0.5 rounded-sm">
+                                    Pedido mixto
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted">
+                                  {new Date(purchase.created_at).toLocaleDateString('es-ES')} · {items.length} artículos
+                                </p>
+                              </div>
+                            </button>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <p className="text-sm font-semibold text-volt">
+                                {purchase.amount} €
+                              </p>
+                              <button
+                                onClick={() => eliminarCompra(purchase.id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-400 p-1"
+                                title="Eliminar del historial"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"></polyline>
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="border-t border-white/10 divide-y divide-white/5 bg-black/20">
+                              {items.map((item, index) => (
+                                <div key={index} className="flex items-center justify-between gap-3 p-3">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    {item.image_url ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={item.image_url} alt="" className="w-8 h-8 rounded-sm object-cover shrink-0" />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-sm bg-white/10 flex items-center justify-center text-[8px] font-bold text-volt shrink-0">
+                                        LAB
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-xs text-paper truncate">{item.name || 'Artículo'}</p>
+                                      <p className="text-[10px] text-muted uppercase tracking-widest">
+                                        {formatItemType(item.type)}
+                                        {item.quantity && item.quantity > 1 ? ` · x${item.quantity}` : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {typeof item.price_cents === 'number' && (
+                                    <p className="text-xs text-muted shrink-0">
+                                      {(item.price_cents / 100).toFixed(2).replace('.', ',')} €
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <p className="text-sm font-semibold text-volt">
-                            {purchase.amount} €
-                          </p>
-                          <button 
-                            onClick={() => eliminarCompra(purchase.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-400 p-1"
-                            title="Eliminar del historial"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
