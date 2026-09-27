@@ -27,6 +27,7 @@ export default function DetalleClase({ clase }) {
   const handleCheckoutPlan = async (plan) => {
     setLoadingPlan(plan.name);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const planPriceCents = Math.round(parseFloat(plan.price) * 100);
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -37,6 +38,8 @@ export default function DetalleClase({ clase }) {
           planName: plan.name,
           customPriceCents: planPriceCents,
           returnUrl: window.location.href,
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || null,
         }),
       });
 
