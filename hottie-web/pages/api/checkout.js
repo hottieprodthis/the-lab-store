@@ -127,57 +127,81 @@ export default async function handler(req, res) {
     }
     // 2. CARRITO DE COMPRAS
     else if (items && Array.isArray(items) && items.length > 0) {
+      // Extrae el UUID real de un id de carrito. Los artículos con plan
+      // (servicios/clases comprados desde su ficha con un plan elegido)
+      // usan un id compuesto "uuid-nombredelplan" para poder tener varias
+      // líneas distintas en el carrito. Antes se intentaba "adivinar" el
+      // uuid cortando por el PRIMER guion (String(id).split('-')[0]), pero
+      // un UUID ya lleva 4 guiones dentro, así que eso rompía el id y la
+      // búsqueda en la base de datos fallaba siempre. Ahora se reconoce el
+      // UUID real completo con una expresión regular.
+      const extractRealId = (id) => {
+        if (!id) return id;
+        const match = String(id).match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
+        return match ? match[1] : String(id);
+      };
+
       const enrichedCart = await Promise.all(
         items.map(async (item) => {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
-          const cleanId = item.id && String(item.id).includes('-') ? String(item.id).split('-')[0] : item.id;
+          const cleanId = extractRealId(item.id);
 
-          let isClassItem = false;
-          let isServiceItem = item.isService;
+          // Señal principal: lo que el propio carrito ya sabe (isClass/
+          // isService se fijan en el navegador en el momento de "Añadir al
+          // carrito", donde SÍ se sabe con certeza qué se está comprando).
+          // Antes esto se intentaba adivinar solo con una consulta a la
+          // base de datos usando el id roto de arriba, así que una clase
+          // con plan casi siempre se detectaba como "servicio". Si por
+          // compatibilidad llegasen ambos marcados a la vez, "clase" tiene
+          // prioridad (igual que ya hace el desplegable del carrito).
+          let isClassItem = Boolean(item.isClass);
+          let isServiceItem = !isClassItem && Boolean(item.isService);
+          let isProductItem = !isClassItem && !isServiceItem;
 
           if (cleanId) {
-            let dbItem = null;
-            const { data: sData } = await supabase.from('services').select('*').eq('id', cleanId).single();
-            if (sData) {
-              dbItem = sData;
-              isServiceItem = true;
-            } else {
-              const { data: cData } = await supabase.from('classes').select('*').eq('id', cleanId).single();
-              if (cData) {
-                dbItem = cData;
-                isClassItem = true;
-              } else {
-                const { data: pData } = await supabase.from('products').select('*').eq('id', cleanId).single();
-                if (pData) {
-                  dbItem = pData;
-                  hasProduct = true;
-                }
-              }
-            }
+            const tabla = isClassItem ? 'classes' : isServiceItem ? 'services' : 'products';
+            const { data: dbItem } = await supabase.from(tabla).select('*').eq('id', cleanId).single();
 
             if (dbItem) {
-              if (!downloadUrl && !isServiceItem && !isClassItem) {
+              if (!downloadUrl && isProductItem) {
                 downloadUrl = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
               }
               if (!nameResolved) {
                 nameResolved = dbItem.name || dbItem.title || dbItem.nombre || '';
               }
+            } else if (isProductItem) {
+              // Salvavidas SOLO para carritos que ya estuvieran guardados
+              // en el navegador de un cliente ANTES de este cambio (sin
+              // isClass/isService fiables): probamos las otras dos tablas
+              // antes de rendirnos, igual que se hacía antes.
+              const { data: sData } = await supabase.from('services').select('*').eq('id', cleanId).single();
+              if (sData) {
+                isServiceItem = true;
+                isProductItem = false;
+                if (!nameResolved) nameResolved = sData.name || sData.title || sData.nombre || '';
+              } else {
+                const { data: cData } = await supabase.from('classes').select('*').eq('id', cleanId).single();
+                if (cData) {
+                  isClassItem = true;
+                  isProductItem = false;
+                  if (!nameResolved) nameResolved = cData.name || cData.title || cData.nombre || '';
+                }
+              }
             }
-          } else {
-            if (item.isService) isServiceItem = true;
-            else hasProduct = true;
           }
 
           if (!nameResolved) nameResolved = isServiceItem ? 'Servicio Digital' : (isClassItem ? 'Clase Digital' : 'Producto Digital');
           if (isServiceItem) hasService = true;
           if (isClassItem) hasClass = true;
+          if (isProductItem) hasProduct = true;
 
           const finalPriceCents = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
           totalCents += finalPriceCents * (item.quantity || 1);
 
           return {
             id: item.id,
+            dbId: cleanId,
             title: nameResolved,
             isService: isServiceItem,
             isClass: isClassItem,
@@ -238,31 +262,42 @@ export default async function handler(req, res) {
       linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
       linksText = enrichedCart.map(i => `${i.title}: ${i.file_url || 'Servicio/Clase'}`).join(' | ');
 
-      // Tipo real de cada artículo (producto / servicio / clase), en lugar
-      // del antiguo booleano "isService" que confundía servicios y clases.
+      // Metadatos MÍNIMOS para Stripe (límite de 500 caracteres por campo
+      // de metadata). Antes se guardaba también la imagen y el enlace de
+      // descarga completos aquí, y con 2-3 artículos ya se superaba el
+      // límite fácilmente — Stripe entonces recibía el "Pedido Múltiple"
+      // genérico de más abajo y el correo/historial perdían el desglose
+      // real. Ahora solo mandamos lo mínimo (id, tipo, nombre ya resuelto
+      // —incluye el plan si lo tenía—, precio y cantidad); el webhook
+      // (pages/api/enviar-pedido.js) vuelve a consultar la imagen y el
+      // enlace de descarga FRESCOS directamente de la base de datos usando
+      // el id y el tipo, así caben muchos más artículos sin desbordar el
+      // límite y los datos son siempre los actuales.
       const compactCartData = enrichedCart.map(i => ({
-        title: String(i.title).substring(0, 40),
-        type: i.isClass ? 'clase' : (i.isService ? 'servicio' : 'producto'),
-        file_url: i.file_url ? String(i.file_url).split('?')[0].substring(0, 100) : '',
-        price_cents: i.price_cents,
-        currency: i.currency,
-        quantity: i.quantity,
-        image_url: i.image_url ? String(i.image_url).split('?')[0].substring(0, 120) : '',
+        i: i.dbId || i.id,
+        y: i.isClass ? 'clase' : (i.isService ? 'servicio' : 'producto'),
+        t: String(i.title).substring(0, 60),
+        p: i.price_cents,
+        c: i.currency,
+        q: i.quantity,
       }));
 
       const jsonCart = JSON.stringify(compactCartData);
       metadataPayload = {
         ...metadataPayload,
-        // Si el carrito es tan grande que no cabe en el límite de 500
-        // caracteres que impone Stripe para cada valor de metadata,
-        // guardamos una versión reducida (sin perder el tipo de artículo,
-        // que es lo mínimo que necesita el webhook para no perder el
-        // desglose por completo).
+        // Salvavidas solo para un carrito verdaderamente enorme que aun
+        // así no quepa en 500 caracteres: en ese caso extremo el CORREO
+        // pierde el desglose exacto, pero el historial del área de
+        // clientes (itemsForHistory, más abajo) nunca depende de este
+        // límite y siempre queda completo.
         cart_data: jsonCart.length > 500
           ? JSON.stringify([{
-              title: 'Pedido Múltiple',
-              type: hasService ? 'servicio' : (hasClass ? 'clase' : 'producto'),
-              file_url: '',
+              i: null,
+              y: hasService ? 'servicio' : (hasClass ? 'clase' : 'producto'),
+              t: 'Pedido Múltiple',
+              p: totalCents,
+              c: 'eur',
+              q: 1,
             }])
           : jsonCart,
       };
@@ -356,17 +391,18 @@ export default async function handler(req, res) {
         product_name: String(nameResolved).substring(0, 50),
         is_service: (hasService || hasClass) ? 'true' : 'false',
         file_url: String(driveLink).split('?')[0].substring(0, 150),
-        // Igual que en el carrito: un array de un solo elemento, para que
-        // el webhook use SIEMPRE el mismo camino (metadata.cart_data) sin
-        // importar si la compra viene de un solo artículo o de varios.
+        // Igual que en el carrito: un array de un solo elemento con el
+        // mismo formato compacto {i,y,t,p,c,q}, para que el webhook use
+        // SIEMPRE el mismo camino (metadata.cart_data) sin importar si la
+        // compra viene de un solo artículo o de varios, y siempre relea la
+        // imagen/enlace de descarga frescos de la base de datos.
         cart_data: JSON.stringify([{
-          title: String(nameResolved).substring(0, 40),
-          type: singleItemType,
-          file_url: driveLink ? String(driveLink).split('?')[0].substring(0, 100) : '',
-          price_cents: unitAmount,
-          currency: itemCurrency,
-          quantity: 1,
-          image_url: itemImage ? String(itemImage).split('?')[0].substring(0, 120) : '',
+          i: String(item.id),
+          y: singleItemType,
+          t: String(nameResolved).substring(0, 60),
+          p: unitAmount,
+          c: itemCurrency,
+          q: 1,
         }]),
       };
 
