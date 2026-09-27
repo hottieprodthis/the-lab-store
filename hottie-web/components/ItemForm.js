@@ -136,6 +136,36 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       return;
     }
 
+    // Aviso por email a los suscriptores del newsletter (tabla
+    // "suscriptores"). Antes /api/notificar-nuevo-producto existía y
+    // funcionaba, pero no se llamaba desde ningún sitio del proyecto, así
+    // que nunca llegaba ningún aviso. Lo disparamos aquí, en el único
+    // punto por el que pasan las tres secciones (productos/servicios/
+    // clases), tanto para una publicación nueva como para un cambio de
+    // precio en un elemento ya publicado. No bloqueamos la navegación si
+    // el envío falla: el guardado en la base de datos ya se ha hecho bien.
+    const tipoNotificacion = table === 'services' ? 'servicio' : table === 'classes' ? 'clase' : 'producto';
+    const esNuevo = !isEdit;
+    const precioCambio = isEdit && (initial?.price_cents ?? null) !== finalPriceCents;
+
+    if (active && (esNuevo || precioCambio)) {
+      try {
+        await fetch('/api/notificar-nuevo-producto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: payload.name,
+            description: payload.description,
+            price: finalPriceCents !== null ? finalPriceCents / 100 : null,
+            type: tipoNotificacion,
+            motivo: precioCambio && !esNuevo ? 'cambio_precio' : 'nuevo',
+          }),
+        });
+      } catch (notifyErr) {
+        console.error('No se pudo enviar la notificación a los suscriptores:', notifyErr);
+      }
+    }
+
     router.push('/admin');
   }
 
