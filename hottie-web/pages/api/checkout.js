@@ -56,6 +56,20 @@ export default async function handler(req, res) {
         } catch (e) {}
       }
     }
+
+    // Salvavidas extra: si aún no tenemos userId pero sí un email, lo buscamos
+    // ya aquí (antes servía solo para el tramo gratuito; ahora también hace
+    // falta para que las compras de pago con tarjeta/PayPal se asocien bien).
+    if (!resolvedUserId && userEmail) {
+      try {
+        const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
+          email_input: String(userEmail).trim(),
+        });
+        if (foundId) resolvedUserId = foundId;
+      } catch (err) {
+        console.error('Error buscando usuario por email en checkout:', err);
+      }
+    }
     // --------------------------------------------------
 
     let lineItems = [];
@@ -71,6 +85,11 @@ export default async function handler(req, res) {
     let planNameToSave = 'Compra en tienda';
     let linksHtml = '';
     let linksText = '';
+    // Detalle completo (sin límite de tamaño) de los artículos del pedido.
+    // Se usa para guardar el desglose real en el historial del área de
+    // clientes (tabla purchases, columna items). No depende del límite de
+    // 500 caracteres que Stripe impone a los metadatos.
+    let itemsForHistory = [];
 
     const btnStyle = 'background-color:#CCFF00 !important; color:#000000 !important; padding:14px 22px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:900; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; border:none;';
 
@@ -78,17 +97,17 @@ export default async function handler(req, res) {
     if (isSubscription) {
       checkoutMode = 'subscription';
       let finalPriceCents = customPriceCents;
-      
+
       if (!finalPriceCents) {
         const { data: settingData } = await supabase
           .from('settings')
           .select('value')
           .eq('key', 'subscription_price')
           .single();
-        
+
         finalPriceCents = settingData?.value ? Math.round(Number(settingData.value) * 100) : 799;
       }
-      
+
       totalCents += finalPriceCents;
       planNameToSave = 'Suscripción Área de Clientes';
       lineItems = [{
@@ -105,7 +124,7 @@ export default async function handler(req, res) {
       }];
 
       metadataPayload = { ...metadataPayload, type: 'subscription' };
-    } 
+    }
     // 2. CARRITO DE COMPRAS
     else if (items && Array.isArray(items) && items.length > 0) {
       const enrichedCart = await Promise.all(
@@ -113,7 +132,7 @@ export default async function handler(req, res) {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
           const cleanId = item.id && String(item.id).includes('-') ? String(item.id).split('-')[0] : item.id;
-          
+
           let isClassItem = false;
           let isServiceItem = item.isService;
 
@@ -190,7 +209,7 @@ export default async function handler(req, res) {
       const itemsList = enrichedCart.map((item) => {
         if (item.isService || item.isClass) {
           return `<li style="margin-bottom: 24px;">
-            <strong style="font-size: 16px; color:#ffffff;">${item.title} <span style="color:#aaaaaa; font-weight:normal;">(Servicio/Clase)</span></strong><br/>
+            <strong style="font-size: 16px; color:#ffffff;">${item.title} <span style="color:#aaaaaa; font-weight:normal;">(${item.isClass ? 'Clase' : 'Servicio'})</span></strong><br/>
             <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</span>
           </li>`;
         } else if (item.file_url) {
@@ -219,18 +238,46 @@ export default async function handler(req, res) {
       linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
       linksText = enrichedCart.map(i => `${i.title}: ${i.file_url || 'Servicio/Clase'}`).join(' | ');
 
+      // Tipo real de cada artículo (producto / servicio / clase), en lugar
+      // del antiguo booleano "isService" que confundía servicios y clases.
       const compactCartData = enrichedCart.map(i => ({
-        title: String(i.title).substring(0, 30),
-        isService: i.isService || i.isClass, 
-        file_url: i.file_url ? String(i.file_url).split('?')[0].substring(0, 100) : '' 
+        title: String(i.title).substring(0, 40),
+        type: i.isClass ? 'clase' : (i.isService ? 'servicio' : 'producto'),
+        file_url: i.file_url ? String(i.file_url).split('?')[0].substring(0, 100) : '',
+        price_cents: i.price_cents,
+        currency: i.currency,
+        quantity: i.quantity,
+        image_url: i.image_url ? String(i.image_url).split('?')[0].substring(0, 120) : '',
       }));
-      
+
       const jsonCart = JSON.stringify(compactCartData);
       metadataPayload = {
         ...metadataPayload,
-        cart_data: jsonCart.length > 500 ? JSON.stringify([{title: 'Pedido Múltiple', isService: hasService, file_url: ''}]) : jsonCart,
+        // Si el carrito es tan grande que no cabe en el límite de 500
+        // caracteres que impone Stripe para cada valor de metadata,
+        // guardamos una versión reducida (sin perder el tipo de artículo,
+        // que es lo mínimo que necesita el webhook para no perder el
+        // desglose por completo).
+        cart_data: jsonCart.length > 500
+          ? JSON.stringify([{
+              title: 'Pedido Múltiple',
+              type: hasService ? 'servicio' : (hasClass ? 'clase' : 'producto'),
+              file_url: '',
+            }])
+          : jsonCart,
       };
-    } 
+
+      // Detalle completo para el historial (no pasa por Stripe, así que no
+      // tiene el límite de 500 caracteres).
+      itemsForHistory = enrichedCart.map((i) => ({
+        name: i.title,
+        type: i.isClass ? 'clase' : (i.isService ? 'servicio' : 'producto'),
+        quantity: i.quantity,
+        price_cents: i.price_cents,
+        currency: i.currency,
+        image_url: i.image_url || null,
+      }));
+    }
     // 3. COMPRA DIRECTA DE UN PRODUCTO AISLADO
     else if (productId) {
       let item = null;
@@ -256,18 +303,21 @@ export default async function handler(req, res) {
       totalCents += unitAmount;
 
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
-      
+
       let nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
       if (planName) nameResolved = `${nameResolved} (${planName})`;
       planNameToSave = nameResolved;
 
+      const itemCurrency = (item.moneda || item.currency || 'eur').toLowerCase();
+      const itemImage = item.image_url || item.imagen_url || null;
+
       lineItems = [{
         price_data: {
-          currency: (item.moneda || item.currency || 'eur').toLowerCase(),
+          currency: itemCurrency,
           product_data: {
             name: nameResolved,
             description: item.description ? item.description.slice(0, 300) : undefined,
-            images: item.image_url || item.imagen_url ? [item.image_url || item.imagen_url] : undefined,
+            images: itemImage ? [itemImage] : undefined,
           },
           unit_amount: unitAmount,
         },
@@ -275,8 +325,8 @@ export default async function handler(req, res) {
       }];
 
       if (hasService || hasClass) {
-        linksHtml = `<p><strong style="font-size:16px; color:#ffffff;">${nameResolved} <span style="color:#aaaaaa; font-weight:normal;">(Servicio/Clase)</span></strong></p><p style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</p>`;
-        linksText = `${nameResolved} (Servicio/Clase)`;
+        linksHtml = `<p><strong style="font-size:16px; color:#ffffff;">${nameResolved} <span style="color:#aaaaaa; font-weight:normal;">(${hasClass ? 'Clase' : 'Servicio'})</span></strong></p><p style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</p>`;
+        linksText = `${nameResolved} (${hasClass ? 'Clase' : 'Servicio'})`;
       } else if (driveLink) {
         linksHtml = `
           <p><strong style="font-size:16px; color:#ffffff;">${nameResolved} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong></p>
@@ -298,13 +348,36 @@ export default async function handler(req, res) {
         linksText = nameResolved;
       }
 
+      const singleItemType = hasClass ? 'clase' : (hasService ? 'servicio' : 'producto');
+
       metadataPayload = {
         ...metadataPayload,
         product_id: String(item.id),
         product_name: String(nameResolved).substring(0, 50),
         is_service: (hasService || hasClass) ? 'true' : 'false',
         file_url: String(driveLink).split('?')[0].substring(0, 150),
+        // Igual que en el carrito: un array de un solo elemento, para que
+        // el webhook use SIEMPRE el mismo camino (metadata.cart_data) sin
+        // importar si la compra viene de un solo artículo o de varios.
+        cart_data: JSON.stringify([{
+          title: String(nameResolved).substring(0, 40),
+          type: singleItemType,
+          file_url: driveLink ? String(driveLink).split('?')[0].substring(0, 100) : '',
+          price_cents: unitAmount,
+          currency: itemCurrency,
+          quantity: 1,
+          image_url: itemImage ? String(itemImage).split('?')[0].substring(0, 120) : '',
+        }]),
       };
+
+      itemsForHistory = [{
+        name: nameResolved,
+        type: singleItemType,
+        quantity: 1,
+        price_cents: unitAmount,
+        currency: itemCurrency,
+        image_url: itemImage,
+      }];
     } else {
       return res.status(400).json({ error: 'No se enviaron artículos para la compra.' });
     }
@@ -313,42 +386,45 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Stripe requiere un importe mínimo de 0.50€' });
     }
 
-    // --- DETERMINAR EL TIPO EXACTO PARA LA PÁGINA DE GRACIAS ---
-    let tipoQuery = 'producto';
+    // --- DETERMINAR EL TIPO EXACTO PARA LA PÁGINA DE GRACIAS / BRIEFING ---
+    // Construimos el tipo en un orden fijo (producto, servicio, clase) para
+    // que el resultado sea siempre el mismo sin importar en qué orden se
+    // añadieron los artículos al carrito (Producto+Servicio y
+    // Servicio+Producto deben dar exactamente el mismo resultado).
     const totalCategories = (hasService ? 1 : 0) + (hasClass ? 1 : 0) + (hasProduct ? 1 : 0);
+    const tipoParts = [];
+    if (hasProduct) tipoParts.push('producto');
+    if (hasService) tipoParts.push('servicio');
+    if (hasClass) tipoParts.push('clase');
+    const tipoQuery = tipoParts.length > 0 ? tipoParts.join('_') : 'producto';
 
-    if (isSubscription) {
-      tipoQuery = 'suscripcion';
-    } else if (totalCategories > 1) {
-      tipoQuery = 'mixto';
-    } else if (hasService) {
-      tipoQuery = 'servicio';
-    } else if (hasClass) {
-      tipoQuery = 'clase';
-    }
+    const needsBriefing = hasService || hasClass;
+    const isMixedCategories = totalCategories > 1;
 
     let successUrl = `${siteUrl}/gracias?tipo=${tipoQuery}`;
     if (isSubscription) {
+      // Suscripción: comportamiento intacto.
       successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
-    } else if (hasService && totalCategories === 1) {
-      successUrl = `${siteUrl}/servicios/briefing?session_id={CHECKOUT_SESSION_ID}`;
-    } else if (hasClass && totalCategories === 1) {
-      successUrl = `${siteUrl}/clases/briefing?session_id={CHECKOUT_SESSION_ID}`;
+    } else if (isMixedCategories) {
+      // Pedido con 2 o más tipos distintos (por ejemplo Producto+Servicio,
+      // Servicio+Clase o Producto+Servicio+Clase): todos los briefings que
+      // hagan falta (servicio y/o clase) se muestran juntos en la misma
+      // página. Los productos nunca generan briefing.
+      successUrl = `${siteUrl}/briefing?tipo=${tipoQuery}&session_id={CHECKOUT_SESSION_ID}`;
+    } else if (hasService) {
+      // Comportamiento exactamente igual que antes: compra de un único
+      // servicio (sola o con varias unidades del mismo servicio).
+      successUrl = `${siteUrl}/servicios/briefing?tipo=${tipoQuery}&session_id={CHECKOUT_SESSION_ID}`;
+    } else if (hasClass) {
+      // Comportamiento exactamente igual que antes: compra de una única
+      // clase.
+      successUrl = `${siteUrl}/clases/briefing?tipo=${tipoQuery}&session_id={CHECKOUT_SESSION_ID}`;
     }
+    // Si solo hay producto(s), needsBriefing es false y successUrl se queda
+    // en /gracias?tipo=producto (comportamiento intacto, sin briefing).
 
     // --- SI EL TOTAL ES 0.00€ (GUARDADO EN SUPABASE + ENVÍO DE CORREOS RESEND) ---
     if (totalCents === 0 && checkoutMode !== 'subscription') {
-      if (!resolvedUserId && userEmail) {
-        try {
-          const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
-            email_input: userEmail.trim()
-          });
-          if (foundId) resolvedUserId = foundId;
-        } catch (err) {
-          console.error('Error buscando usuario por email en checkout de 0€:', err);
-        }
-      }
-
       // Salvavidas extra por si viene autenticado por cabecera
       if (!resolvedUserId && req.headers.authorization) {
         try {
@@ -368,16 +444,22 @@ export default async function handler(req, res) {
 
       if (resolvedUserId) {
         try {
-          await supabase.from('purchases').insert([
+          const { error: dbError } = await supabase.from('purchases').insert([
             {
               user_id: resolvedUserId,
               amount: 0,
-              plan_name: planNameToSave
+              plan_name: planNameToSave,
+              items: itemsForHistory.length > 0 ? itemsForHistory : null,
             }
           ]);
+          if (dbError) {
+            console.error('Error guardando compra de 0€ en Supabase:', dbError.message);
+          }
         } catch (e) {
           console.error('Error guardando compra de 0€ en Supabase:', e);
         }
+      } else {
+        console.warn('AVISO: pedido gratuito sin usuario identificado, no se guarda en el historial.');
       }
 
       const resendApiKey = process.env.RESEND_API_KEY;
@@ -454,6 +536,10 @@ export default async function handler(req, res) {
       cancel_url: cancelUrl,
       metadata: metadataPayload,
       client_reference_id: resolvedUserId || undefined,
+      // Precargamos el email cuando lo conocemos: ayuda a que el webhook
+      // (que recibe el email definitivo de Stripe) identifique siempre al
+      // mismo usuario, incluso si en el formulario de Stripe se teclea un
+      // correo distinto al de la cuenta.
       customer_email: userEmail || undefined,
     });
 
