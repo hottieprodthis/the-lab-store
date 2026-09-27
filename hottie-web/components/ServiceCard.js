@@ -32,6 +32,7 @@ export default function ServiceCard({ service }) {
     setLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -39,6 +40,8 @@ export default function ServiceCard({ service }) {
           productId: service.id,
           isService: true,
           returnUrl: window.location.href,
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || null,
         }),
       });
 
