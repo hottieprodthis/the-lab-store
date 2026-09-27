@@ -49,31 +49,37 @@ export default function SearchBar() {
       try {
         let allItems = [];
 
-        const [resProducts, resServices, resItems, resProductos, resServicios] = await Promise.allSettled([
-          supabase.from('products').select('*'),
-          supabase.from('services').select('*'),
-          supabase.from('items').select('*'),
-          supabase.from('productos').select('*'),
-          supabase.from('servicios').select('*'),
+        // Las únicas tablas reales del catálogo son products, services y
+        // classes. Antes esta consulta también intentaba leer de "items",
+        // "productos" y "servicios" (tablas que no existen en el proyecto,
+        // así que nunca devolvían nada) y directamente NO consultaba
+        // "classes" — por eso las clases nunca aparecían en el buscador.
+        // Filtramos también por active=true como refuerzo explícito
+        // (además de las políticas RLS), para que un producto/servicio/
+        // clase despublicado no aparezca en los resultados.
+        const [resProducts, resServices, resClasses] = await Promise.allSettled([
+          supabase.from('products').select('*').eq('active', true),
+          supabase.from('services').select('*').eq('active', true),
+          supabase.from('classes').select('*').eq('active', true),
         ]);
 
         if (resProducts.status === 'fulfilled' && resProducts.value.data) {
           allItems.push(...resProducts.value.data.map(i => ({ ...i, categoryType: 'PRODUCTO' })));
+        } else if (resProducts.status === 'rejected') {
+          console.error('Error cargando productos en el buscador:', resProducts.reason);
         }
         if (resServices.status === 'fulfilled' && resServices.value.data) {
           allItems.push(...resServices.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
+        } else if (resServices.status === 'rejected') {
+          console.error('Error cargando servicios en el buscador:', resServices.reason);
         }
-        if (resItems.status === 'fulfilled' && resItems.value.data) {
-          allItems.push(...resItems.value.data.map(i => ({ ...i, categoryType: i.type || i.tipo || 'PRODUCTO' })));
-        }
-        if (resProductos.status === 'fulfilled' && resProductos.value.data) {
-          allItems.push(...resProductos.value.data.map(i => ({ ...i, categoryType: 'PRODUCTO' })));
-        }
-        if (resServicios.status === 'fulfilled' && resServicios.value.data) {
-          allItems.push(...resServicios.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
+        if (resClasses.status === 'fulfilled' && resClasses.value.data) {
+          allItems.push(...resClasses.value.data.map(i => ({ ...i, categoryType: 'CLASE' })));
+        } else if (resClasses.status === 'rejected') {
+          console.error('Error cargando clases en el buscador:', resClasses.reason);
         }
 
-        const uniqueItems = Array.from(new Map(allItems.map(item => [item.id || JSON.stringify(item), item])).values());
+        const uniqueItems = Array.from(new Map(allItems.map(item => [`${item.categoryType}-${item.id || JSON.stringify(item)}`, item])).values());
         setItems(uniqueItems);
       } catch (err) {
         console.error('Error cargando buscador:', err);
@@ -168,10 +174,20 @@ export default function SearchBar() {
                 const priceFormatted = getItemPrice(item);
                 const image = item.image_url ?? item.imagen_url ?? item.image ?? item.imagen;
                 const isService = category.includes('SERVICIO');
+                const isClass = category.includes('CLASE');
 
                 const identifier = item.slug || item.id;
-                // Redirección arreglada: la tienda va a /tienda/id y servicios va a /servicios
-                const itemUrl = isService ? `/servicios` : `/tienda/${identifier}`;
+                // Cada tipo enlaza a su propia página de detalle real:
+                // servicios -> /servicios/[slug], clases -> /clases/[slug],
+                // productos -> /tienda/[slug]. Antes las clases no tenían
+                // rama propia y caían en /tienda/id (página equivocada), y
+                // los servicios enlazaban a /servicios (listado genérico)
+                // en vez de a su ficha concreta.
+                const itemUrl = isClass
+                  ? `/clases/${identifier}`
+                  : isService
+                    ? `/servicios/${identifier}`
+                    : `/tienda/${identifier}`;
 
                 return (
                   <a
