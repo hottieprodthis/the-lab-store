@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { formatPrice } from '../lib/format';
 import { useCart } from '../context/CartContext';
+import { supabase } from '../lib/supabaseClient';
 
 export default function ServiceCard({ service }) {
   const [loading, setLoading] = useState(false);
