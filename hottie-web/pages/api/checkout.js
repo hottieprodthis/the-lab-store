@@ -454,6 +454,7 @@ export default async function handler(req, res) {
       cancel_url: cancelUrl,
       metadata: metadataPayload,
       client_reference_id: resolvedUserId || undefined,
+      customer_email: userEmail || undefined,
     });
 
     return res.status(200).json({ url: session.url });
