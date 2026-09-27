@@ -189,23 +189,31 @@ export default function ProductoDetalle({ product }) {
                   disabled={loading}
                   className="w-full rounded-sm bg-volt px-6 py-4 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110 disabled:opacity-50"
                 >
-                  {loading ? 'Redirigiendo…' : 'Comprar con tarjeta'}
+                  {loading ? 'Redirigiendo…' : (product.price_cents ? 'Comprar con tarjeta' : 'Obtener gratis')}
                 </button>
 
-                <div className="relative flex py-1 items-center">
-                  <div className="flex-grow border-t border-white/10"></div>
-                  <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
-                  <div className="flex-grow border-t border-white/10"></div>
-                </div>
+                {/* PayPal no admite pedidos de 0,00€ (el botón se queda sin
+                    abrir el login y el pedido nunca llega a registrarse),
+                    así que para un producto gratuito solo se ofrece el
+                    botón de arriba, que ya gestiona bien el precio 0€. */}
+                {product.price_cents > 0 && (
+                  <>
+                    <div className="relative flex py-1 items-center">
+                      <div className="flex-grow border-t border-white/10"></div>
+                      <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                      <div className="flex-grow border-t border-white/10"></div>
+                    </div>
 
-                <div className="w-full relative z-10 min-h-[50px]">
-                  <PayPalButton
-                    amount={product.price_cents / 100}
-                    currency={(product.currency || 'eur').toUpperCase()}
-                    label={product.name}
-                    onSuccess={handlePaypalSuccess}
-                  />
-                </div>
+                    <div className="w-full relative z-10 min-h-[50px]">
+                      <PayPalButton
+                        amount={product.price_cents / 100}
+                        currency={(product.currency || 'eur').toUpperCase()}
+                        label={product.name}
+                        onSuccess={handlePaypalSuccess}
+                      />
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <p className="rounded-sm border border-signal/40 bg-signal/10 p-4 text-sm text-signal">
