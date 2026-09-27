@@ -23,6 +23,79 @@ async function buffer(readable) {
   return Buffer.concat(chunks);
 }
 
+// Resuelve el "tipo" real de un artículo del carrito, tanto si viene con el
+// campo nuevo (type: 'producto'|'servicio'|'clase') como si viene de una
+// sesión de Stripe creada justo antes de este despliegue (con el booleano
+// antiguo isService/isClass).
+function resolveItemType(item) {
+  if (item.type === 'servicio' || item.type === 'clase' || item.type === 'producto') {
+    return item.type;
+  }
+  if (item.isClass) return 'clase';
+  if (item.isService) return 'servicio';
+  return 'producto';
+}
+
+const TABLA_POR_TIPO = { producto: 'products', servicio: 'services', clase: 'classes' };
+
+// Acepta tanto el formato NUEVO y compacto que manda checkout.js
+// ({i: id, y: tipo, t: título, p: precio, c: moneda, q: cantidad} — se
+// llama así de corto para que quepan más artículos en el límite de 500
+// caracteres que impone Stripe en cada campo de metadata) como el formato
+// más largo de sesiones que ya estuvieran en curso justo cuando se
+// desplegó este cambio ({title,type,file_url,price_cents,currency,
+// quantity,image_url} o el aún más antiguo con isService/isClass).
+function normalizarArticuloCarrito(raw) {
+  if (raw && (raw.i !== undefined || raw.y !== undefined)) {
+    return {
+      id: raw.i || null,
+      type: raw.y || 'producto',
+      title: raw.t || '',
+      price_cents: typeof raw.p === 'number' ? raw.p : null,
+      currency: raw.c || 'eur',
+      quantity: raw.q || 1,
+      file_url: '',
+      image_url: '',
+    };
+  }
+  return {
+    id: raw.id || null,
+    type: resolveItemType(raw),
+    title: raw.title || raw.name || raw.nombre || '',
+    price_cents: typeof raw.price_cents === 'number' ? raw.price_cents : null,
+    currency: raw.currency || 'eur',
+    quantity: raw.quantity || 1,
+    file_url: raw.file_url || raw.driveUrl || raw.drive_url || raw.link || '',
+    image_url: raw.image_url || '',
+  };
+}
+
+// Rellena imagen y (para productos) enlace de descarga leyéndolos siempre
+// FRESCOS de la base de datos real, en vez de depender de lo que venga en
+// los metadatos de Stripe (que ahora, a propósito, no los lleva porque no
+// caben). Así el correo y el historial siempre tienen el enlace/imagen
+// actuales, aunque el admin los cambie después de la compra.
+async function enriquecerArticuloCarrito(item) {
+  if (!item.id) return item;
+  const tabla = TABLA_POR_TIPO[item.type] || 'products';
+  try {
+    const { data } = await supabase.from(tabla).select('*').eq('id', item.id).single();
+    if (data) {
+      return {
+        ...item,
+        title: item.title || data.name || data.title || data.nombre || '',
+        image_url: item.image_url || data.image_url || data.imagen_url || '',
+        file_url: item.type === 'producto'
+          ? (item.file_url || data.file_url || data.drive_url || data.driveUrl || data.download_url || data.link || '')
+          : item.file_url,
+      };
+    }
+  } catch (e) {
+    console.error('No se pudo releer el artículo desde la base de datos:', tabla, item.id, e.message);
+  }
+  return item;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Método no permitido' });
@@ -61,30 +134,47 @@ export default async function handler(req, res) {
 
     let linksHtml = '';
     let linksText = '';
+    // Desglose estructurado para guardar en purchases.items (historial
+    // desplegable del área de clientes). Se rellena a partir de
+    // metadata.cart_data, que desde este cambio SIEMPRE viene presente
+    // (tanto si la compra fue de un solo artículo como de varios).
+    let itemsForHistory = [];
 
     const btnStyle = 'background-color:#CCFF00 !important; color:#000000 !important; padding:14px 22px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:900; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; border:none;';
 
-    // 1. Carrito múltiple
+    // 1. Carrito (uno o varios artículos: producto, servicio y/o clase)
     if (metadata.cart_data) {
       try {
-        const cartItems = JSON.parse(metadata.cart_data);
-        
+        const rawItems = JSON.parse(metadata.cart_data);
+        // Cada artículo se vuelve a consultar en su tabla real (products/
+        // services/classes) para traer imagen y enlace de descarga
+        // SIEMPRE frescos y correctos, en vez de depender de lo que venga
+        // en los metadatos de Stripe (limitados a 500 caracteres, por eso
+        // ya no viajan ahí). El nombre/precio/tipo/cantidad sí vienen
+        // directos de los metadatos (son los que se cobraron de verdad,
+        // incluido el plan elegido si lo tenía).
+        const cartItems = await Promise.all(
+          rawItems.map((raw) => enriquecerArticuloCarrito(normalizarArticuloCarrito(raw)))
+        );
+
         // Creamos el nombre para el historial (ej: "Pack de Beats + Servicio de Mezcla")
-        const itemNames = cartItems.map(i => i.title || i.name || i.nombre || 'Artículo').join(' + ');
+        const itemNames = cartItems.map(i => i.title || 'Artículo').join(' + ');
         planNameToSave = itemNames;
 
         const itemsList = cartItems.map((item) => {
-          let itemTitle = item.title || item.name || item.nombre;
+          let itemTitle = item.title;
+          const itemType = item.type;
           if (!itemTitle) {
-            itemTitle = item.isService ? 'Servicio Digital' : 'Producto Digital';
+            itemTitle = itemType === 'servicio' ? 'Servicio Digital' : itemType === 'clase' ? 'Clase Digital' : 'Producto Digital';
           }
-          
-          const itemUrl = item.file_url || item.driveUrl || item.drive_url || item.link || '';
-          
-          if (item.isService) {
+
+          const itemUrl = item.file_url || '';
+
+          if (itemType === 'servicio' || itemType === 'clase') {
+            const etiqueta = itemType === 'clase' ? 'Clase' : 'Servicio';
             return `<li style="margin-bottom: 24px;">
-              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(Servicio)</span></strong><br/>
-              <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Nos pondremos en contacto contigo para coordinar el servicio.</span>
+              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(${etiqueta})</span></strong><br/>
+              <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Nos pondremos en contacto contigo o gestionaremos tu briefing para coordinar ${itemType === 'clase' ? 'la clase' : 'el servicio'}.</span>
             </li>`;
           } else if (itemUrl) {
             return `<li style="margin-bottom: 24px;">
@@ -110,22 +200,31 @@ export default async function handler(req, res) {
         });
 
         linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
-        linksText = cartItems.map(i => `${i.title || i.name || i.nombre}: ${i.file_url || 'Servicio'}`).join(' | ');
+        linksText = cartItems.map(i => `${i.title}: ${i.file_url || i.type}`).join(' | ');
+
+        itemsForHistory = cartItems.map((i) => ({
+          name: i.title || 'Artículo',
+          type: i.type,
+          quantity: i.quantity || 1,
+          price_cents: typeof i.price_cents === 'number' ? i.price_cents : null,
+          currency: i.currency || 'eur',
+          image_url: i.image_url || null,
+        }));
       } catch (e) {
         console.error('Error al parsear cart_data:', e);
       }
     }
 
-    // 2. Compra individual / Directa (fallback)
+    // 2. Compra individual / Directa (fallback para sesiones antiguas sin cart_data)
     if (!linksHtml) {
-      const enlaceDrive = 
-        metadata.driveUrl || 
-        metadata.file_url || 
-        metadata.fileUrl || 
-        metadata.drive_url || 
-        metadata.link || 
+      const enlaceDrive =
+        metadata.driveUrl ||
+        metadata.file_url ||
+        metadata.fileUrl ||
+        metadata.drive_url ||
+        metadata.link ||
         '';
-      
+
       let singleTitle = metadata.product_name;
       if (!singleTitle) {
         singleTitle = metadata.is_service === 'true' ? 'Servicio Digital' : 'Producto Digital';
@@ -139,8 +238,11 @@ export default async function handler(req, res) {
       }
 
       if (metadata.is_service === 'true') {
-        linksHtml = `<p><strong style="font-size:16px; color:#ffffff;">${singleTitle} <span style="color:#aaaaaa; font-weight:normal;">(Servicio)</span></strong></p><p style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo para coordinar el servicio.</p>`;
+        linksHtml = `<p><strong style="font-size:16px; color:#ffffff;">${singleTitle} <span style="color:#aaaaaa; font-weight:normal;">(Servicio)</span></strong></p><p style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo para coordinarlo.</p>`;
         linksText = `${singleTitle} (Servicio)`;
+        if (metadata.type !== 'subscription') {
+          itemsForHistory = [{ name: singleTitle, type: 'servicio', quantity: 1, price_cents: null, currency: 'eur', image_url: null }];
+        }
       } else if (enlaceDrive) {
         linksHtml = `
           <p><strong style="font-size:16px; color:#ffffff;">${singleTitle} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong></p>
@@ -157,6 +259,12 @@ export default async function handler(req, res) {
           </div>
         `;
         linksText = `${singleTitle}: ${enlaceDrive}`;
+        if (metadata.type !== 'subscription') {
+          itemsForHistory = [{ name: singleTitle, type: 'producto', quantity: 1, price_cents: null, currency: 'eur', image_url: null }];
+        }
+      } else if (metadata.type === 'subscription') {
+        linksHtml = `<p style="color:#cccccc;">Tu suscripción se ha activado correctamente.</p>`;
+        linksText = planNameToSave;
       } else {
         linksHtml = `<p style="color:#ff5555;">Ha habido un problema cargando tu enlace de descarga automático. Por favor responde a este correo para enviártelo manualmente.</p>`;
         linksText = 'Error enlace';
@@ -192,10 +300,11 @@ export default async function handler(req, res) {
             {
               user_id: userId,
               amount: totalAmount,
-              plan_name: planNameToSave
+              plan_name: planNameToSave,
+              items: itemsForHistory.length > 0 ? itemsForHistory : null,
             }
           ]);
-          
+
         if (dbError) {
           console.error('ERROR de Supabase al guardar historial:', dbError.message);
         } else {
