@@ -23,6 +23,22 @@ export default function NuevoPackPage() {
       setMessage(`Error al crear pack: ${error.message}`);
       setLoading(false);
     } else {
+      // Avisa a los clientes con suscripción activa de que hay un pack
+      // nuevo. Si falla el envío no bloqueamos nada: el pack ya se guardó
+      // correctamente.
+      try {
+        await fetch('/api/notificar-contenido-exclusivo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: 'pack',
+            titulo: title,
+            descripcion: description || '',
+          }),
+        });
+      } catch (notifyErr) {
+        console.error('No se pudo avisar a los suscriptores del nuevo pack:', notifyErr);
+      }
       router.push('/admin');
     }
   }
