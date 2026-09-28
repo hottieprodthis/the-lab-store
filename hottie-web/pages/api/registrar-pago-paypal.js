@@ -53,6 +53,18 @@ export default async function handler(req, res) {
       });
     }
 
+    // Cobro único de un mes de la suscripción del área de clientes pagado
+    // con PayPal (pages/area-cliente.js). No hay itemId porque no es una
+    // fila de products/services/classes, así que se resuelve aparte: la
+    // activación del acceso (profiles.is_subscribed) ya la hace el cliente
+    // vía RPC antes de llamar aquí; esto solo registra el historial y
+    // manda los correos.
+    if (tipo === 'suscripcion') {
+      return handleSuscripcionPaypal(req, res, {
+        amountCents, userId, userEmail, payerEmail, payerName, paypalOrderId,
+      });
+    }
+
     const tipoNormalizado = TABLE_BY_TIPO[tipo] ? tipo : 'producto';
     const tabla = TABLE_BY_TIPO[tipoNormalizado];
 
@@ -428,5 +440,116 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
   } catch (err) {
     console.error('registrar-pago-paypal (carrito): error inesperado:', err);
     return res.status(500).json({ error: 'Error al registrar el pago de PayPal del carrito' });
+  }
+}
+
+// Registra en el historial y envía los correos de confirmación de un mes
+// de suscripción del área de clientes pagado con PayPal. La activación del
+// acceso (profiles.is_subscribed) NO se hace aquí: pages/area-cliente.js ya
+// la hace antes, con la sesión del propio cliente (igual que pages/gracias.js
+// hace tras un pago con Stripe), porque esa función usa el usuario que ha
+// iniciado sesión y aquí solo tenemos la Service Role Key.
+async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmail, payerEmail, payerName, paypalOrderId }) {
+  try {
+    const amount = typeof amountCents === 'number' ? amountCents / 100 : 0;
+    const nombreItem = 'Suscripción Área de Clientes';
+
+    let resolvedUserId = userId || null;
+    const emailParaBuscar = userEmail || payerEmail || null;
+
+    if (!resolvedUserId && emailParaBuscar) {
+      try {
+        const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
+          email_input: String(emailParaBuscar).trim(),
+        });
+        if (foundId) resolvedUserId = foundId;
+      } catch (err) {
+        console.error('registrar-pago-paypal (suscripción): error buscando usuario por email vía RPC:', err);
+      }
+    }
+
+    if (resolvedUserId) {
+      const { error: dbError } = await supabase.from('purchases').insert([
+        {
+          user_id: resolvedUserId,
+          amount,
+          plan_name: nombreItem,
+          items: null,
+        },
+      ]);
+      if (dbError) {
+        console.error('registrar-pago-paypal (suscripción): error guardando en Supabase:', dbError.message);
+      }
+    } else {
+      console.warn('registrar-pago-paypal (suscripción): pago de PayPal sin usuario identificado, no se guarda en el historial. Email recibido:', emailParaBuscar);
+    }
+
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const nombreCliente = payerName || (emailParaBuscar ? emailParaBuscar.split('@')[0] : 'Cliente');
+    const destinoEmail = emailParaBuscar;
+
+    if (resendApiKey) {
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'The Lab System <pedidos@hottieprodthis.com>',
+            to: ['pedidos.thelab@gmail.com'],
+            subject: `🚨 NUEVO PAGO RECIBIDO (PayPal): ${nombreCliente}`,
+            html: `
+              <h2>¡Nuevo mes de suscripción pagado con PayPal!</h2>
+              <p><strong>Cliente:</strong> ${nombreCliente}</p>
+              <p><strong>Email:</strong> ${destinoEmail || 'No disponible'}</p>
+              <p><strong>Total pagado:</strong> ${amount} €</p>
+              <p style="color:#ff9900;"><strong>OJO:</strong> este pago NO se renueva solo — solo Stripe hace renovación automática.</p>
+              ${paypalOrderId ? `<p><strong>ID de orden PayPal:</strong> ${paypalOrderId}</p>` : ''}
+            `,
+          }),
+        });
+
+        if (destinoEmail) {
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'The Lab <pedidos@hottieprodthis.com>',
+              reply_to: 'pedidos.thelab@gmail.com',
+              to: [destinoEmail],
+              subject: 'Tu suscripción en The Lab - Confirmación',
+              html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta name="color-scheme" content="light dark">
+                  <meta name="supported-color-schemes" content="light dark">
+                </head>
+                <body style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:20px;">
+                  <h2 style="color:#ffffff;">¡Gracias, ${nombreCliente}!</h2>
+                  <p style="color:#dddddd;">Tu pago con PayPal se ha procesado correctamente y ya tienes acceso al Área de Clientes durante este mes.</p>
+                  <p style="color:#dddddd;">Este pago no se renueva automáticamente: el mes que viene tendrás que volver a pulsar "Suscribirse Ahora" si quieres seguir con acceso.</p>
+                </body>
+                </html>
+              `,
+            }),
+          });
+        }
+      } catch (emailError) {
+        console.error('registrar-pago-paypal (suscripción): error enviando correos con Resend:', emailError);
+      }
+    } else {
+      console.error('registrar-pago-paypal (suscripción): falta RESEND_API_KEY en Vercel, no se enviaron correos.');
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('registrar-pago-paypal (suscripción): error inesperado:', err);
+    return res.status(500).json({ error: 'Error al registrar el pago de PayPal de la suscripción' });
   }
 }
