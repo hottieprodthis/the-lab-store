@@ -24,12 +24,24 @@ export default async function handler(req, res) {
       .eq('id', userId)
       .single();
 
-    if (profileError || !profile?.stripe_subscription_id) {
-      return res.status(404).json({ error: 'No se encontró una suscripción activa para este usuario.' });
+    if (profileError) {
+      return res.status(404).json({ error: 'No se encontró tu perfil.' });
     }
 
-    // 2. Le decimos a Stripe que cancele esa suscripción inmediatamente
-    await stripe.subscriptions.cancel(profile.stripe_subscription_id);
+    // 2. Si la suscripción se pagó con tarjeta (Stripe), la cancelamos de
+    // verdad ahí para que no se le vuelva a cobrar el mes que viene. Si se
+    // pagó con PayPal (cobro único mensual, sin suscripción real en
+    // Stripe) no hay nada que cancelar en Stripe: ese cobro ya no se
+    // repite solo, así que aquí simplemente le quitamos el acceso abajo.
+    if (profile?.stripe_subscription_id) {
+      try {
+        await stripe.subscriptions.cancel(profile.stripe_subscription_id);
+      } catch (stripeErr) {
+        // Si Stripe ya no la tiene (por ejemplo, ya estaba cancelada o
+        // caducada), seguimos igualmente para dejar al usuario sin acceso.
+        console.error('Aviso al cancelar en Stripe (se continúa igualmente):', stripeErr.message);
+      }
+    }
 
     // 3. Actualizamos Supabase para quitarle los privilegios de suscrito
     const { error: updateError } = await supabase
