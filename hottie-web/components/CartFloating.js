@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabaseClient'; // <-- 1. Importamos Supabase
+import PayPalButton from './PayPalButton';
 
 export default function CartFloating() {
-  const { 
-    cart, 
-    isOpen, 
-    setIsOpen, 
-    removeFromCart, 
-    updateQuantity, 
-    clearCart, 
-    totalItems, 
-    totalPrice 
+  const router = useRouter();
+  const {
+    cart,
+    isOpen,
+    setIsOpen,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    totalItems,
+    totalPrice
   } = useCart();
-  
+
   const [loading, setLoading] = useState(false);
+  const [paypalDone, setPaypalDone] = useState(false);
   const [userId, setUserId] = useState(null); // <-- 2. Estado para guardar el ID del usuario
   const [userEmail, setUserEmail] = useState(null);
 
@@ -66,8 +70,71 @@ export default function CartFloating() {
     }
   };
 
+  // Registra en el historial (y envía los correos de confirmación) un
+  // carrito completo pagado con PayPal, igual que ya hacía el botón de
+  // PayPal de la ficha de producto individual (handlePaypalSuccess de
+  // pages/tienda/[slug].js) pero para varios artículos a la vez. Después
+  // manda al cliente a la misma página de "gracias"/briefing a la que ya
+  // le mandaría Stripe si el pedido incluye un servicio y/o una clase.
+  const handlePaypalSuccess = async (details) => {
+    if (cart.length === 0) return;
+    setPaypalDone(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const payerEmail = details?.payer?.email_address || null;
+      const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
+        .filter(Boolean)
+        .join(' ');
+
+      await fetch('/api/registrar-pago-paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart,
+          userId: session?.user?.id || userId || null,
+          userEmail: session?.user?.email || userEmail || payerEmail,
+          payerEmail,
+          payerName,
+          paypalOrderId: details?.id || null,
+        }),
+      });
+    } catch (err) {
+      console.error('No se pudo registrar el pago de PayPal del carrito en el historial:', err);
+    }
+
+    // Mismo cálculo de "tipo" (orden fijo producto → servicio → clase) que
+    // usa pages/api/checkout.js, para mandar a la misma página de gracias/
+    // briefing que usaría Stripe con este mismo carrito.
+    const hasProduct = cart.some((i) => !i.isClass && !i.isService);
+    const hasService = cart.some((i) => !i.isClass && i.isService);
+    const hasClass = cart.some((i) => i.isClass);
+    const tipoParts = [];
+    if (hasProduct) tipoParts.push('producto');
+    if (hasService) tipoParts.push('servicio');
+    if (hasClass) tipoParts.push('clase');
+    const tipoQuery = tipoParts.length > 0 ? tipoParts.join('_') : 'producto';
+    const totalCategorias = (hasProduct ? 1 : 0) + (hasService ? 1 : 0) + (hasClass ? 1 : 0);
+
+    let destino = `/gracias?tipo=${tipoQuery}`;
+    if (totalCategorias > 1) destino = `/briefing?tipo=${tipoQuery}`;
+    else if (hasService) destino = `/servicios/briefing?tipo=${tipoQuery}`;
+    else if (hasClass) destino = `/clases/briefing?tipo=${tipoQuery}`;
+
+    clearCart();
+    setIsOpen(false);
+    router.push(destino);
+  };
+
   // Icono del carrito vectorizado en alta precisión (ruedas perfectamente alineadas)
   const cartIconBlack = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'><path d='M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121 0 2.053-.825 2.196-1.94l.827-6.417a1.125 1.125 0 00-1.113-1.268H5.112M7.5 14.25L5.112 5.27M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z'/></svg>";
+
+  // El carrito flotante no tiene ninguna función dentro del panel de
+  // administración (ahí nunca se compra nada), así que no se muestra en
+  // ninguna ruta que empiece por /admin.
+  if (router.pathname.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <>
@@ -207,6 +274,28 @@ export default function CartFloating() {
                     {loading ? "Procesando..." : "PAGAR CON STRIPE / BIZUM"}
                   </span>
                 </button>
+
+                {/* PayPal no admite pedidos de 0,00€, igual que en la ficha
+                    de producto individual, así que solo se ofrece cuando el
+                    carrito tiene un importe real. */}
+                {totalPrice > 0 && !paypalDone && (
+                  <>
+                    <div className="relative flex py-1 items-center">
+                      <div className="flex-grow border-t border-white/10"></div>
+                      <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                      <div className="flex-grow border-t border-white/10"></div>
+                    </div>
+                    <div className="w-full relative z-10 min-h-[50px]">
+                      <PayPalButton
+                        amount={totalPrice}
+                        currency={(cart[0]?.currency || cart[0]?.moneda || 'eur').toUpperCase()}
+                        label={cart.map((i) => i.title || i.name || i.nombre || 'Artículo').join(' + ').slice(0, 120)}
+                        onSuccess={handlePaypalSuccess}
+                      />
+                    </div>
+                  </>
+                )}
+
                 <button
                   onClick={clearCart}
                   className="block w-full text-center text-xs text-muted hover:text-paper underline"
