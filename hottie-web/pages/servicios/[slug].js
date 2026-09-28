@@ -5,9 +5,15 @@ import Footer from '../../components/Footer';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPrice } from '../../lib/format';
 import { useCart } from '../../context/CartContext';
+import PayPalButton from '../../components/PayPalButton';
 
 export default function DetalleServicio({ service }) {
   const [loadingPlan, setLoadingPlan] = useState(null);
+  // Nombre del plan cuyo menú de "cómo pagar" está abierto (Stripe/Bizum o
+  // PayPal). Antes RESERVAR lanzaba Stripe directamente sin dar opción a
+  // pagar con PayPal, que solo existía en la ficha de producto de tienda.
+  const [openPaymentPlan, setOpenPaymentPlan] = useState(null);
+  const [paypalDonePlan, setPaypalDonePlan] = useState(null);
   const { addToCart } = useCart();
 
   if (!service) {
@@ -72,6 +78,40 @@ export default function DetalleServicio({ service }) {
     addToCart(planItem, true);
   };
 
+  // Registra en el historial (y envía los correos) una reserva de un plan
+  // concreto pagada con PayPal. Se manda el precio y el nombre YA con el
+  // plan incluido porque pages/api/registrar-pago-paypal.js guarda por
+  // defecto el precio base del servicio, no el de un plan concreto.
+  const handlePaypalPlanSuccess = async (plan, details) => {
+    setPaypalDonePlan(plan.name);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const payerEmail = details?.payer?.email_address || null;
+      const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
+        .filter(Boolean)
+        .join(' ');
+      const planPriceCents = Math.round(parseFloat(plan.price) * 100);
+
+      await fetch('/api/registrar-pago-paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: 'servicio',
+          itemId: service.id,
+          planName: plan.name,
+          amountCents: planPriceCents,
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || payerEmail,
+          payerEmail,
+          payerName,
+          paypalOrderId: details?.id || null,
+        }),
+      });
+    } catch (err) {
+      console.error('No se pudo registrar el pago de PayPal de este servicio en el historial:', err);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -84,6 +124,16 @@ export default function DetalleServicio({ service }) {
       <section className="mx-auto max-w-5xl px-5 py-16">
         <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{service.name}</h1>
         <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{service.description}</p>
+
+        {service.image_url && (
+          <div className="mt-8 overflow-hidden rounded-sm border border-white/10 max-w-2xl">
+            <img
+              src={service.image_url}
+              alt={service.name}
+              className="w-full max-h-[420px] object-cover"
+            />
+          </div>
+        )}
 
         {hasPlans ? (
           <div className="mt-12 space-y-6">
@@ -109,13 +159,46 @@ export default function DetalleServicio({ service }) {
                       + Carrito
                     </button>
                     <button
-                      onClick={() => handleCheckoutPlan(plan)}
-                      disabled={loadingPlan === plan.name}
+                      onClick={() => setOpenPaymentPlan(openPaymentPlan === plan.name ? null : plan.name)}
                       className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal disabled:opacity-50"
                     >
-                      {loadingPlan === plan.name ? 'CARGANDO...' : 'RESERVAR'}
+                      RESERVAR
                     </button>
                   </div>
+
+                  {/* Menú con las dos formas de pago, igual que en la
+                      ficha de producto de tienda: antes RESERVAR lanzaba
+                      Stripe directamente sin dar opción a PayPal. */}
+                  {openPaymentPlan === plan.name && (
+                    <div className="mt-4 border-t border-white/10 pt-4 space-y-3">
+                      {paypalDonePlan === plan.name ? (
+                        <p className="text-sm text-volt text-right">¡Pago con PayPal completado! Revisa tu correo.</p>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleCheckoutPlan(plan)}
+                            disabled={loadingPlan === plan.name}
+                            className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110 disabled:opacity-50"
+                          >
+                            {loadingPlan === plan.name ? 'CARGANDO...' : 'Pagar con Stripe / Bizum'}
+                          </button>
+                          <div className="relative flex py-1 items-center">
+                            <div className="flex-grow border-t border-white/10"></div>
+                            <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                            <div className="flex-grow border-t border-white/10"></div>
+                          </div>
+                          <div className="w-full relative z-10 min-h-[50px]">
+                            <PayPalButton
+                              amount={parseFloat(plan.price)}
+                              currency={(service.currency || 'eur').toUpperCase()}
+                              label={`${service.name} (${plan.name})`}
+                              onSuccess={(details) => handlePaypalPlanSuccess(plan, details)}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
