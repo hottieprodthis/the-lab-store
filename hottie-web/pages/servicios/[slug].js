@@ -180,7 +180,7 @@ export default function DetalleServicio({ service }) {
                             disabled={loadingPlan === plan.name}
                             className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110 disabled:opacity-50"
                           >
-                            {loadingPlan === plan.name ? 'CARGANDO...' : 'Pagar con Stripe / Bizum'}
+                            {loadingPlan === plan.name ? 'CARGANDO...' : 'Pagar con tarjeta y más'}
                           </button>
                           <div className="relative flex py-1 items-center">
                             <div className="flex-grow border-t border-white/10"></div>
