@@ -271,7 +271,7 @@ export default function CartFloating() {
                   className="block w-full text-center rounded-md bg-[#CCFF00] py-3 text-sm font-bold uppercase tracking-widest transition hover:brightness-110 disabled:opacity-50"
                 >
                   <span style={{ color: '#000000', WebkitTextFillColor: '#000000' }}>
-                    {loading ? "Procesando..." : "PAGAR CON STRIPE / BIZUM"}
+                    {loading ? "Procesando..." : "PAGAR CON TARJETA Y MÁS"}
                   </span>
                 </button>
 
