@@ -251,7 +251,7 @@ export default function ProductoDetalle({ product }) {
                   disabled={loading || checkingSession}
                   className="w-full rounded-sm bg-volt px-6 py-4 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110 disabled:opacity-50"
                 >
-                  {loading ? 'Redirigiendo…' : (product.price_cents ? 'Comprar con tarjeta' : 'Obtener gratis')}
+                  {loading ? 'Redirigiendo…' : (product.price_cents ? 'Pagar con tarjeta y más' : 'Obtener gratis')}
                 </button>
 
                 {/* PayPal no admite pedidos de 0,00€ (el botón se queda sin
