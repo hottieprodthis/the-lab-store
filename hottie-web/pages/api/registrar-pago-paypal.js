@@ -33,12 +33,25 @@ export default async function handler(req, res) {
     const {
       tipo,
       itemId,
+      items,
+      planName,
+      amountCents,
       userId,
       userEmail,
       payerEmail,
       payerName,
       paypalOrderId,
     } = req.body || {};
+
+    // Carrito con varios artículos a la vez (botón de PayPal del carrito
+    // flotante, components/CartFloating.js): se resuelve y se guarda por
+    // separado más abajo, sin tocar nada del camino de un solo artículo
+    // que ya usan las fichas de producto/servicio/clase.
+    if (Array.isArray(items) && items.length > 0) {
+      return handleCarritoPaypal(req, res, {
+        items, userId, userEmail, payerEmail, payerName, paypalOrderId,
+      });
+    }
 
     const tipoNormalizado = TABLE_BY_TIPO[tipo] ? tipo : 'producto';
     const tabla = TABLE_BY_TIPO[tipoNormalizado];
@@ -60,8 +73,15 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Artículo no encontrado' });
     }
 
-    const nombreItem = item.name || item.title || item.nombre || 'Artículo';
-    const precioCents = item.price_cents ?? item.precio_centimos ?? null;
+    // planName/amountCents: solo los mandan las páginas de servicios/clases
+    // cuando el artículo tiene "planes" (varias tarifas) y el cliente ha
+    // elegido uno para pagar con PayPal — en ese caso el precio real
+    // cobrado es el del plan, no el precio base de la tabla, así que si
+    // vienen informados tienen prioridad. Para el resto de llamadas (ficha
+    // de producto individual, ya en funcionamiento) no se mandan y el
+    // comportamiento no cambia.
+    const nombreItem = planName ? `${item.name || item.title || item.nombre || 'Artículo'} (${planName})` : (item.name || item.title || item.nombre || 'Artículo');
+    const precioCents = typeof amountCents === 'number' ? amountCents : (item.price_cents ?? item.precio_centimos ?? null);
     const moneda = item.currency || item.moneda || 'eur';
     const imagen = item.image_url || item.imagen_url || null;
     const enlaceDescarga = tipoNormalizado === 'producto'
@@ -215,5 +235,198 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('registrar-pago-paypal: error inesperado:', err);
     return res.status(500).json({ error: 'Error al registrar el pago de PayPal' });
+  }
+}
+
+// Extrae el UUID real de un id de carrito con plan ("uuid-nombredelplan"),
+// igual que hace pages/api/checkout.js.
+function extractRealId(id) {
+  if (!id) return id;
+  const match = String(id).match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
+  return match ? match[1] : String(id);
+}
+
+// Registra en el historial y envía los correos de confirmación de un
+// CARRITO completo (uno o varios artículos, de cualquier combinación de
+// producto/servicio/clase) pagado con PayPal desde el carrito flotante.
+// Reutiliza exactamente el mismo criterio de tipo (isClass tiene prioridad
+// sobre isService) que ya usa pages/api/checkout.js para no tratar una
+// clase con plan como si fuera un servicio.
+async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEmail, payerName, paypalOrderId }) {
+  try {
+    const enrichedCart = await Promise.all(
+      items.map(async (item) => {
+        const cleanId = extractRealId(item.id);
+        const isClassItem = Boolean(item.isClass);
+        const isServiceItem = !isClassItem && Boolean(item.isService);
+        const isProductItem = !isClassItem && !isServiceItem;
+        const tipo = isClassItem ? 'clase' : (isServiceItem ? 'servicio' : 'producto');
+        const tabla = TABLE_BY_TIPO[tipo];
+
+        let nombreResuelto = item.title || item.name || item.nombre || '';
+        let imagen = item.image_url || item.imagen_url || null;
+        let enlaceDescarga = item.file_url || item.drive_url || item.driveUrl || item.link || '';
+
+        if (cleanId) {
+          const { data: dbItem } = await supabase.from(tabla).select('*').eq('id', cleanId).single();
+          if (dbItem) {
+            if (!imagen) imagen = dbItem.image_url || dbItem.imagen_url || null;
+            if (isProductItem && !enlaceDescarga) {
+              enlaceDescarga = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
+            }
+          }
+        }
+
+        if (!nombreResuelto) {
+          nombreResuelto = tipo === 'servicio' ? 'Servicio Digital' : tipo === 'clase' ? 'Clase Digital' : 'Producto Digital';
+        }
+
+        const precioCents = typeof item.price_cents === 'number'
+          ? item.price_cents
+          : (item.price ? Math.round(item.price * 100) : 0);
+
+        return {
+          title: nombreResuelto,
+          type: tipo,
+          quantity: item.quantity || 1,
+          price_cents: precioCents,
+          currency: (item.currency || item.moneda || 'eur').toLowerCase(),
+          image_url: imagen,
+          file_url: enlaceDescarga,
+        };
+      })
+    );
+
+    const amount = enrichedCart.reduce((acc, i) => acc + (i.price_cents / 100) * i.quantity, 0);
+    const nombrePedido = enrichedCart.map((i) => i.title).join(' + ');
+
+    let resolvedUserId = userId || null;
+    const emailParaBuscar = userEmail || payerEmail || null;
+
+    if (!resolvedUserId && emailParaBuscar) {
+      try {
+        const { data: foundId } = await supabase.rpc('get_user_id_by_email', {
+          email_input: String(emailParaBuscar).trim(),
+        });
+        if (foundId) resolvedUserId = foundId;
+      } catch (err) {
+        console.error('registrar-pago-paypal (carrito): error buscando usuario por email vía RPC:', err);
+      }
+    }
+
+    if (resolvedUserId) {
+      const { error: dbError } = await supabase.from('purchases').insert([
+        {
+          user_id: resolvedUserId,
+          amount,
+          plan_name: nombrePedido,
+          items: enrichedCart.map((i) => ({
+            name: i.title,
+            type: i.type,
+            quantity: i.quantity,
+            price_cents: i.price_cents,
+            currency: i.currency,
+            image_url: i.image_url,
+          })),
+        },
+      ]);
+      if (dbError) {
+        console.error('registrar-pago-paypal (carrito): error guardando en Supabase:', dbError.message);
+      }
+    } else {
+      console.warn('registrar-pago-paypal (carrito): pago de PayPal sin usuario identificado, no se guarda en el historial. Email recibido:', emailParaBuscar);
+    }
+
+    // Correos de confirmación: mismo formato de línea por artículo que usa
+    // pages/api/enviar-pedido.js para un carrito pagado con Stripe.
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const nombreCliente = payerName || (emailParaBuscar ? emailParaBuscar.split('@')[0] : 'Cliente');
+    const destinoEmail = emailParaBuscar;
+
+    const itemsParaEmail = [...enrichedCart].sort((a, b) => {
+      const aEsDescarga = a.type === 'producto' && a.file_url ? 0 : 1;
+      const bEsDescarga = b.type === 'producto' && b.file_url ? 0 : 1;
+      return aEsDescarga - bEsDescarga;
+    });
+
+    const itemsList = itemsParaEmail.map((item) => {
+      if (item.type === 'servicio' || item.type === 'clase') {
+        const etiqueta = item.type === 'clase' ? 'Clase' : 'Servicio';
+        return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${item.title} <span style="color:#aaaaaa;font-weight:normal;">(${etiqueta})</span></strong><br/><span style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</span></li>`;
+      } else if (item.file_url) {
+        return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${item.title} <span style="color:#aaaaaa;font-weight:normal;">(Tienda)</span></strong><br/><a href="${item.file_url}" target="_blank" style="${btnStyle}">Descargar / Acceder</a></li>`;
+      }
+      return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${item.title}</strong><br/><span style="color:#cccccc;font-size:13px;">Pedido registrado correctamente.</span></li>`;
+    });
+
+    const linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
+    const linksText = itemsParaEmail.map((i) => `${i.title}: ${i.file_url || i.type}`).join(' | ');
+
+    if (resendApiKey) {
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'The Lab System <pedidos@hottieprodthis.com>',
+            to: ['pedidos.thelab@gmail.com'],
+            subject: `🚨 NUEVO PAGO RECIBIDO (PayPal): ${nombreCliente}`,
+            html: `
+              <h2>¡Nuevo pago completado con PayPal!</h2>
+              <p><strong>Cliente:</strong> ${nombreCliente}</p>
+              <p><strong>Email:</strong> ${destinoEmail || 'No disponible'}</p>
+              <p><strong>Total pagado:</strong> ${amount} €</p>
+              <p><strong>Artículos:</strong> ${linksText}</p>
+              ${paypalOrderId ? `<p><strong>ID de orden PayPal:</strong> ${paypalOrderId}</p>` : ''}
+            `,
+          }),
+        });
+
+        if (destinoEmail) {
+          const fullEmailHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta name="color-scheme" content="light dark">
+              <meta name="supported-color-schemes" content="light dark">
+            </head>
+            <body style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:20px;">
+              <h2 style="color:#ffffff;">¡Gracias por tu compra, ${nombreCliente}!</h2>
+              <p style="color:#dddddd;">Tu pago con PayPal se ha procesado correctamente.</p>
+              <p style="color:#dddddd;">Aquí tienes el detalle de tu pedido:</p>
+              ${linksHtml}
+            </body>
+            </html>
+          `;
+
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'The Lab <pedidos@hottieprodthis.com>',
+              reply_to: 'pedidos.thelab@gmail.com',
+              to: [destinoEmail],
+              subject: 'Tu pedido en The Lab - Confirmación',
+              html: fullEmailHtml,
+            }),
+          });
+        }
+      } catch (emailError) {
+        console.error('registrar-pago-paypal (carrito): error enviando correos con Resend:', emailError);
+      }
+    } else {
+      console.error('registrar-pago-paypal (carrito): falta RESEND_API_KEY en Vercel, no se enviaron correos.');
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('registrar-pago-paypal (carrito): error inesperado:', err);
+    return res.status(500).json({ error: 'Error al registrar el pago de PayPal del carrito' });
   }
 }
