@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../lib/supabaseClient';
+import PayPalButton from '../components/PayPalButton';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -16,6 +17,14 @@ export default function AreaClientePage() {
   const [expandedPurchases, setExpandedPurchases] = useState(new Set());
   const [notifyNewItems, setNotifyNewItems] = useState(false);
   const [savingNotifyPref, setSavingNotifyPref] = useState(false);
+  // Menú de "cómo pagar" al pulsar "Suscribirse Ahora". El pago con PayPal
+  // aquí es un cobro ÚNICO de este mes (no se renueva solo por PayPal,
+  // solo Stripe hace renovación automática real) — decisión tomada porque
+  // una suscripción recurrente de verdad por PayPal necesita un plan de
+  // facturación configurado en la cuenta de PayPal, que no se puede crear
+  // desde aquí.
+  const [openSubPayment, setOpenSubPayment] = useState(false);
+  const [subPaypalLoading, setSubPaypalLoading] = useState(false);
   const router = useRouter();
 
   const toggleExpandPurchase = (id) => {
@@ -123,6 +132,50 @@ export default function AreaClientePage() {
     } catch (err) {
       console.error('Error de conexión:', err);
       alert('Hubo un error al conectar con el servidor de pagos.');
+    }
+  };
+
+  // Cobro único de este mes de suscripción pagado con PayPal. Activamos el
+  // acceso aquí mismo (la misma llamada que hace pages/gracias.js tras un
+  // pago con Stripe) y registramos el pago en el historial. OJO: esto NO
+  // se renueva solo el mes que viene — solo Stripe hace la renovación
+  // automática real. Si el cliente quiere seguir pagando con PayPal, tendrá
+  // que volver a pulsar aquí el mes siguiente.
+  const handleSubscriptionPaypalSuccess = async (details) => {
+    setSubPaypalLoading(true);
+    try {
+      const { error } = await supabase.rpc('activar_mi_suscripcion');
+      if (error) {
+        console.error('Error activando suscripción tras PayPal:', error.message);
+        alert('El pago se ha realizado, pero hubo un problema activando el acceso. Escríbenos y lo resolvemos.');
+      }
+
+      const payerEmail = details?.payer?.email_address || null;
+      const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
+        .filter(Boolean)
+        .join(' ');
+      const priceInCents = Math.round(Number(subscriptionPrice) * 100);
+
+      await fetch('/api/registrar-pago-paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: 'suscripcion',
+          amountCents: priceInCents,
+          userId: user?.id || null,
+          userEmail: user?.email || payerEmail,
+          payerEmail,
+          payerName,
+          paypalOrderId: details?.id || null,
+        }),
+      });
+    } catch (err) {
+      console.error('No se pudo registrar el pago de PayPal de la suscripción:', err);
+    } finally {
+      // Recargamos para que el resto de la página (posts, packs, estado
+      // de la suscripción) se refresque exactamente igual que si hubiera
+      // vuelto de pagar con Stripe.
+      window.location.reload();
     }
   };
 
@@ -292,12 +345,45 @@ export default function AreaClientePage() {
             <p className="text-sm text-muted mb-6 leading-relaxed">
               Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo {subscriptionPrice} €/mes.
             </p>
-            <button 
-              onClick={handleSubscriptionCheckout} 
+            <button
+              onClick={() => setOpenSubPayment(!openSubPayment)}
               className="rounded-sm bg-volt px-6 py-3 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
             >
               Suscribirse Ahora ({subscriptionPrice} €/mes)
             </button>
+
+            {/* Menú con las dos formas de pago. El de PayPal aquí es un
+                cobro único de este mes, no una renovación automática. */}
+            {openSubPayment && (
+              <div className="mt-4 max-w-xs mx-auto space-y-3 text-left">
+                <button
+                  onClick={handleSubscriptionCheckout}
+                  className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110"
+                >
+                  Pagar con tarjeta y más
+                </button>
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-white/10"></div>
+                  <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                  <div className="flex-grow border-t border-white/10"></div>
+                </div>
+                <div className="w-full relative z-10 min-h-[50px]">
+                  {subPaypalLoading ? (
+                    <p className="text-xs text-muted text-center">Activando tu acceso…</p>
+                  ) : (
+                    <PayPalButton
+                      amount={Number(subscriptionPrice)}
+                      currency="EUR"
+                      label="Suscripción Área de Clientes (1 mes)"
+                      onSuccess={handleSubscriptionPaypalSuccess}
+                    />
+                  )}
+                </div>
+                <p className="text-[10px] text-muted leading-relaxed">
+                  Con PayPal se cobra solo este mes: no se renueva sola, tendrás que volver a pulsar aquí el mes que viene si quieres seguir.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-12">
