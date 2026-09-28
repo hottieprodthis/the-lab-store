@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Navbar from '../../components/Navbar';
@@ -75,6 +75,33 @@ export default function ProductoDetalle({ product }) {
   const stripeSuccess = router.query.compra === 'exito';
   const purchaseDone = paypalDone || stripeSuccess;
 
+  // Necesario para el artículo gratuito (0€): ese pedido no pasa por la
+  // pasarela de Stripe (se salta directamente a "gracias"), así que si el
+  // visitante no tiene sesión iniciada, antes no se pedía ningún correo en
+  // ningún punto del proceso y el pedido se guardaba sin forma de contactar
+  // ni de enviar el enlace de descarga al cliente. Ahora, para un producto
+  // gratis y sin sesión iniciada, se pide el correo aquí mismo antes de
+  // continuar.
+  const [loggedInEmail, setLoggedInEmail] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [freeEmail, setFreeEmail] = useState('');
+  const [freeEmailError, setFreeEmailError] = useState('');
+
+  useEffect(() => {
+    async function getUser() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email) setLoggedInEmail(session.user.email);
+      } finally {
+        setCheckingSession(false);
+      }
+    }
+    getUser();
+  }, []);
+
+  const esGratis = !product?.price_cents;
+  const necesitaCorreoManual = esGratis && !loggedInEmail;
+
   if (!product) {
     return (
       <>
@@ -88,12 +115,28 @@ export default function ProductoDetalle({ product }) {
   }
 
   async function buyWithStripe() {
+    setFreeEmailError('');
+
+    // Para un producto gratis (0€) no hay pasarela de pago de por medio, así
+    // que si no hay sesión iniciada necesitamos el correo del visitante
+    // aquí mismo: sin él, el pedido se guarda pero nunca le llegaría el
+    // enlace de descarga.
+    if (necesitaCorreoManual) {
+      const correoLimpio = freeEmail.trim();
+      const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio);
+      if (!emailValido) {
+        setFreeEmailError('Introduce un correo electrónico válido para poder enviarte la descarga.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Adjuntamos el usuario logueado (si lo hay) para que el historial
       // del área de clientes pueda asociarle la compra desde el primer
       // momento, igual que ya ocurre con las compras hechas por carrito.
       const { data: { session } } = await supabase.auth.getSession();
+      const correoFinal = session?.user?.email || (necesitaCorreoManual ? freeEmail.trim() : null);
 
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -102,7 +145,7 @@ export default function ProductoDetalle({ product }) {
           productId: product.id,
           returnUrl: window.location.href,
           userId: session?.user?.id || null,
-          userEmail: session?.user?.email || null,
+          userEmail: correoFinal,
         }),
       });
       const data = await res.json();
@@ -184,9 +227,28 @@ export default function ProductoDetalle({ product }) {
           <div className="mt-8 flex flex-col gap-5 w-full">
             {!purchaseDone ? (
               <>
+                {necesitaCorreoManual && !checkingSession && (
+                  <div>
+                    <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
+                      Tu correo electrónico (para enviarte la descarga)
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={freeEmail}
+                      onChange={(e) => { setFreeEmail(e.target.value); setFreeEmailError(''); }}
+                      placeholder="tu@email.com"
+                      className="w-full rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:border-volt focus:outline-none"
+                    />
+                    {freeEmailError && (
+                      <p className="mt-1 text-xs text-red-400">{freeEmailError}</p>
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={buyWithStripe}
-                  disabled={loading}
+                  disabled={loading || checkingSession}
                   className="w-full rounded-sm bg-volt px-6 py-4 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110 disabled:opacity-50"
                 >
                   {loading ? 'Redirigiendo…' : (product.price_cents ? 'Comprar con tarjeta' : 'Obtener gratis')}
