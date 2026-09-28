@@ -161,7 +161,20 @@ export default async function handler(req, res) {
         const itemNames = cartItems.map(i => i.title || 'Artículo').join(' + ');
         planNameToSave = itemNames;
 
-        const itemsList = cartItems.map((item) => {
+        // Los artículos con descarga (tienda) van SIEMPRE primero en el
+        // correo, antes que servicio/clase, y el HTML de cada línea es
+        // ahora más ligero (un solo <a>, sin tabla ni estilos repetidos).
+        // Gestores como Gmail recortan el correo ("mostrar contenido
+        // reducido") cuando el HTML pesa de más; así, si eso llega a pasar,
+        // el botón de descarga queda protegido al principio en vez de
+        // quedar oculto detrás del recorte.
+        const cartItemsParaEmail = [...cartItems].sort((a, b) => {
+          const aEsDescarga = a.type === 'producto' && a.file_url ? 0 : 1;
+          const bEsDescarga = b.type === 'producto' && b.file_url ? 0 : 1;
+          return aEsDescarga - bEsDescarga;
+        });
+
+        const itemsList = cartItemsParaEmail.map((item) => {
           let itemTitle = item.title;
           const itemType = item.type;
           if (!itemTitle) {
@@ -172,35 +185,16 @@ export default async function handler(req, res) {
 
           if (itemType === 'servicio' || itemType === 'clase') {
             const etiqueta = itemType === 'clase' ? 'Clase' : 'Servicio';
-            return `<li style="margin-bottom: 24px;">
-              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(${etiqueta})</span></strong><br/>
-              <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Nos pondremos en contacto contigo o gestionaremos tu briefing para coordinar ${itemType === 'clase' ? 'la clase' : 'el servicio'}.</span>
-            </li>`;
+            return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${itemTitle} <span style="color:#aaaaaa;font-weight:normal;">(${etiqueta})</span></strong><br/><span style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo o gestionaremos tu briefing para coordinar ${itemType === 'clase' ? 'la clase' : 'el servicio'}.</span></li>`;
           } else if (itemUrl) {
-            return `<li style="margin-bottom: 24px;">
-              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong><br/>
-              <div style="margin-top:10px;">
-                <table border="0" cellpadding="0" cellspacing="0" role="presentation">
-                  <tr>
-                    <td align="center" bgcolor="#CCFF00" style="border-radius:6px; background-color:#CCFF00;">
-                      <a href="${itemUrl}" target="_blank" style="${btnStyle}">
-                        Descargar / Acceder
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-            </li>`;
+            return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${itemTitle} <span style="color:#aaaaaa;font-weight:normal;">(Tienda)</span></strong><br/><a href="${itemUrl}" target="_blank" style="${btnStyle}">Descargar / Acceder</a></li>`;
           } else {
-            return `<li style="margin-bottom: 24px;">
-              <strong style="font-size: 16px; color:#ffffff;">${itemTitle} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong><br/>
-              <span style="color:#ff5555;font-size:13px;display:block;margin-top:6px;">Enlace no disponible. Te lo enviaremos manualmente a este correo.</span>
-            </li>`;
+            return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${itemTitle} <span style="color:#aaaaaa;font-weight:normal;">(Tienda)</span></strong><br/><span style="color:#ff5555;font-size:13px;">Enlace no disponible. Te lo enviaremos manualmente a este correo.</span></li>`;
           }
         });
 
         linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
-        linksText = cartItems.map(i => `${i.title}: ${i.file_url || i.type}`).join(' | ');
+        linksText = cartItemsParaEmail.map(i => `${i.title}: ${i.file_url || i.type}`).join(' | ');
 
         itemsForHistory = cartItems.map((i) => ({
           name: i.title || 'Artículo',
