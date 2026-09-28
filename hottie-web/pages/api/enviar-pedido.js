@@ -311,6 +311,28 @@ export default async function handler(req, res) {
       console.error('AVISO: No se pudo asociar la compra a ningún usuario (userId nulo).');
     }
 
+    // 4. Si es una SUSCRIPCIÓN pagada con tarjeta (Stripe), guardamos el ID
+    // real de la suscripción de Stripe en su perfil. Sin este dato, el
+    // botón "Cancelar mi suscripción" del área de clientes no tiene forma
+    // de saber qué suscripción cancelar en Stripe, así que aunque el
+    // cliente pulsara cancelar, Stripe seguiría cobrando cada mes.
+    if (userId && metadata.type === 'subscription' && session.subscription) {
+      try {
+        const { error: subError } = await supabase
+          .from('profiles')
+          .update({ is_subscribed: true, stripe_subscription_id: session.subscription })
+          .eq('id', userId);
+
+        if (subError) {
+          console.error('ERROR guardando stripe_subscription_id en el perfil:', subError.message);
+        } else {
+          console.log('stripe_subscription_id guardado correctamente para el usuario', userId);
+        }
+      } catch (e) {
+        console.error('Excepción guardando stripe_subscription_id:', e);
+      }
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
 
     if (!resendApiKey) {
