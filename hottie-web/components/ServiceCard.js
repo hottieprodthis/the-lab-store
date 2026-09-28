@@ -3,9 +3,15 @@ import Link from 'next/link';
 import { formatPrice } from '../lib/format';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabaseClient';
+import PayPalButton from './PayPalButton';
 
 export default function ServiceCard({ service }) {
   const [loading, setLoading] = useState(false);
+  // Menú de "cómo pagar" para los servicios/clases de precio único (sin
+  // planes): estos nunca pasan por la página [slug].js (aquí mismo se
+  // compran), así que el menú de tarjeta/PayPal vive en esta tarjeta.
+  const [openPayment, setOpenPayment] = useState(false);
+  const [paypalDone, setPaypalDone] = useState(false);
   const { addToCart } = useCart();
 
   const hasPlans = Array.isArray(service.plans) && service.plans.length > 0;
@@ -63,9 +69,48 @@ export default function ServiceCard({ service }) {
     }
   };
 
+  // Registra en el historial (y envía los correos) una reserva de precio
+  // único pagada con PayPal. No hace falta planName/amountCents porque
+  // aquí no hay plan: el precio ya es el precio base del servicio/clase.
+  const handlePaypalSuccess = async (details) => {
+    setPaypalDone(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const payerEmail = details?.payer?.email_address || null;
+      const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
+        .filter(Boolean)
+        .join(' ');
+
+      await fetch('/api/registrar-pago-paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: service.isClass ? 'clase' : 'servicio',
+          itemId: service.id,
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || payerEmail,
+          payerEmail,
+          payerName,
+          paypalOrderId: details?.id || null,
+        }),
+      });
+    } catch (err) {
+      console.error('No se pudo registrar el pago de PayPal de este artículo en el historial:', err);
+    }
+  };
+
   return (
     <div className="flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
       <div>
+        {service.image_url && (
+          <div className="mb-4 overflow-hidden rounded-sm border border-white/10">
+            <img
+              src={service.image_url}
+              alt={service.name}
+              className="h-40 w-full object-cover"
+            />
+          </div>
+        )}
         <h3 className="font-display text-2xl tracking-wide text-paper">{service.name}</h3>
         <p className="mt-2 text-sm leading-relaxed text-muted">{service.description}</p>
       </div>
@@ -115,11 +160,10 @@ export default function ServiceCard({ service }) {
               </button>
 
               <button
-                onClick={handleCheckout}
-                disabled={loading}
-                className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal disabled:opacity-50"
+                onClick={() => setOpenPayment(!openPayment)}
+                className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
               >
-                {loading ? 'CARGANDO...' : 'RESERVAR'}
+                RESERVAR
               </button>
             </>
           ) : (
@@ -133,6 +177,40 @@ export default function ServiceCard({ service }) {
           )}
         </div>
       </div>
+
+      {/* Menú con las dos formas de pago, igual que en la ficha con
+          planes: antes RESERVAR lanzaba Stripe directamente sin dar
+          opción a PayPal. */}
+      {openPayment && (
+        <div className="mt-4 border-t border-white/10 pt-4 space-y-3">
+          {paypalDone ? (
+            <p className="text-sm text-volt text-right">¡Pago con PayPal completado! Revisa tu correo.</p>
+          ) : (
+            <>
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110 disabled:opacity-50"
+              >
+                {loading ? 'CARGANDO...' : 'Pagar con tarjeta y más'}
+              </button>
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                <div className="flex-grow border-t border-white/10"></div>
+              </div>
+              <div className="w-full relative z-10 min-h-[50px]">
+                <PayPalButton
+                  amount={(service.price_cents || Math.round((service.price || 0) * 100)) / 100}
+                  currency={(service.currency || 'eur').toUpperCase()}
+                  label={service.name}
+                  onSuccess={handlePaypalSuccess}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
