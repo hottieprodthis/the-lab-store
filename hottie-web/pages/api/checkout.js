@@ -230,37 +230,31 @@ export default async function handler(req, res) {
         quantity: item.quantity,
       }));
 
-      const itemsList = enrichedCart.map((item) => {
+      // Los productos con descarga van SIEMPRE primero en el correo (antes
+      // de servicio/clase) y el HTML de cada línea se ha aligerado (un solo
+      // <a>, sin tabla ni estilos repetidos): algunos gestores de correo
+      // (Gmail incluido) recortan el mensaje ("mostrar contenido reducido")
+      // cuando el HTML pesa de más, y si eso pasa, así el botón de
+      // descarga del producto queda protegido al principio en vez de
+      // quedar oculto detrás del recorte.
+      const enrichedCartParaEmail = [...enrichedCart].sort((a, b) => {
+        const aEsDescarga = !a.isService && !a.isClass && a.file_url ? 0 : 1;
+        const bEsDescarga = !b.isService && !b.isClass && b.file_url ? 0 : 1;
+        return aEsDescarga - bEsDescarga;
+      });
+
+      const itemsList = enrichedCartParaEmail.map((item) => {
         if (item.isService || item.isClass) {
-          return `<li style="margin-bottom: 24px;">
-            <strong style="font-size: 16px; color:#ffffff;">${item.title} <span style="color:#aaaaaa; font-weight:normal;">(${item.isClass ? 'Clase' : 'Servicio'})</span></strong><br/>
-            <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</span>
-          </li>`;
+          return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${item.title} <span style="color:#aaaaaa;font-weight:normal;">(${item.isClass ? 'Clase' : 'Servicio'})</span></strong><br/><span style="color:#cccccc;font-size:13px;">Nos pondremos en contacto contigo o gestionaremos tu briefing.</span></li>`;
         } else if (item.file_url) {
-          return `<li style="margin-bottom: 24px;">
-            <strong style="font-size: 16px; color:#ffffff;">${item.title} <span style="color:#aaaaaa; font-weight:normal;">(Tienda)</span></strong><br/>
-            <div style="margin-top:10px;">
-              <table border="0" cellpadding="0" cellspacing="0" role="presentation">
-                <tr>
-                  <td align="center" bgcolor="#CCFF00" style="border-radius:6px; background-color:#CCFF00;">
-                    <a href="${item.file_url}" target="_blank" style="${btnStyle}">
-                      Descargar / Acceder
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </div>
-          </li>`;
+          return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${item.title} <span style="color:#aaaaaa;font-weight:normal;">(Tienda)</span></strong><br/><a href="${item.file_url}" target="_blank" style="${btnStyle}">Descargar / Acceder</a></li>`;
         } else {
-          return `<li style="margin-bottom: 24px;">
-            <strong style="font-size: 16px; color:#ffffff;">${item.title}</strong><br/>
-            <span style="color:#cccccc;font-size:13px;display:block;margin-top:6px;">Pedido registrado correctamente.</span>
-          </li>`;
+          return `<li style="margin-bottom:20px;"><strong style="font-size:16px;color:#ffffff;">${item.title}</strong><br/><span style="color:#cccccc;font-size:13px;">Pedido registrado correctamente.</span></li>`;
         }
       });
 
       linksHtml = `<ul style="list-style:none;padding:0;margin-top:15px;">${itemsList.join('')}</ul>`;
-      linksText = enrichedCart.map(i => `${i.title}: ${i.file_url || 'Servicio/Clase'}`).join(' | ');
+      linksText = enrichedCartParaEmail.map(i => `${i.title}: ${i.file_url || 'Servicio/Clase'}`).join(' | ');
 
       // Metadatos MÍNIMOS para Stripe (límite de 500 caracteres por campo
       // de metadata). Antes se guardaba también la imagen y el enlace de
