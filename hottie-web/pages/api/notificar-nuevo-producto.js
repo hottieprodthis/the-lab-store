@@ -39,7 +39,8 @@ export default async function handler(req, res) {
     // Enlace directo a la página principal / inicio
     const enlace = 'https://hottieprodthis.com';
 
-    // 1. Obtener los suscriptores desde Supabase
+    // 1. Suscriptores del boletín público (tabla "suscriptores": visitantes
+    // que dejaron su email en la home, sin necesidad de tener cuenta).
     const { data: suscriptores, error } = await supabase
       .from('suscriptores')
       .select('email');
@@ -48,11 +49,42 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: error.message });
     }
 
-    if (!suscriptores || suscriptores.length === 0) {
-      return res.status(200).json({ message: 'No hay suscriptores guardados' });
+    // 2. Clientes del área de clientes que han activado, desde sus propios
+    // Ajustes, el aviso de "nuevo producto/servicio/clase o cambio de
+    // precio" (columna profiles.notify_new_items). Es una casilla aparte
+    // de is_subscribed: un cliente puede querer este aviso aunque no pague
+    // la suscripción del área de clientes, y viceversa.
+    const { data: perfilesConAviso, error: errorPerfiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('notify_new_items', true);
+
+    if (errorPerfiles) {
+      console.error('No se pudo consultar profiles.notify_new_items:', errorPerfiles.message);
     }
 
-    const listaEmails = suscriptores.map((s) => s.email);
+    const emailsClientes = [];
+    if (perfilesConAviso && perfilesConAviso.length > 0) {
+      for (const perfil of perfilesConAviso) {
+        try {
+          const { data } = await supabase.auth.admin.getUserById(perfil.id);
+          if (data?.user?.email) emailsClientes.push(data.user.email);
+        } catch (e) {
+          console.error('No se pudo obtener el email del perfil', perfil.id, e.message);
+        }
+      }
+    }
+
+    // Unimos las dos listas sin duplicados (un cliente podría estar también
+    // apuntado al boletín público con el mismo correo).
+    const listaEmails = Array.from(
+      new Set([...(suscriptores || []).map((s) => s.email), ...emailsClientes].filter(Boolean))
+    );
+
+    if (listaEmails.length === 0) {
+      return res.status(200).json({ message: 'No hay destinatarios: ni suscriptores del boletín ni clientes con el aviso activado' });
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
 
     if (!resendApiKey) {
