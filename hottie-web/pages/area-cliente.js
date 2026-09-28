@@ -14,6 +14,8 @@ export default function AreaClientePage() {
   const [subscriptionPrice, setSubscriptionPrice] = useState(7.99);
   const [showSettings, setShowSettings] = useState(false);
   const [expandedPurchases, setExpandedPurchases] = useState(new Set());
+  const [notifyNewItems, setNotifyNewItems] = useState(false);
+  const [savingNotifyPref, setSavingNotifyPref] = useState(false);
   const router = useRouter();
 
   const toggleExpandPurchase = (id) => {
@@ -63,6 +65,7 @@ export default function AreaClientePage() {
         .single();
 
       setProfile(profileData);
+      setNotifyNewItems(Boolean(profileData?.notify_new_items));
 
       const { data: settingsData } = await supabase
         .from('settings')
@@ -150,6 +153,35 @@ export default function AreaClientePage() {
     } catch (err) {
       console.error('Error de conexión:', err);
       alert('Hubo un error al conectar con el servidor.');
+    }
+  };
+
+  // Guarda si el cliente quiere recibir, en su correo, el mismo aviso de
+  // "nuevo producto/servicio/clase o cambio de precio" que reciben los
+  // suscritos al boletín público. Es una preferencia propia del cliente,
+  // separada de is_subscribed (la suscripción de pago del área de
+  // clientes): puede activarla sin pagar la suscripción, o pagarla sin
+  // activar esto.
+  const handleToggleNotifyNewItems = async (checked) => {
+    setNotifyNewItems(checked);
+    setSavingNotifyPref(true);
+    try {
+      const response = await fetch('/api/actualizar-preferencia-notificaciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, notifyNewItems: checked }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setNotifyNewItems(!checked);
+        alert('No se ha podido guardar esta preferencia: ' + (data.error || 'Error desconocido'));
+      }
+    } catch (err) {
+      console.error('Error guardando preferencia de avisos:', err);
+      setNotifyNewItems(!checked);
+      alert('Hubo un error de conexión al guardar esta preferencia.');
+    } finally {
+      setSavingNotifyPref(false);
     }
   };
 
@@ -365,8 +397,25 @@ export default function AreaClientePage() {
               </div>
 
               <div className="border-t border-white/10 pt-6">
+                <p className="text-xs uppercase tracking-widest text-muted mb-2">Notificaciones</p>
+                <label className="flex items-start gap-2 text-sm text-paper cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyNewItems}
+                    onChange={(e) => handleToggleNotifyNewItems(e.target.checked)}
+                    disabled={savingNotifyPref}
+                    className="mt-0.5 cursor-pointer"
+                  />
+                  <span>Avisarme por correo de nuevos productos, servicios o clases, y de cambios de precio</span>
+                </label>
+                <p className="text-[11px] text-muted mt-2 leading-relaxed">
+                  Es el mismo aviso que reciben los suscritos al boletín — actívalo aquí si quieres recibirlo sin tener que apuntarte aparte. No tiene relación con tu suscripción de pago del área de clientes.
+                </p>
+              </div>
+
+              <div className="border-t border-white/10 pt-6">
                 <p className="text-xs uppercase tracking-widest text-muted mb-2">Seguridad</p>
-                <button 
+                <button
                   onClick={handleResetPassword}
                   className="text-xs text-volt hover:underline"
                 >
