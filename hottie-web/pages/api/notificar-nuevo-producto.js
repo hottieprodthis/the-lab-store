@@ -1,4 +1,18 @@
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+// OJO: este endpoint es server-side (pages/api), así que necesita la
+// Service Role Key y NO el cliente compartido de lib/supabaseClient.js
+// (ese usa la clave "anon", pensada para el navegador). La tabla
+// "suscriptores" tiene RLS activado sin política de lectura pública (solo
+// se permite insertar desde el formulario de la home), así que con la
+// clave "anon" esta consulta siempre devolvía 0 filas sin ningún error
+// visible: por eso nunca llegaba ningún aviso aunque sí hubiera
+// suscriptores guardados. Con la Service Role Key se salta RLS y lee la
+// lista real.
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
