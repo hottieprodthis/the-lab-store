@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../lib/supabaseAdminClient';
 import { slugify } from '../lib/format';
 
 export default function ItemForm({ table, initial, hasFileUrl }) {
