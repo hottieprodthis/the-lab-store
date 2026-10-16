@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import { useState } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -121,6 +122,72 @@ export default function DetalleClase({ clase }) {
     }
   };
 
+  // --- Compra directa cuando la clase NO tiene planes (precio único) ---
+  // Antes, si entrabas aquí (por ejemplo desde el buscador) a una clase sin
+  // planes, esta página solo mostraba el precio, sin ninguna forma de
+  // comprarla: el "+ Carrito" y "RESERVAR" solo existían en la tarjeta del
+  // listado (components/ServiceCard.js), nunca en esta ficha. Usamos
+  // openPaymentPlan/paypalDonePlan/loadingPlan con la clave especial
+  // 'unico' para no duplicar estados, ya que esta rama y la de planes
+  // nunca se muestran a la vez (hasPlans decide una u otra).
+  const handleCheckoutBase = async () => {
+    setLoadingPlan('unico');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: clase.id,
+          isService: true,
+          returnUrl: window.location.href,
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Error al iniciar la reserva.');
+        setLoadingPlan(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión.');
+      setLoadingPlan(null);
+    }
+  };
+
+  const handlePaypalBaseSuccess = async (details) => {
+    setPaypalDonePlan('unico');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const payerEmail = details?.payer?.email_address || null;
+      const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
+        .filter(Boolean)
+        .join(' ');
+
+      await fetch('/api/registrar-pago-paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: 'clase',
+          itemId: clase.id,
+          userId: session?.user?.id || null,
+          userEmail: session?.user?.email || payerEmail,
+          payerEmail,
+          payerName,
+          paypalOrderId: details?.id || null,
+        }),
+      });
+    } catch (err) {
+      console.error('No se pudo registrar el pago de PayPal de esta clase (sin plan) en el historial:', err);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -131,18 +198,19 @@ export default function DetalleClase({ clase }) {
       <Navbar />
 
       <section className="mx-auto max-w-5xl px-5 py-16">
-        <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{clase.name}</h1>
-        <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{clase.description}</p>
-
-        {clase.image_url && (
-          <div className="mt-8 overflow-hidden rounded-sm border border-white/10 max-w-2xl">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{clase.name}</h1>
+            <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{clase.description}</p>
+          </div>
+          {clase.image_url && (
             <img
               src={clase.image_url}
               alt={clase.name}
-              className="w-full max-h-[420px] object-cover"
+              className="h-24 w-24 shrink-0 rounded-sm border border-white/10 object-cover sm:h-32 sm:w-32"
             />
-          </div>
-        )}
+          )}
+        </div>
 
         {hasPlans ? (
           <div className="mt-12 space-y-6">
@@ -213,10 +281,67 @@ export default function DetalleClase({ clase }) {
             </div>
           </div>
         ) : (
-          <div className="mt-12 rounded-sm border border-white/10 bg-surface p-8 text-center max-w-md">
-            <p className="text-2xl font-bold text-volt">
-              {clase.price_cents ? formatPrice(clase.price_cents, clase.currency) : 'A consultar'}
-            </p>
+          <div className="mt-12 max-w-md">
+            <div className="rounded-sm border border-white/10 bg-surface p-8 text-center">
+              <p className="text-2xl font-bold text-volt">
+                {clase.price_cents ? formatPrice(clase.price_cents, clase.currency) : 'A consultar'}
+              </p>
+
+              {clase.price_cents || clase.price ? (
+                <div className="mt-6 flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => addToCart({ ...clase, isClass: true, isService: false }, false)}
+                    className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs font-semibold uppercase tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black"
+                  >
+                    + Carrito
+                  </button>
+                  <button
+                    onClick={() => setOpenPaymentPlan(openPaymentPlan === 'unico' ? null : 'unico')}
+                    className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
+                  >
+                    RESERVAR
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href={`/contacto?clase=${clase.slug}`}
+                  className="mt-6 inline-block rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
+                >
+                  Consultar
+                </Link>
+              )}
+            </div>
+
+            {openPaymentPlan === 'unico' && (clase.price_cents || clase.price) && (
+              <div className="mt-4 rounded-sm border border-white/10 bg-surface p-6 space-y-3">
+                {paypalDonePlan === 'unico' ? (
+                  <p className="text-sm text-volt text-center">¡Pago con PayPal completado! Revisa tu correo.</p>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleCheckoutBase}
+                      disabled={loadingPlan === 'unico'}
+                      className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110 disabled:opacity-50"
+                    >
+                      {loadingPlan === 'unico' ? 'CARGANDO...' : 'Pagar con tarjeta y más'}
+                    </button>
+                    <div className="relative flex py-1 items-center">
+                      <div className="flex-grow border-t border-white/10"></div>
+                      <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                      <div className="flex-grow border-t border-white/10"></div>
+                    </div>
+                    <div className="w-full relative z-10 min-h-[50px]">
+                      <PayPalButton
+                        amount={(clase.price_cents || Math.round((clase.price || 0) * 100)) / 100}
+                        currency={(clase.currency || 'eur').toUpperCase()}
+                        label={clase.name}
+                        onSuccess={handlePaypalBaseSuccess}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>
