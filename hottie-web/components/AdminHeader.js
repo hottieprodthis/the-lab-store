@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../lib/supabaseAdminClient';
 
 export default function AdminHeader({ title }) {
   const router = useRouter();
