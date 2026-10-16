@@ -346,44 +346,11 @@ export default function AreaClientePage() {
               Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo {subscriptionPrice} €/mes.
             </p>
             <button
-              onClick={() => setOpenSubPayment(!openSubPayment)}
+              onClick={() => setOpenSubPayment(true)}
               className="rounded-sm bg-volt px-6 py-3 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
             >
               Suscribirse Ahora ({subscriptionPrice} €/mes)
             </button>
-
-            {/* Menú con las dos formas de pago. El de PayPal aquí es un
-                cobro único de este mes, no una renovación automática. */}
-            {openSubPayment && (
-              <div className="mt-4 max-w-xs mx-auto space-y-3 text-left">
-                <button
-                  onClick={handleSubscriptionCheckout}
-                  className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110"
-                >
-                  Pagar con tarjeta y más
-                </button>
-                <div className="relative flex py-1 items-center">
-                  <div className="flex-grow border-t border-white/10"></div>
-                  <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
-                  <div className="flex-grow border-t border-white/10"></div>
-                </div>
-                <div className="w-full relative z-10 min-h-[50px]">
-                  {subPaypalLoading ? (
-                    <p className="text-xs text-muted text-center">Activando tu acceso…</p>
-                  ) : (
-                    <PayPalButton
-                      amount={Number(subscriptionPrice)}
-                      currency="EUR"
-                      label="Suscripción Área de Clientes (1 mes)"
-                      onSuccess={handleSubscriptionPaypalSuccess}
-                    />
-                  )}
-                </div>
-                <p className="text-[10px] text-muted leading-relaxed">
-                  Con PayPal se cobra solo este mes: no se renueva sola, tendrás que volver a pulsar aquí el mes que viene si quieres seguir.
-                </p>
-              </div>
-            )}
           </div>
         ) : (
           <div className="space-y-12">
@@ -643,6 +610,58 @@ export default function AreaClientePage() {
                 )}
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para elegir cómo pagar la suscripción — antes era un panel
+          que se desplegaba debajo del botón; ahora usa el mismo estilo de
+          ventana emergente con botón de cerrar (X) que el modal de
+          Ajustes, en vez de abrirse en la misma página. */}
+      {openSubPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-sm border border-white/20 bg-ink p-8 shadow-2xl relative">
+
+            <button
+              onClick={() => setOpenSubPayment(false)}
+              className="absolute top-4 right-4 text-muted hover:text-white transition"
+              title="Cerrar"
+            >
+              ✕
+            </button>
+
+            <h3 className="font-display text-2xl tracking-wide text-paper mb-6 border-b border-white/10 pb-4">
+              Suscribirse ({subscriptionPrice} €/mes)
+            </h3>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleSubscriptionCheckout}
+                className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110"
+              >
+                Pagar con tarjeta y más
+              </button>
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                <div className="flex-grow border-t border-white/10"></div>
+              </div>
+              <div className="w-full relative z-10 min-h-[50px]">
+                {subPaypalLoading ? (
+                  <p className="text-xs text-muted text-center">Activando tu acceso…</p>
+                ) : (
+                  <PayPalButton
+                    amount={Number(subscriptionPrice)}
+                    currency="EUR"
+                    label="Suscripción Área de Clientes (1 mes)"
+                    onSuccess={handleSubscriptionPaypalSuccess}
+                  />
+                )}
+              </div>
+              <p className="text-[10px] text-muted leading-relaxed">
+                Con PayPal se cobra solo este mes: no se renueva sola, tendrás que volver a pulsar aquí el mes que viene si quieres seguir.
+              </p>
             </div>
           </div>
         </div>
