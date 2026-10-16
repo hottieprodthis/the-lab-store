@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../../lib/supabaseAdminClient';
 
 export default function AdminLogin() {
   const router = useRouter();
