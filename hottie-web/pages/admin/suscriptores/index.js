@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Navbar from '../../../components/Navbar';
 import Footer from '../../../components/Footer';
-import { supabase } from '../../../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../../../lib/supabaseAdminClient';
 
 export default function AdminSuscriptores() {
   const [suscriptores, setSuscriptores] = useState([]);
