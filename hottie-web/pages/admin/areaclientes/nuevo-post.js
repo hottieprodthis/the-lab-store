@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminGuard from '../../../components/AdminGuard';
 import AdminHeader from '../../../components/AdminHeader';
-import { supabase } from '../../../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../../../lib/supabaseAdminClient';
 
 export default function NuevoPostPage() {
   const router = useRouter();
