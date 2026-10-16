@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../lib/supabaseAdminClient';
 
 export default function AdminGuard({ children }) {
   const router = useRouter();
