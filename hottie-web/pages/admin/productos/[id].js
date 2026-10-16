@@ -4,7 +4,7 @@ import Head from 'next/head';
 import AdminGuard from '../../../components/AdminGuard';
 import AdminHeader from '../../../components/AdminHeader';
 import ItemForm from '../../../components/ItemForm';
-import { supabase } from '../../../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../../../lib/supabaseAdminClient';
 
 export default function EditarProducto() {
   const router = useRouter();
