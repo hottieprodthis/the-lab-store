@@ -102,16 +102,16 @@ export default function ServiceCard({ service }) {
   return (
     <div className="flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
       <div>
-        {service.image_url && (
-          <div className="mb-4 overflow-hidden rounded-sm border border-white/10">
+        <div className="flex items-start justify-between gap-4">
+          <h3 className="font-display text-2xl tracking-wide text-paper">{service.name}</h3>
+          {service.image_url && (
             <img
               src={service.image_url}
               alt={service.name}
-              className="h-40 w-full object-cover"
+              className="h-16 w-16 shrink-0 rounded-sm border border-white/10 object-cover sm:h-20 sm:w-20"
             />
-          </div>
-        )}
-        <h3 className="font-display text-2xl tracking-wide text-paper">{service.name}</h3>
+          )}
+        </div>
         <p className="mt-2 text-sm leading-relaxed text-muted">{service.description}</p>
       </div>
 
