@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import AdminGuard from '../../components/AdminGuard';
 import AdminHeader from '../../components/AdminHeader';
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin as supabase } from '../../lib/supabaseAdminClient';
 
 function Section({ title, items, kind, onDelete }) {
   const getAddUrl = () => {
