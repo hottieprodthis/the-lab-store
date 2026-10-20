@@ -27,6 +27,33 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Esta ruta devuelve emails de clientes, así que solo responde a una
+    // sesión iniciada cuyo perfil tenga is_admin = true (el mismo campo que
+    // ya usa el área de clientes para mostrar el botón "Panel Admin"). El
+    // panel manda el token de la sesión de admin en la cabecera
+    // Authorization; sin él, o con una cuenta que no sea admin, no se
+    // devuelve nada.
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'No autorizado: falta la sesión de admin.' });
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return res.status(401).json({ error: 'No autorizado: la sesión de admin no es válida o ha caducado.' });
+    }
+
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userData.user.id)
+      .single();
+
+    if (!perfil?.is_admin) {
+      return res.status(403).json({ error: 'Esta cuenta no tiene permisos de administrador (profiles.is_admin).' });
+    }
+
     const yearParam = parseInt(req.query.year, 10);
     const year = Number.isInteger(yearParam) ? yearParam : new Date().getFullYear();
 
