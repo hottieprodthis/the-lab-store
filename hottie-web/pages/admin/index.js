@@ -76,13 +76,17 @@ function Section({ title, items, kind, onDelete }) {
 }
 
 // Bloques de estadísticas anuales del panel de admin: qué tipo de artículo
-// representa cada uno y la etiqueta que se muestra. "clase" se cuenta como
-// "Clases Impartidas" porque cada clase vendida es una clase que toca dar.
+// representa cada uno y la etiqueta que se muestra. Se cuentan VENTAS: el
+// sistema no sabe si el cliente llegó a asistir a la clase, solo que la
+// compró, así que la etiqueta dice "Clases Vendidas" y no "impartidas".
 const STAT_BLOCKS = [
   { key: 'servicio', label: 'Servicios Vendidos' },
-  { key: 'clase', label: 'Clases Impartidas' },
+  { key: 'clase', label: 'Clases Vendidas' },
   { key: 'producto', label: 'Productos Vendidos' },
 ];
+
+// Primer año que aparece en el selector de estadísticas anuales.
+const STATS_START_YEAR = 2026;
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
@@ -97,7 +101,12 @@ export default function AdminDashboard() {
 
   // --- ESTADÍSTICAS ANUALES (clases dadas / servicios y productos vendidos) ---
   const currentYear = new Date().getFullYear();
-  const yearOptions = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4];
+  // El selector va del año actual hacia atrás hasta STATS_START_YEAR (el
+  // año en que empezó la tienda). Se recalcula solo con la fecha del
+  // dispositivo: en 2027 saldrá 2027 y 2026, en 2028 saldrá 2028, 2027 y
+  // 2026, y así sucesivamente, sin tocar el código.
+  const yearOptions = [];
+  for (let y = currentYear; y >= STATS_START_YEAR; y--) yearOptions.push(y);
   const [statsYear, setStatsYear] = useState(currentYear);
   const [statsData, setStatsData] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
