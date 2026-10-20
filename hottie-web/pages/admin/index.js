@@ -136,6 +136,88 @@ export default function AdminDashboard() {
     loadStats(statsYear);
   }, [statsYear]);
 
+  // --- LÍMITE SEMANAL DE SERVICIOS Y CLASES ---
+  // Tres límites por semana natural (lunes a domingo): servicios, clases
+  // sueltas (1 h, 2 h… una sola sesión) y packs de 12 horas. Vacío = valor por
+  // defecto (5 / 4 / 1); 0 = no aceptar compras de ese tipo esa semana. Una
+  // semana con un pack de 12 h no admite clases sueltas y al revés (lo aplica
+  // el servidor). Se guarda
+  // a través de /api/admin/limites (que comprueba que la cuenta sea admin).
+  const [limitServicios, setLimitServicios] = useState('');
+  const [limitCortas, setLimitCortas] = useState('');
+  const [limitLargas, setLimitLargas] = useState('');
+  const [limitEstado, setLimitEstado] = useState(null);
+  const [limitMsg, setLimitMsg] = useState('');
+  const [limitSaving, setLimitSaving] = useState(false);
+
+  async function llamarLimites(metodo, cuerpo) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token || '';
+    const res = await fetch('/api/admin/limites', {
+      method: metodo,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(cuerpo ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(cuerpo ? { body: JSON.stringify(cuerpo) } : {}),
+    });
+    return res.json();
+  }
+
+  function aplicarEstadoLimites(estado) {
+    setLimitEstado(estado);
+    const g = estado.guardados || {};
+    setLimitServicios(g.servicios === null || g.servicios === undefined ? '' : String(g.servicios));
+    setLimitCortas(g.cortas === null || g.cortas === undefined ? '' : String(g.cortas));
+    setLimitLargas(g.largas === null || g.largas === undefined ? '' : String(g.largas));
+  }
+
+  async function loadLimits() {
+    try {
+      const data = await llamarLimites('GET');
+      if (data?.ok && data?.semana) {
+        aplicarEstadoLimites(data);
+      } else {
+        setLimitMsg(data?.error || 'No se pudieron cargar los límites.');
+      }
+    } catch (e) {
+      console.error('Error cargando límites semanales:', e);
+      setLimitMsg('No se pudieron cargar los límites.');
+    }
+  }
+
+  useEffect(() => {
+    loadLimits();
+  }, []);
+
+  async function handleSaveLimits(e) {
+    e.preventDefault();
+    setLimitMsg('');
+    setLimitSaving(true);
+    try {
+      const data = await llamarLimites('POST', {
+        servicios: limitServicios,
+        cortas: limitCortas,
+        largas: limitLargas,
+      });
+      if (data?.ok && data?.semana) {
+        aplicarEstadoLimites(data);
+        setLimitMsg('¡Límites guardados correctamente!');
+      } else {
+        setLimitMsg(`Error: ${data?.error || 'no se pudieron guardar los límites.'}`);
+      }
+    } catch (err) {
+      console.error('Error guardando límites semanales:', err);
+      setLimitMsg('Error: no se pudieron guardar los límites.');
+    }
+    setLimitSaving(false);
+  }
+
+  function resumenLimite(bloque) {
+    if (!bloque) return '';
+    return `${bloque.used} de ${bloque.limit}`;
+  }
+
   async function load() {
     setLoading(true);
     const [
@@ -230,6 +312,73 @@ export default function AdminDashboard() {
                 </button>
               </form>
               {priceMessage && <p className="mt-3 text-xs text-volt">{priceMessage}</p>}
+            </div>
+
+            {/* LÍMITE SEMANAL DE COMPRAS */}
+            <div className="mb-12 rounded-sm border border-white/10 bg-surface p-6">
+              <h2 className="font-display text-xl tracking-wide text-paper mb-1">Límite semanal de compras</h2>
+              <p className="mb-4 text-sm text-muted">
+                Máximo por semana (de lunes a domingo). Vacío = valor por defecto · 0 = no aceptar compras de ese tipo esa semana.
+                Una semana con un pack de 12 horas no admite clases sueltas (de 1 o 2 horas), y al revés. Las clases de seguimiento
+                (marcadas como &laquo;No cuenta&raquo;) y los pedidos gratuitos (0 €) no cuentan.
+              </p>
+              <form onSubmit={handleSaveLimits} className="flex flex-wrap items-end gap-4">
+                <label className="block">
+                  <span className="mb-1 block text-xs uppercase tracking-widest text-muted">Servicios / semana</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={limitServicios}
+                    onChange={(e) => setLimitServicios(e.target.value)}
+                    placeholder={`Por defecto ${limitEstado?.defectos?.servicios ?? 5}`}
+                    className="w-44 rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:outline-none focus:border-volt"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs uppercase tracking-widest text-muted">Clases sueltas / semana</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={limitCortas}
+                    onChange={(e) => setLimitCortas(e.target.value)}
+                    placeholder={`Por defecto ${limitEstado?.defectos?.cortas ?? 4}`}
+                    className="w-44 rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:outline-none focus:border-volt"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs uppercase tracking-widest text-muted">Packs de 12 h / semana</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={limitLargas}
+                    onChange={(e) => setLimitLargas(e.target.value)}
+                    placeholder={`Por defecto ${limitEstado?.defectos?.largas ?? 1}`}
+                    className="w-44 rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:outline-none focus:border-volt"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={limitSaving}
+                  className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110 disabled:opacity-50"
+                >
+                  {limitSaving ? 'Guardando…' : 'Guardar Límites'}
+                </button>
+              </form>
+              {limitMsg && <p className="mt-3 text-xs text-volt">{limitMsg}</p>}
+              {limitEstado?.semana && (
+                <p className="mt-3 text-sm text-muted">
+                  Esta semana (se renueva el {limitEstado.semana.renovacion}) — Servicios: {resumenLimite(limitEstado.semana.servicios)} · Clases sueltas: {resumenLimite(limitEstado.semana.cortas)} · Packs de 12 h: {resumenLimite(limitEstado.semana.largas)}
+                </p>
+              )}
+              {Array.isArray(limitEstado?.clasesSinTipo) && limitEstado.clasesSinTipo.length > 0 && (
+                <p className="mt-3 text-xs text-volt">
+                  Atención: estas clases no tienen tipo de cupo (suelta / pack de 12 h / No cuenta) y por ahora NO están limitadas:{' '}
+                  {limitEstado.clasesSinTipo.join(', ')}. Edítalas en &laquo;Clases&raquo; y elige el cupo semanal.
+                </p>
+              )}
             </div>
 
             {/* ESTADÍSTICAS ANUALES */}
