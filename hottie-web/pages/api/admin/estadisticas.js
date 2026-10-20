@@ -57,8 +57,12 @@ export default async function handler(req, res) {
     const yearParam = parseInt(req.query.year, 10);
     const year = Number.isInteger(yearParam) ? yearParam : new Date().getFullYear();
 
-    const desde = `${year}-01-01T00:00:00.000Z`;
-    const hasta = `${year + 1}-01-01T00:00:00.000Z`;
+    // El año se mide en hora de España: el 1 de enero siempre es horario de
+    // invierno (UTC+01:00), así que el año empieza a las 00:00 de allí. Con
+    // "Z" (UTC) una compra hecha entre las 00:00 y la 01:00 del 1 de enero
+    // se habría contado en el año anterior.
+    const desde = new Date(`${year}-01-01T00:00:00+01:00`).toISOString();
+    const hasta = new Date(`${year + 1}-01-01T00:00:00+01:00`).toISOString();
 
     const { data: compras, error } = await supabase
       .from('purchases')
