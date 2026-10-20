@@ -106,7 +106,13 @@ export default function AdminDashboard() {
   async function loadStats(year) {
     setStatsLoading(true);
     try {
-      const res = await fetch(`/api/admin/estadisticas?year=${year}`);
+      // Mandamos el token de la sesión de admin: la ruta comprueba que la
+      // cuenta sea admin antes de devolver emails de clientes.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token || '';
+      const res = await fetch(`/api/admin/estadisticas?year=${year}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       setStatsData(data);
     } catch (e) {
@@ -235,7 +241,9 @@ export default function AdminDashboard() {
               {statsLoading ? (
                 <p className="text-sm text-muted">Calculando estadísticas…</p>
               ) : !statsData || statsData.error ? (
-                <p className="text-sm text-muted">No se pudieron cargar las estadísticas.</p>
+                <p className="text-sm text-muted">
+                  {statsData?.error || 'No se pudieron cargar las estadísticas.'}
+                </p>
               ) : (
                 <>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
