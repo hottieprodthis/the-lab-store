@@ -75,6 +75,15 @@ function Section({ title, items, kind, onDelete }) {
   );
 }
 
+// Bloques de estadísticas anuales del panel de admin: qué tipo de artículo
+// representa cada uno y la etiqueta que se muestra. "clase" se cuenta como
+// "Clases Impartidas" porque cada clase vendida es una clase que toca dar.
+const STAT_BLOCKS = [
+  { key: 'servicio', label: 'Servicios Vendidos' },
+  { key: 'clase', label: 'Clases Impartidas' },
+  { key: 'producto', label: 'Productos Vendidos' },
+];
+
 export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
@@ -85,6 +94,32 @@ export default function AdminDashboard() {
   const [priceMessage, setPriceMessage] = useState('');
   const [subscribersCount, setSubscribersCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // --- ESTADÍSTICAS ANUALES (clases dadas / servicios y productos vendidos) ---
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4];
+  const [statsYear, setStatsYear] = useState(currentYear);
+  const [statsData, setStatsData] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [expandedStat, setExpandedStat] = useState(null);
+
+  async function loadStats(year) {
+    setStatsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/estadisticas?year=${year}`);
+      const data = await res.json();
+      setStatsData(data);
+    } catch (e) {
+      console.error('Error cargando estadísticas del panel:', e);
+      setStatsData(null);
+    }
+    setStatsLoading(false);
+  }
+
+  useEffect(() => {
+    setExpandedStat(null);
+    loadStats(statsYear);
+  }, [statsYear]);
 
   async function load() {
     setLoading(true);
@@ -180,6 +215,86 @@ export default function AdminDashboard() {
                 </button>
               </form>
               {priceMessage && <p className="mt-3 text-xs text-volt">{priceMessage}</p>}
+            </div>
+
+            {/* ESTADÍSTICAS ANUALES */}
+            <div className="mb-12">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-2xl tracking-wide text-paper">Estadísticas Anuales</h2>
+                <select
+                  value={statsYear}
+                  onChange={(e) => setStatsYear(Number(e.target.value))}
+                  className="rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:outline-none focus:border-volt"
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+
+              {statsLoading ? (
+                <p className="text-sm text-muted">Calculando estadísticas…</p>
+              ) : !statsData || statsData.error ? (
+                <p className="text-sm text-muted">No se pudieron cargar las estadísticas.</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {STAT_BLOCKS.map(({ key, label }) => {
+                      const blockData = statsData.stats?.[key] || { count: 0, breakdown: [] };
+                      const isOpen = expandedStat === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setExpandedStat(isOpen ? null : key)}
+                          className={`rounded-sm border p-6 text-left transition ${
+                            isOpen ? 'border-volt bg-surface2' : 'border-white/10 bg-surface hover:border-white/30'
+                          }`}
+                        >
+                          <p className="text-xs uppercase tracking-widest text-muted">{label}</p>
+                          <p className="mt-2 font-display text-4xl text-paper">{blockData.count}</p>
+                          <p className="mt-1 text-xs text-signal">{isOpen ? 'Ocultar detalle ▲' : 'Ver detalle ▼'}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {expandedStat && (
+                    <div className="mt-4 overflow-hidden rounded-sm border border-white/10">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-surface2 text-xs uppercase tracking-widest text-muted">
+                          <tr>
+                            <th className="px-4 py-3">Cliente</th>
+                            <th className="px-4 py-3">Artículo</th>
+                            <th className="px-4 py-3">Cantidad</th>
+                            <th className="px-4 py-3">Fecha</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(statsData.stats?.[expandedStat]?.breakdown || []).length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-3 text-muted">
+                                Sin ventas registradas en {statsYear}.
+                              </td>
+                            </tr>
+                          ) : (
+                            statsData.stats[expandedStat].breakdown.map((row, i) => (
+                              <tr key={i} className="border-t border-white/10 bg-surface">
+                                <td className="px-4 py-3 text-paper">{row.email}</td>
+                                <td className="px-4 py-3 text-muted">{row.name}</td>
+                                <td className="px-4 py-3 text-muted">{row.quantity}</td>
+                                <td className="px-4 py-3 text-muted">
+                                  {new Date(row.created_at).toLocaleDateString('es-ES')}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <Section
