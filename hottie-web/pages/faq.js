@@ -88,7 +88,7 @@ const faqCategories = [
       },
       {
         q: "¿Puedo vender o redistribuir los sonidos de los kits?",
-        a: "No. La compra te otorga una licencia de uso para tus producciones musicales. Queda strictly prohibida la reventa, redistribución o resubida de los archivos de audio de forma individual o en otros paquetes de sonido."
+        a: "No. La compra te otorga una licencia de uso para tus producciones musicales. Queda estrictamente prohibida la reventa, redistribución o resubida de los archivos de audio de forma individual o en otros paquetes de sonido."
       }
     ]
   },
