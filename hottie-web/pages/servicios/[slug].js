@@ -1,15 +1,30 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPrice } from '../../lib/format';
 import { useCart } from '../../context/CartContext';
+import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../../lib/disponibilidadClient';
 import PayPalButton from '../../components/PayPalButton';
 
 export default function DetalleServicio({ service }) {
   const [loadingPlan, setLoadingPlan] = useState(null);
+  // Límite semanal de servicios (panel de admin): si ya no quedan plazas
+  // esta semana se desactivan "+ Carrito" y "RESERVAR" y se avisa.
+  const [disp, setDisp] = useState(null);
+  useEffect(() => {
+    let activo = true;
+    obtenerDisponibilidad().then((d) => {
+      if (activo) setDisp(d);
+    });
+    return () => {
+      activo = false;
+    };
+  }, []);
+  const bloqueoBase = bloqueoPara(disp, 'servicio', service?.cupo);
+  const agotado = bloqueoBase.agotado;
   // Nombre del plan cuyo menú de "cómo pagar" está abierto (Stripe/Bizum o
   // PayPal). Antes RESERVAR lanzaba Stripe directamente sin dar opción a
   // pagar con PayPal, que solo existía en la ficha de producto de tienda.
@@ -30,6 +45,8 @@ export default function DetalleServicio({ service }) {
   }
 
   const hasPlans = Array.isArray(service.plans) && service.plans.length > 0;
+  // El tipo de cupo de cada plan manda sobre el del servicio.
+  const bloqueoDe = (plan) => bloqueoPara(disp, 'servicio', (plan && plan.cupo) || service.cupo);
 
   const handleCheckoutPlan = async (plan) => {
     setLoadingPlan(plan.name);
@@ -57,7 +74,7 @@ export default function DetalleServicio({ service }) {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert('Error al iniciar la reserva.');
+        alert(data.error || 'Error al iniciar la reserva.');
         setLoadingPlan(null);
       }
     } catch (err) {
@@ -142,7 +159,7 @@ export default function DetalleServicio({ service }) {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert('Error al iniciar la reserva.');
+        alert(data.error || 'Error al iniciar la reserva.');
         setLoadingPlan(null);
       }
     } catch (err) {
@@ -203,6 +220,12 @@ export default function DetalleServicio({ service }) {
           )}
         </div>
 
+        {!hasPlans && agotado && (
+          <div className="mt-8 rounded-sm border border-volt/40 bg-volt/10 p-4 text-sm text-paper">
+            {bloqueoBase.motivo}
+          </div>
+        )}
+
         {hasPlans ? (
           <div className="mt-12 space-y-6">
             <h2 className="font-display text-xl text-volt uppercase tracking-wider">Planes disponibles</h2>
@@ -222,17 +245,23 @@ export default function DetalleServicio({ service }) {
                   <div className="mt-8 flex items-center justify-end gap-2 border-t border-white/10 pt-4">
                     <button
                       onClick={() => handleAddToCartPlan(plan)}
-                      className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs font-semibold uppercase tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black"
+                      disabled={bloqueoDe(plan).agotado}
+                      className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs font-semibold uppercase tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#CCFF00]"
                     >
                       + Carrito
                     </button>
                     <button
                       onClick={() => setOpenPaymentPlan(openPaymentPlan === plan.name ? null : plan.name)}
-                      className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal disabled:opacity-50"
+                      disabled={bloqueoDe(plan).agotado}
+                      className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       RESERVAR
                     </button>
                   </div>
+
+                  {bloqueoDe(plan).agotado && (
+                    <p className="mt-3 text-right text-xs text-volt">{bloqueoDe(plan).motivo}</p>
+                  )}
 
                   {/* Menú con las dos formas de pago, igual que en la
                       ficha de producto de tienda: antes RESERVAR lanzaba
@@ -261,6 +290,9 @@ export default function DetalleServicio({ service }) {
                               currency={(service.currency || 'eur').toUpperCase()}
                               label={`${service.name} (${plan.name})`}
                               onSuccess={(details) => handlePaypalPlanSuccess(plan, details)}
+                              checkBeforePay={() =>
+                                permitirPago([{ tipo: 'servicio', id: service.id, name: `${service.name} (${plan.name})`, quantity: 1 }])
+                              }
                             />
                           </div>
                         </>
@@ -282,13 +314,15 @@ export default function DetalleServicio({ service }) {
                 <div className="mt-6 flex items-center justify-center gap-2">
                   <button
                     onClick={() => addToCart(service, true)}
-                    className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs font-semibold uppercase tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black"
+                    disabled={agotado}
+                    className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs font-semibold uppercase tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#CCFF00]"
                   >
                     + Carrito
                   </button>
                   <button
                     onClick={() => setOpenPaymentPlan(openPaymentPlan === 'unico' ? null : 'unico')}
-                    className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
+                    disabled={agotado}
+                    className="rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     RESERVAR
                   </button>
@@ -327,6 +361,9 @@ export default function DetalleServicio({ service }) {
                         currency={(service.currency || 'eur').toUpperCase()}
                         label={service.name}
                         onSuccess={handlePaypalBaseSuccess}
+                        checkBeforePay={() =>
+                          permitirPago([{ tipo: 'servicio', id: service.id, name: service.name, quantity: 1 }])
+                        }
                       />
                     </div>
                   </>
