@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabaseClient'; // <-- 1. Importamos Supabase
+import { permitirPago } from '../lib/disponibilidadClient';
 import PayPalButton from './PayPalButton';
 
 export default function CartFloating() {
@@ -33,6 +34,17 @@ export default function CartFloating() {
     }
     getUser();
   }, []);
+
+  // Servicios y clases del carrito, para la comprobación previa del cupo
+  // semanal con PayPal (isClass tiene prioridad sobre isService, igual que
+  // en checkout.js; el servidor decide qué cupo ocupa cada uno).
+  const itemsLimitados = () =>
+    cart.map((i) => ({
+      tipo: i.isClass ? 'clase' : i.isService ? 'servicio' : 'producto',
+      id: i.id,
+      name: i.name || i.title || i.nombre || '',
+      quantity: Number(i.quantity) || 1,
+    }));
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -291,6 +303,7 @@ export default function CartFloating() {
                         currency={(cart[0]?.currency || cart[0]?.moneda || 'eur').toUpperCase()}
                         label={cart.map((i) => i.title || i.name || i.nombre || 'Artículo').join(' + ').slice(0, 120)}
                         onSuccess={handlePaypalSuccess}
+                        checkBeforePay={() => permitirPago(itemsLimitados())}
                       />
                     </div>
                   </>
