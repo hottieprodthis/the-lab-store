@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { estadoSemana, resumirPedido, comprobarPedido } from '../../lib/limiteSemanal';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -76,6 +77,9 @@ export default async function handler(req, res) {
     let hasService = false;
     let hasClass = false;
     let hasProduct = false;
+    // Servicios y clases del pedido ({ tipo, id, name, quantity }), para el
+    // cupo semanal (más abajo, antes de cobrar).
+    const itemsCupo = [];
     let driveLink = '';
     let metadataPayload = {
       user_id: resolvedUserId || '',
@@ -217,6 +221,17 @@ export default async function handler(req, res) {
 
       planNameToSave = enrichedCart.map(i => i.title).join(' + ');
 
+      for (const i of enrichedCart) {
+        if (i.isClass || i.isService) {
+          itemsCupo.push({
+            tipo: i.isClass ? 'clase' : 'servicio',
+            id: i.dbId || i.id,
+            name: i.title,
+            quantity: Number(i.quantity) || 1,
+          });
+        }
+      }
+
       lineItems = enrichedCart.map((item) => ({
         price_data: {
           currency: item.currency.toLowerCase(),
@@ -330,6 +345,14 @@ export default async function handler(req, res) {
 
       const unitAmount = customPriceCents || item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
       totalCents += unitAmount;
+      if (hasClass || hasService) {
+        itemsCupo.push({
+          tipo: hasClass ? 'clase' : 'servicio',
+          id: item.id,
+          name: planName ? `${item.name || item.title || item.nombre || ''} (${planName})` : (item.name || item.title || item.nombre || ''),
+          quantity: 1,
+        });
+      }
 
       driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
 
@@ -414,6 +437,24 @@ export default async function handler(req, res) {
 
     if (totalCents > 0 && totalCents < 50) {
       return res.status(400).json({ error: 'Stripe requiere un importe mínimo de 0.50€' });
+    }
+
+    // --- LÍMITE SEMANAL DE SERVICIOS Y CLASES ---
+    // Solo se aplica a pedidos de pago (los gratuitos de 0 € no cuentan) y
+    // nunca a la suscripción. Si la comprobación falla por cualquier motivo,
+    // NO se bloquea la venta (mejor vender de más una vez que no poder
+    // cobrar).
+    if (!isSubscription && totalCents > 0 && itemsCupo.length > 0) {
+      try {
+        const estado = await estadoSemana(supabase);
+        const resumen = await resumirPedido(supabase, itemsCupo);
+        const comprobacion = comprobarPedido(estado, resumen);
+        if (!comprobacion.ok) {
+          return res.status(409).json({ error: comprobacion.message, limitReached: true });
+        }
+      } catch (limiteErr) {
+        console.error('No se pudo comprobar el límite semanal (se deja pasar el pedido):', limiteErr);
+      }
     }
 
     // --- DETERMINAR EL TIPO EXACTO PARA LA PÁGINA DE GRACIAS / BRIEFING ---
