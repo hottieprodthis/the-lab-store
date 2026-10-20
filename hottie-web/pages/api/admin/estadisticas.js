@@ -64,15 +64,26 @@ export default async function handler(req, res) {
     const desde = new Date(`${year}-01-01T00:00:00+01:00`).toISOString();
     const hasta = new Date(`${year + 1}-01-01T00:00:00+01:00`).toISOString();
 
-    const { data: compras, error } = await supabase
-      .from('purchases')
-      .select('id, user_id, items, created_at')
-      .gte('created_at', desde)
-      .lt('created_at', hasta)
-      .order('created_at', { ascending: false });
+    // Supabase devuelve como máximo 1000 filas por consulta; se lee por
+    // páginas para que, si algún año hay más de 1000 compras, los números
+    // no salgan recortados en silencio.
+    const compras = [];
+    const TAMANO_PAGINA = 1000;
+    for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
+      const { data: pagina, error } = await supabase
+        .from('purchases')
+        .select('id, user_id, items, created_at')
+        .gte('created_at', desde)
+        .lt('created_at', hasta)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(inicio, inicio + TAMANO_PAGINA - 1);
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      compras.push(...(pagina || []));
+      if (!pagina || pagina.length < TAMANO_PAGINA) break;
     }
 
     // Resolvemos el email de cada cliente UNA sola vez por user_id (no una
