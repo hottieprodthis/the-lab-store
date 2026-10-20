@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabaseAdmin as supabase } from '../lib/supabaseAdminClient';
 import { slugify } from '../lib/format';
@@ -34,13 +34,37 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   // ESTADO PARA PLANES / CATEGORÍAS
   const [plans, setPlans] = useState(initial?.plans || []);
 
+  // CUPO SEMANAL (solo Servicios y Clases): qué plaza ocupa lo que se vende
+  // (ver lib/limiteSemanal.js). El tipo de la clase/servicio se guarda en la
+  // columna "cupo" (supabase/migrations/2026-10-21_cupo_semanal.sql); el de
+  // cada plan va dentro del propio plan. Si la columna todavía no existe en
+  // la base de datos, el selector general se oculta y NO se envía el campo,
+  // para no romper el guardado normal.
+  const [cupo, setCupo] = useState(initial?.cupo || '');
+  const [cupoColumna, setCupoColumna] = useState(false);
+  useEffect(() => {
+    if (!supportsPlans) return;
+    let activo = true;
+    supabase
+      .from(table)
+      .select('cupo')
+      .limit(1)
+      .then(({ error: probeError }) => {
+        if (activo) setCupoColumna(!probeError);
+      });
+    return () => {
+      activo = false;
+    };
+  }, [table, supportsPlans]);
+  const esClase = table === 'classes';
+
   function handleNameChange(value) {
     setName(value);
     if (!slugTouched) setSlug(slugify(value));
   }
 
   const addPlan = () => {
-    setPlans([...plans, { name: '', price: '', description: '' }]);
+    setPlans([...plans, { name: '', price: '', description: '', cupo: '' }]);
   };
 
   const removePlan = (index) => {
@@ -88,6 +112,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         name: p.name.trim(),
         price: p.price !== '' ? parseFloat(p.price) : 0,
         description: p.description ? p.description.trim() : '',
+        // Solo se guarda el tipo de cupo del plan si se ha elegido uno.
+        ...(p.cupo ? { cupo: p.cupo } : {}),
       }));
 
     // Si hay planes, el precio base será el del plan más económico para referencia
@@ -117,6 +143,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
     
     if (supportsPlans) {
       payload.plans = formattedPlans;
+      if (cupoColumna) payload.cupo = cupo || null;
     }
 
     setSaving(true);
@@ -247,6 +274,39 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         </div>
       </div>
 
+      {/* CUPO SEMANAL (Solo para Servicios y Clases) */}
+      {supportsPlans && cupoColumna && (
+        <div className="border-t border-white/15 pt-6">
+          <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
+            Cupo semanal
+          </label>
+          <select
+            value={cupo}
+            onChange={(e) => setCupo(e.target.value)}
+            className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
+          >
+            {esClase ? (
+              <>
+                <option value="">Sin definir (no entra en el cupo semanal)</option>
+                <option value="corta">Clase suelta (una sola sesión: 1 h, 2 h…)</option>
+                <option value="larga">Pack de 12 horas (4 sesiones de 3 h)</option>
+                <option value="libre">No cuenta para el cupo (p. ej. Seguimiento)</option>
+              </>
+            ) : (
+              <>
+                <option value="">Cuenta para el límite semanal de servicios</option>
+                <option value="libre">No cuenta para el límite (p. ej. Seguimiento)</option>
+              </>
+            )}
+          </select>
+          <p className="mt-1 text-[11px] text-muted">
+            {esClase
+              ? 'Las clases sueltas y el pack de 12 horas se excluyen entre sí en la misma semana. Si esta clase tiene planes, puedes elegir el tipo en cada plan.'
+              : 'Si este servicio tiene planes, puedes elegir el tipo en cada plan.'}
+          </p>
+        </div>
+      )}
+
       {/* PLANES / CATEGORÍAS (Solo para Servicios y Clases) */}
       {supportsPlans && (
         <div className="border-t border-white/15 pt-6">
@@ -310,6 +370,29 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
                     className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
                     placeholder="Incluye..."
                   />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs text-muted">Cupo semanal de este plan</label>
+                  <select
+                    value={plan.cupo || ''}
+                    onChange={(e) => updatePlan(index, 'cupo', e.target.value)}
+                    className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
+                  >
+                    {esClase ? (
+                      <>
+                        <option value="">Igual que la clase</option>
+                        <option value="corta">Clase suelta (1 h, 2 h…)</option>
+                        <option value="larga">Pack de 12 horas</option>
+                        <option value="libre">No cuenta para el cupo</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="">Igual que el servicio</option>
+                        <option value="libre">No cuenta para el límite</option>
+                      </>
+                    )}
+                  </select>
                 </div>
               </div>
             ))}
