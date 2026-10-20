@@ -1,12 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatPrice } from '../lib/format';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabaseClient';
+import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../lib/disponibilidadClient';
 import PayPalButton from './PayPalButton';
 
 export default function ServiceCard({ service }) {
   const [loading, setLoading] = useState(false);
+  // Límite semanal de servicios/clases: si ya no quedan plazas esta semana
+  // (o la clase es incompatible con otra ya reservada), se desactivan
+  // "+ Carrito" y "RESERVAR" y se explica el motivo.
+  const [disp, setDisp] = useState(null);
+  useEffect(() => {
+    let activo = true;
+    obtenerDisponibilidad().then((d) => {
+      if (activo) setDisp(d);
+    });
+    return () => {
+      activo = false;
+    };
+  }, []);
+  const bloqueo = bloqueoPara(disp, service.isClass ? 'clase' : 'servicio', service.cupo);
+  const agotado = bloqueo.agotado;
   // Menú de "cómo pagar" para los servicios/clases de precio único (sin
   // planes): estos nunca pasan por la página [slug].js (aquí mismo se
   // compran), así que el menú de tarjeta/PayPal vive en esta tarjeta.
@@ -59,7 +75,7 @@ export default function ServiceCard({ service }) {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert('Error al iniciar la reserva. Inténtalo de nuevo.');
+        alert(data.error || 'Error al iniciar la reserva. Inténtalo de nuevo.');
         setLoading(false);
       }
     } catch (error) {
@@ -149,6 +165,11 @@ export default function ServiceCard({ service }) {
                 Ver opciones
               </span>
             </Link>
+          ) : agotado && (service.price_cents || service.price) ? (
+            /* SIN PLAZAS ESTA SEMANA (límite semanal del panel de admin) */
+            <span className="max-w-[16rem] text-right text-xs font-semibold text-muted">
+              {bloqueo.motivo || 'Sin plazas esta semana'}
+            </span>
           ) : service.price_cents || service.price ? (
             /* SI ES PRECIO ÚNICO: Permite añadir al carrito y Checkout directo */
             <>
@@ -205,6 +226,16 @@ export default function ServiceCard({ service }) {
                   currency={(service.currency || 'eur').toUpperCase()}
                   label={service.name}
                   onSuccess={handlePaypalSuccess}
+                  checkBeforePay={() =>
+                    permitirPago([
+                      {
+                        tipo: service.isClass ? 'clase' : 'servicio',
+                        id: service.id,
+                        name: service.name,
+                        quantity: 1,
+                      },
+                    ])
+                  }
                 />
               </div>
             </>
