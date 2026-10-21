@@ -48,29 +48,34 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const d = calcularDisponibilidad(estado);
       return res.status(200).json({
-        // "remaining" = plazas que quedan (el carrito lo usa para no dejar
-        // acumular más unidades de las que caben).
+        // "remaining" = plazas que quedan y "limit" = máximo del periodo (el
+        // carrito los usa para no dejar acumular más unidades de las que caben
+        // y para explicar la regla).
         servicios: {
           disponible: d.servicios.disponible,
           motivo: d.servicios.motivo,
           remaining: d.servicios.remaining,
+          limit: d.servicios.limit,
         },
         clases: {
           corta: {
             disponible: d.clases.corta.disponible,
             motivo: d.clases.corta.motivo,
             remaining: d.clases.corta.remaining,
+            limit: d.clases.corta.limit,
           },
           larga: {
             disponible: d.clases.larga.disponible,
             motivo: d.clases.larga.motivo,
             remaining: d.clases.larga.remaining,
+            limit: d.clases.larga.limit,
           },
         },
         seguimiento: {
           disponible: d.seguimiento.disponible,
           motivo: d.seguimiento.motivo,
           remaining: d.seguimiento.remaining,
+          limit: d.seguimiento.limit,
         },
         renovacion: d.renovacion,
       });
