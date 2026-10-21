@@ -21,11 +21,12 @@ const TODO_DISPONIBLE = {
     corta: { disponible: true, motivo: '' },
     larga: { disponible: true, motivo: '' },
   },
+  seguimiento: { disponible: true, motivo: '' },
   renovacion: '',
 };
 
-// GET  -> si quedan plazas esta semana de servicios y de clases (2 h y 12 h)
-//         y por qué no, si no quedan. Lo usan las fichas, los listados y el
+// GET  -> si quedan plazas esta semana de servicios y de clases (sueltas y de
+//         12 h), y este mes de seguimiento, y por qué no, si no quedan. Lo usan las fichas, los listados y el
 //         carrito para desactivar botones y avisar.
 // POST -> { items: [{ tipo, id, name, quantity }] }: comprueba si ese pedido
 //         cabe en lo que queda de semana. Lo llaman los botones de PayPal
@@ -47,10 +48,29 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const d = calcularDisponibilidad(estado);
       return res.status(200).json({
-        servicios: { disponible: d.servicios.disponible, motivo: d.servicios.motivo },
+        // "remaining" = plazas que quedan (el carrito lo usa para no dejar
+        // acumular más unidades de las que caben).
+        servicios: {
+          disponible: d.servicios.disponible,
+          motivo: d.servicios.motivo,
+          remaining: d.servicios.remaining,
+        },
         clases: {
-          corta: { disponible: d.clases.corta.disponible, motivo: d.clases.corta.motivo },
-          larga: { disponible: d.clases.larga.disponible, motivo: d.clases.larga.motivo },
+          corta: {
+            disponible: d.clases.corta.disponible,
+            motivo: d.clases.corta.motivo,
+            remaining: d.clases.corta.remaining,
+          },
+          larga: {
+            disponible: d.clases.larga.disponible,
+            motivo: d.clases.larga.motivo,
+            remaining: d.clases.larga.remaining,
+          },
+        },
+        seguimiento: {
+          disponible: d.seguimiento.disponible,
+          motivo: d.seguimiento.motivo,
+          remaining: d.seguimiento.remaining,
         },
         renovacion: d.renovacion,
       });
