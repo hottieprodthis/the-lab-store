@@ -77,12 +77,19 @@ export async function permitirPago(items) {
 // Es solo una ayuda para el cliente: la comprobación que manda es la del
 // servidor (api/checkout.js y api/disponibilidad.js).
 
-const ETIQUETAS = {
-  servicios: 'servicios esta semana',
-  corta: 'clases sueltas esta semana',
-  larga: 'la clase de 12 horas esta semana',
-  seguimiento: 'seguimiento este mes',
+const NOMBRES = {
+  servicios: { uno: 'servicio', varios: 'servicios', periodo: 'por semana', cuando: 'esta semana' },
+  corta: { uno: 'clase suelta', varios: 'clases sueltas', periodo: 'por semana', cuando: 'esta semana' },
+  larga: { uno: 'clase de 12 horas', varios: 'clases de 12 horas', periodo: 'por semana', cuando: 'esta semana' },
+  seguimiento: { uno: 'seguimiento', varios: 'seguimientos', periodo: 'al mes', cuando: 'este mes' },
 };
+
+// "Máximo 1 clase de 12 horas por semana." (vacío si no se conoce el máximo)
+function textoRegla(grupo, limite) {
+  if (typeof limite !== 'number' || limite < 1) return '';
+  const n = NOMBRES[grupo];
+  return `Máximo ${limite} ${limite === 1 ? n.uno : n.varios} ${n.periodo}.`;
+}
 
 // A qué cupo pertenece un artículo del carrito (null = sin límite).
 // "isClass" tiene prioridad sobre "isService", igual que en checkout.js.
@@ -132,10 +139,11 @@ function bloqueDe(disp, grupo) {
 }
 
 // Máximo de unidades que admite ESE artículo en el carrito, teniendo en cuenta
-// lo que ya hay de su mismo cupo. Devuelve { max, motivo }; max = Infinity si
-// no tiene tope. "motivo" explica por qué (solo si hay tope).
+// lo que ya hay de su mismo cupo. Devuelve { max, motivo, regla }; max =
+// Infinity si no tiene tope. "motivo" explica por qué se llegó al tope y
+// "regla" es la norma general ("Máximo 4 clases sueltas por semana.").
 export function limiteDeItem(item, cart, disp) {
-  const sinTope = { max: Infinity, motivo: '' };
+  const sinTope = { max: Infinity, motivo: '', regla: '' };
   const grupo = grupoDeCupo(item);
   if (!grupo || !disp) return sinTope;
 
@@ -144,27 +152,41 @@ export function limiteDeItem(item, cart, disp) {
   // Una clase de 12 h y las clases sueltas no se mezclan en el mismo pedido.
   const opuesto = grupo === 'corta' ? 'larga' : grupo === 'larga' ? 'corta' : null;
   if (opuesto && unidadesEnGrupo(lista, opuesto) > 0) {
+    const limLarga = disp?.clases?.larga?.limit;
+    const limCorta = disp?.clases?.corta?.limit;
+    const detalle =
+      typeof limLarga === 'number' && typeof limCorta === 'number'
+        ? `: la clase de 12 horas (máximo ${limLarga} por semana) o clases sueltas (máximo ${limCorta} por semana)`
+        : '';
     return {
       max: 0,
-      motivo: 'No se puede reservar a la vez una clase de 12 horas y clases sueltas. Elige solo un tipo.',
+      motivo: `No se puede reservar a la vez una clase de 12 horas y clases sueltas en la misma semana. Elige solo un tipo${detalle}.`,
+      regla: textoRegla(grupo, bloqueDe(disp, grupo)?.limit),
     };
   }
 
   const plazas = plazasPorGrupo(disp)[grupo];
   if (plazas === null || plazas === undefined) return sinTope;
 
+  const n = NOMBRES[grupo];
+  const regla = textoRegla(grupo, bloqueDe(disp, grupo)?.limit);
+
   if (plazas <= 0) {
     return {
       max: 0,
-      motivo: bloqueDe(disp, grupo)?.motivo || `No quedan plazas de ${ETIQUETAS[grupo]}.`,
+      motivo: bloqueDe(disp, grupo)?.motivo || `No quedan plazas de ${n.varios} ${n.cuando}.`,
+      regla,
     };
   }
 
   const otras = unidadesEnGrupo(lista, grupo, item);
-  return {
-    max: Math.max(0, plazas - otras),
-    motivo: `Solo ${plazas === 1 ? 'queda 1 plaza' : `quedan ${plazas} plazas`} de ${ETIQUETAS[grupo]}.`,
-  };
+  const limite = bloqueDe(disp, grupo)?.limit;
+  const quedan = plazas === 1 ? 'queda 1 plaza' : `quedan ${plazas} plazas`;
+  const motivo =
+    typeof limite === 'number' && limite >= 1
+      ? `Solo ${quedan} ${n.cuando} (el máximo es ${limite} ${limite === 1 ? n.uno : n.varios} ${n.periodo}).`
+      : `Solo ${quedan} de ${n.varios} ${n.cuando}.`;
+  return { max: Math.max(0, plazas - otras), motivo, regla };
 }
 
 // Añade UNA unidad al carrito si cabe. Devuelve { cart, aviso } (aviso vacío
