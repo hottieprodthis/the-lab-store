@@ -13,12 +13,16 @@
 //  - CLASES: cada clase (o cada plan de una clase) se marca en el panel como
 //      · "corta"  = CLASE SUELTA (una sola sesión individual, dure 1 h,
 //                   2 h o lo que sea) -> máximo 4 por semana
-//      · "larga"  = PACK DE 12 HORAS (4 sesiones de 3 h) -> máximo 1 por semana
-//      · "libre"  = no entra en el cupo (por ejemplo el Seguimiento)
+//      · "larga"  = CLASE DE 12 HORAS (repartida en 4 días de 3 h)
+//                   -> máximo 1 por semana
+//      · "seguimiento" = SEGUIMIENTO (servicio mensual de 2 h a la semana)
+//                   -> máximo 1 por MES natural. No gasta plazas semanales
+//                   ni bloquea las clases sueltas ni la de 12 h.
+//      · "libre"  = no entra en ningún cupo
 //      · sin marcar = tampoco entra en el cupo
-//    Las clases sueltas y el pack de 12 h SE EXCLUYEN ENTRE SÍ dentro de la
-//    misma semana: si hay un pack de 12 h reservado no se pueden reservar
-//    sueltas, y si hay alguna suelta reservada no se puede reservar el pack.
+//    Las clases sueltas y la clase de 12 h SE EXCLUYEN ENTRE SÍ dentro de la
+//    misma semana: si hay una de 12 h reservada no se pueden reservar
+//    sueltas, y si hay alguna suelta reservada no se puede reservar la de 12 h.
 //    El nombre interno "corta" se mantiene por compatibilidad con lo ya
 //    guardado en la base de datos.
 //  - Los límites se guardan en la tabla "settings" que ya existe (igual que
@@ -30,8 +34,9 @@ const TZ = 'Europe/Madrid';
 export const CLAVE_LIMITE_SERVICIOS = 'weekly_limit_services';
 export const CLAVE_LIMITE_CORTAS = 'weekly_limit_classes_short';
 export const CLAVE_LIMITE_LARGAS = 'weekly_limit_classes_long';
+export const CLAVE_LIMITE_SEGUIMIENTO = 'monthly_limit_followup';
 
-export const LIMITES_POR_DEFECTO = { servicios: 5, cortas: 4, largas: 1 };
+export const LIMITES_POR_DEFECTO = { servicios: 5, cortas: 4, largas: 1, seguimiento: 1 };
 
 // ---------------------------------------------------------------------------
 // Semana natural en hora de España
@@ -108,6 +113,27 @@ export function semanaActual(ahora = new Date()) {
   return { desde, hasta, renovacion };
 }
 
+// Mes natural actual: del día 1 a las 00:00 al día 1 del mes siguiente (hora
+// de España). Se usa para el cupo mensual del Seguimiento.
+export function mesActual(ahora = new Date()) {
+  const p = partesEnMadrid(ahora);
+  const desde = medianocheMadridAUtc(p.y, p.m, 1);
+  const hasta = medianocheMadridAUtc(p.m === 12 ? p.y + 1 : p.y, p.m === 12 ? 1 : p.m + 1, 1);
+
+  const partesTexto = {};
+  for (const parte of new Intl.DateTimeFormat('es-ES', {
+    timeZone: TZ,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).formatToParts(hasta)) {
+    partesTexto[parte.type] = parte.value;
+  }
+  const renovacion = `${partesTexto.weekday} ${partesTexto.day} de ${partesTexto.month}`;
+
+  return { desde, hasta, renovacion };
+}
+
 // ---------------------------------------------------------------------------
 // Límites guardados
 // ---------------------------------------------------------------------------
@@ -126,22 +152,24 @@ export async function leerLimites(supabase) {
   const { data, error } = await supabase
     .from('settings')
     .select('key, value')
-    .in('key', [CLAVE_LIMITE_SERVICIOS, CLAVE_LIMITE_CORTAS, CLAVE_LIMITE_LARGAS]);
+    .in('key', [CLAVE_LIMITE_SERVICIOS, CLAVE_LIMITE_CORTAS, CLAVE_LIMITE_LARGAS, CLAVE_LIMITE_SEGUIMIENTO]);
 
   if (error) throw new Error(`No se pudieron leer los límites: ${error.message}`);
 
-  const guardados = { servicios: null, cortas: null, largas: null };
+  const guardados = { servicios: null, cortas: null, largas: null, seguimiento: null };
   for (const fila of data || []) {
     const n = aNumeroValido(fila.value);
     if (fila.key === CLAVE_LIMITE_SERVICIOS) guardados.servicios = n;
     if (fila.key === CLAVE_LIMITE_CORTAS) guardados.cortas = n;
     if (fila.key === CLAVE_LIMITE_LARGAS) guardados.largas = n;
+    if (fila.key === CLAVE_LIMITE_SEGUIMIENTO) guardados.seguimiento = n;
   }
 
   const efectivos = {
     servicios: guardados.servicios ?? LIMITES_POR_DEFECTO.servicios,
     cortas: guardados.cortas ?? LIMITES_POR_DEFECTO.cortas,
     largas: guardados.largas ?? LIMITES_POR_DEFECTO.largas,
+    seguimiento: guardados.seguimiento ?? LIMITES_POR_DEFECTO.seguimiento,
   };
   return { guardados, efectivos };
 }
@@ -150,9 +178,10 @@ export async function leerLimites(supabase) {
 // Tipo de cupo de cada servicio / clase / plan
 // ---------------------------------------------------------------------------
 
-// Valores válidos: 'corta' (2 h), 'larga' (12 h), 'libre' (no cuenta) o ''.
+// Valores válidos: 'corta' (clase suelta), 'larga' (clase de 12 h),
+// 'seguimiento' (cupo mensual), 'libre' (no cuenta) o ''.
 export function normalizarCupo(valor) {
-  return valor === 'corta' || valor === 'larga' || valor === 'libre' ? valor : '';
+  return valor === 'corta' || valor === 'larga' || valor === 'seguimiento' || valor === 'libre' ? valor : '';
 }
 
 // Tipo de cupo de lo que se compró, dada la fila de la tabla (services o
@@ -227,12 +256,9 @@ async function cargarFilas(supabase) {
 // Uso de la semana
 // ---------------------------------------------------------------------------
 
-// Cuenta las unidades vendidas (de pago) en el rango: servicios que cuentan,
-// clases cortas (2 h) y clases largas (12 h).
-export async function contarVendidas(supabase, desde, hasta, filas) {
-  const mapaServicios = construirMapa(filas.servicios);
-  const mapaClases = construirMapa(filas.clases);
-  const total = { servicios: 0, cortas: 0, largas: 0 };
+// Recorre los artículos de todas las compras de pago del rango (paginando de
+// 1000 en 1000, que es el máximo que devuelve Supabase por consulta).
+async function recorrerArticulos(supabase, desde, hasta, alArticulo) {
   const TAMANO_PAGINA = 1000;
 
   for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
@@ -250,33 +276,76 @@ export async function contarVendidas(supabase, desde, hasta, filas) {
 
     for (const compra of data || []) {
       if (!Array.isArray(compra.items)) continue;
-      for (const articulo of compra.items) {
-        const cantidad = Number(articulo?.quantity) || 1;
-        if (articulo?.type === 'servicio') {
-          // Un servicio sin reconocer cuenta (lo normal); solo "libre" no.
-          if (buscarCupo(mapaServicios, articulo.name) !== 'libre') total.servicios += cantidad;
-        } else if (articulo?.type === 'clase') {
-          const cupo = buscarCupo(mapaClases, articulo.name);
-          if (cupo === 'corta') total.cortas += cantidad;
-          if (cupo === 'larga') total.largas += cantidad;
-        }
-      }
+      for (const articulo of compra.items) alArticulo(articulo);
     }
 
     if (!data || data.length < TAMANO_PAGINA) break;
   }
+}
+
+// Cuenta las unidades vendidas (de pago) en el rango: servicios que cuentan,
+// clases sueltas y clases de 12 h. El Seguimiento NO entra aquí (tiene su
+// propio cupo mensual).
+export async function contarVendidas(supabase, desde, hasta, filas) {
+  const mapaServicios = construirMapa(filas.servicios);
+  const mapaClases = construirMapa(filas.clases);
+  const total = { servicios: 0, cortas: 0, largas: 0 };
+
+  await recorrerArticulos(supabase, desde, hasta, (articulo) => {
+    const cantidad = Number(articulo?.quantity) || 1;
+    if (articulo?.type === 'servicio') {
+      // Un servicio sin reconocer cuenta (lo normal); solo "libre" y
+      // "seguimiento" no cuentan en el cupo semanal de servicios.
+      const cupo = buscarCupo(mapaServicios, articulo.name);
+      if (cupo !== 'libre' && cupo !== 'seguimiento') total.servicios += cantidad;
+    } else if (articulo?.type === 'clase') {
+      const cupo = buscarCupo(mapaClases, articulo.name);
+      if (cupo === 'corta') total.cortas += cantidad;
+      if (cupo === 'larga') total.largas += cantidad;
+    }
+  });
   return total;
 }
 
-// Estado completo de la semana actual.
+// Cuenta los seguimientos vendidos (de pago) en el rango (el mes natural).
+// Puede estar marcado como seguimiento un servicio o una clase.
+export async function contarSeguimientos(supabase, desde, hasta, filas) {
+  const mapaServicios = construirMapa(filas.servicios);
+  const mapaClases = construirMapa(filas.clases);
+
+  // Si nada está marcado como seguimiento no hace falta ni consultar.
+  const hayAlguno =
+    [...mapaServicios.values(), ...mapaClases.values()].includes('seguimiento');
+  if (!hayAlguno) return 0;
+
+  let total = 0;
+  await recorrerArticulos(supabase, desde, hasta, (articulo) => {
+    const cantidad = Number(articulo?.quantity) || 1;
+    const mapa =
+      articulo?.type === 'servicio' ? mapaServicios : articulo?.type === 'clase' ? mapaClases : null;
+    if (mapa && buscarCupo(mapa, articulo.name) === 'seguimiento') total += cantidad;
+  });
+  return total;
+}
+
+// Estado completo de la semana actual (y del mes actual, para el seguimiento).
 export async function estadoSemana(supabase) {
   const { desde, hasta, renovacion } = semanaActual();
+  const mes = mesActual();
   const [{ guardados, efectivos }, filas] = await Promise.all([
     leerLimites(supabase),
     cargarFilas(supabase),
   ]);
   const usadas = await contarVendidas(supabase, desde, hasta, filas);
-  return { limites: efectivos, guardados, usadas, renovacion, filas };
+  usadas.seguimientos = await contarSeguimientos(supabase, mes.desde, mes.hasta, filas);
+  return {
+    limites: efectivos,
+    guardados,
+    usadas,
+    renovacion,
+    renovacionMes: mes.renovacion,
+    filas,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +358,7 @@ function textoPlazas(n) {
 
 export function calcularDisponibilidad(estado) {
   const { limites, usadas, renovacion } = estado;
+  const renovacionMes = estado.renovacionMes || renovacion;
 
   const remServicios = Math.max(0, limites.servicios - usadas.servicios);
   const remCortas = Math.max(0, limites.cortas - usadas.cortas);
@@ -333,7 +403,25 @@ export function calcularDisponibilidad(estado) {
     motivo: motivoLarga,
   };
 
-  return { servicios, clases: { corta, larga }, renovacion };
+  const limiteSeg = limites.seguimiento ?? LIMITES_POR_DEFECTO.seguimiento;
+  const usadasSeg = usadas.seguimientos || 0;
+  const remSeg = Math.max(0, limiteSeg - usadasSeg);
+  let motivoSeg = '';
+  if (remSeg <= 0) {
+    motivoSeg =
+      limiteSeg === 1
+        ? `Este mes ya hay un seguimiento reservado. Se reabre el ${renovacionMes}.`
+        : `Este mes ya no quedan plazas de seguimiento. Se reabren el ${renovacionMes}.`;
+  }
+  const seguimiento = {
+    limit: limiteSeg,
+    used: usadasSeg,
+    remaining: remSeg,
+    disponible: remSeg > 0,
+    motivo: motivoSeg,
+  };
+
+  return { servicios, clases: { corta, larga }, seguimiento, renovacion, renovacionMes };
 }
 
 // ---------------------------------------------------------------------------
@@ -353,7 +441,7 @@ function extraerIdReal(id) {
 // se lee SIEMPRE de la base de datos (id + nombre/plan), nunca de lo que
 // mande el navegador.
 export async function resumirPedido(supabase, items) {
-  const resumen = { servicios: 0, cortas: 0, largas: 0 };
+  const resumen = { servicios: 0, cortas: 0, largas: 0, seguimientos: 0 };
   const cache = new Map();
 
   for (const item of (Array.isArray(items) ? items : []).slice(0, 50)) {
@@ -373,6 +461,12 @@ export async function resumirPedido(supabase, items) {
     const cantidad = Math.max(1, Math.floor(Number(item.quantity) || 1));
     const cupo = cupoDeItem(fila, item.name);
 
+    // El seguimiento (sea servicio o clase) tiene su propio cupo mensual.
+    if (cupo === 'seguimiento') {
+      resumen.seguimientos += cantidad;
+      continue;
+    }
+
     if (item.tipo === 'servicio') {
       if (cupo !== 'libre') resumen.servicios += cantidad;
     } else if (cupo === 'corta') {
@@ -384,11 +478,12 @@ export async function resumirPedido(supabase, items) {
   return resumen;
 }
 
-// Comprueba si un pedido ({ servicios, cortas, largas }) cabe en lo que queda
-// de semana. Devuelve { ok, message }.
+// Comprueba si un pedido ({ servicios, cortas, largas, seguimientos }) cabe en
+// lo que queda de semana (y de mes, para el seguimiento). Devuelve
+// { ok, message }.
 export function comprobarPedido(estado, pedido) {
   const disp = calcularDisponibilidad(estado);
-  const { servicios = 0, cortas = 0, largas = 0 } = pedido || {};
+  const { servicios = 0, cortas = 0, largas = 0, seguimientos = 0 } = pedido || {};
   const mensajes = [];
 
   if (servicios > 0) {
@@ -419,6 +514,16 @@ export function comprobarPedido(estado, pedido) {
     } else if (largas > disp.clases.larga.remaining) {
       mensajes.push(
         `Esta semana solo ${disp.clases.larga.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.clases.larga.remaining)} de la clase de 12 horas y has pedido ${largas}. Quita alguna del pedido o espera al ${disp.renovacion}.`
+      );
+    }
+  }
+
+  if (seguimientos > 0) {
+    if (disp.seguimiento.remaining <= 0) {
+      mensajes.push(disp.seguimiento.motivo);
+    } else if (seguimientos > disp.seguimiento.remaining) {
+      mensajes.push(
+        `Este mes solo ${disp.seguimiento.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.seguimiento.remaining)} de seguimiento y has pedido ${seguimientos}. Quita alguno del pedido o espera al ${disp.renovacionMes}.`
       );
     }
   }
