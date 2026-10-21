@@ -258,6 +258,8 @@ export default function CartFloating() {
                           <p className="mt-2 text-[11px] text-red-300">{limite.motivo}</p>
                         ) : enElTope ? (
                           <p className="mt-2 text-[11px] text-muted">{limite.motivo}</p>
+                        ) : limite.regla ? (
+                          <p className="mt-2 text-[11px] text-muted">{limite.regla}</p>
                         ) : null}
                       </div>
 
