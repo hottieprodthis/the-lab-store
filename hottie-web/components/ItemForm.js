@@ -289,19 +289,21 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
               <>
                 <option value="">Sin definir (no entra en el cupo semanal)</option>
                 <option value="corta">Clase suelta (una sola sesión: 1 h, 2 h…)</option>
-                <option value="larga">Pack de 12 horas (4 sesiones de 3 h)</option>
-                <option value="libre">No cuenta para el cupo (p. ej. Seguimiento)</option>
+                <option value="larga">Clase de 12 horas (repartida en 4 días de 3 h)</option>
+                <option value="seguimiento">Seguimiento (cupo mensual, 1 al mes por defecto)</option>
+                <option value="libre">No cuenta para ningún cupo</option>
               </>
             ) : (
               <>
                 <option value="">Cuenta para el límite semanal de servicios</option>
-                <option value="libre">No cuenta para el límite (p. ej. Seguimiento)</option>
+                <option value="seguimiento">Seguimiento (cupo mensual, 1 al mes por defecto)</option>
+                <option value="libre">No cuenta para ningún cupo</option>
               </>
             )}
           </select>
           <p className="mt-1 text-[11px] text-muted">
             {esClase
-              ? 'Las clases sueltas y el pack de 12 horas se excluyen entre sí en la misma semana. Si esta clase tiene planes, puedes elegir el tipo en cada plan.'
+              ? 'Las clases sueltas y la clase de 12 horas se excluyen entre sí en la misma semana. Si esta clase tiene planes, puedes elegir el tipo en cada plan.'
               : 'Si este servicio tiene planes, puedes elegir el tipo en cada plan.'}
           </p>
         </div>
@@ -383,13 +385,15 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
                       <>
                         <option value="">Igual que la clase</option>
                         <option value="corta">Clase suelta (1 h, 2 h…)</option>
-                        <option value="larga">Pack de 12 horas</option>
-                        <option value="libre">No cuenta para el cupo</option>
+                        <option value="larga">Clase de 12 horas</option>
+                        <option value="seguimiento">Seguimiento (cupo mensual)</option>
+                        <option value="libre">No cuenta para ningún cupo</option>
                       </>
                     ) : (
                       <>
                         <option value="">Igual que el servicio</option>
-                        <option value="libre">No cuenta para el límite</option>
+                        <option value="seguimiento">Seguimiento (cupo mensual)</option>
+                        <option value="libre">No cuenta para ningún cupo</option>
                       </>
                     )}
                   </select>
