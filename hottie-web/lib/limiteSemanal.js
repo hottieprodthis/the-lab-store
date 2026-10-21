@@ -372,14 +372,14 @@ export function calcularDisponibilidad(estado) {
     motivo:
       remServicios > 0
         ? ''
-        : `Esta semana ya no quedan plazas de servicios. Se reabren el ${renovacion}.`,
+        : `Esta semana ya no quedan plazas de servicios (máximo ${limites.servicios} por semana). Se reabren el ${renovacion}.`,
   };
 
   let motivoCorta = '';
   if (usadas.largas > 0) {
-    motivoCorta = `Esta semana ya hay una clase de 12 horas reservada, por eso no hay clases sueltas disponibles. Se reabren el ${renovacion}.`;
+    motivoCorta = `Esta semana ya hay una clase de 12 horas reservada, y no se pueden reservar clases sueltas en la misma semana. Se reabren el ${renovacion}.`;
   } else if (remCortas <= 0) {
-    motivoCorta = `Esta semana ya no quedan plazas de clases sueltas. Se reabren el ${renovacion}.`;
+    motivoCorta = `Esta semana ya no quedan plazas de clases sueltas (máximo ${limites.cortas} por semana). Se reabren el ${renovacion}.`;
   }
   const corta = {
     limit: limites.cortas,
@@ -391,9 +391,9 @@ export function calcularDisponibilidad(estado) {
 
   let motivoLarga = '';
   if (usadas.cortas > 0) {
-    motivoLarga = `Esta semana ya hay clases sueltas reservadas, por eso no se puede reservar la clase de 12 horas. Se reabre el ${renovacion}.`;
+    motivoLarga = `Esta semana ya hay clases sueltas reservadas, y no se puede reservar la clase de 12 horas en la misma semana. Se reabre el ${renovacion}.`;
   } else if (remLargas <= 0) {
-    motivoLarga = `Esta semana ya no quedan plazas de la clase de 12 horas. Se reabren el ${renovacion}.`;
+    motivoLarga = `Esta semana ya no quedan plazas de la clase de 12 horas (máximo ${limites.largas} por semana). Se reabre el ${renovacion}.`;
   }
   const larga = {
     limit: limites.largas,
@@ -491,21 +491,21 @@ export function comprobarPedido(estado, pedido) {
       mensajes.push(disp.servicios.motivo);
     } else if (servicios > disp.servicios.remaining) {
       mensajes.push(
-        `Esta semana solo ${disp.servicios.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.servicios.remaining)} de servicios y has pedido ${servicios}. Quita alguna del pedido o espera al ${disp.renovacion}.`
+        `Esta semana solo ${disp.servicios.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.servicios.remaining)} de servicios (máximo ${disp.servicios.limit} por semana) y has pedido ${servicios}. Quita alguna del pedido o espera al ${disp.renovacion}.`
       );
     }
   }
 
   if (cortas > 0 && largas > 0) {
     mensajes.push(
-      'No se puede reservar a la vez una clase de 12 horas y clases sueltas en la misma semana. Elige solo un tipo.'
+      `No se puede reservar a la vez una clase de 12 horas y clases sueltas en la misma semana. Elige solo un tipo: la clase de 12 horas (máximo ${disp.clases.larga.limit} por semana) o clases sueltas (máximo ${disp.clases.corta.limit} por semana).`
     );
   } else if (cortas > 0) {
     if (!disp.clases.corta.disponible) {
       mensajes.push(disp.clases.corta.motivo);
     } else if (cortas > disp.clases.corta.remaining) {
       mensajes.push(
-        `Esta semana solo ${disp.clases.corta.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.clases.corta.remaining)} de clases sueltas y has pedido ${cortas}. Quita alguna del pedido o espera al ${disp.renovacion}.`
+        `Esta semana solo ${disp.clases.corta.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.clases.corta.remaining)} de clases sueltas (máximo ${disp.clases.corta.limit} por semana) y has pedido ${cortas}. Quita alguna del pedido o espera al ${disp.renovacion}.`
       );
     }
   } else if (largas > 0) {
@@ -513,7 +513,7 @@ export function comprobarPedido(estado, pedido) {
       mensajes.push(disp.clases.larga.motivo);
     } else if (largas > disp.clases.larga.remaining) {
       mensajes.push(
-        `Esta semana solo ${disp.clases.larga.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.clases.larga.remaining)} de la clase de 12 horas y has pedido ${largas}. Quita alguna del pedido o espera al ${disp.renovacion}.`
+        `Esta semana solo ${disp.clases.larga.remaining === 1 ? 'queda' : 'quedan'} ${textoPlazas(disp.clases.larga.remaining)} de la clase de 12 horas (máximo ${disp.clases.larga.limit} por semana) y has pedido ${largas}. Quita alguna del pedido o espera al ${disp.renovacion}.`
       );
     }
   }
