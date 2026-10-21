@@ -21,14 +21,17 @@ export function obtenerDisponibilidad() {
 // ¿Está bloqueada la compra de este artículo esta semana?
 //   tipo: 'servicio' | 'clase'
 //   cupo: el tipo de cupo del artículo o de su plan ('corta' | 'larga' |
-//         'libre' | ''), tal y como se marca en el panel de admin.
+//         'seguimiento' | 'libre' | ''), tal y como se marca en el panel de
+//         admin.
 // Devuelve { agotado, motivo }.
 export function bloqueoPara(disp, tipo, cupo) {
   const libre = { agotado: false, motivo: '' };
   if (!disp || cupo === 'libre') return libre;
 
   let bloque = null;
-  if (tipo === 'servicio') bloque = disp.servicios;
+  // El seguimiento (servicio o clase) tiene su propio cupo mensual.
+  if (cupo === 'seguimiento') bloque = disp.seguimiento;
+  else if (tipo === 'servicio') bloque = disp.servicios;
   else if (tipo === 'clase' && cupo === 'corta') bloque = disp.clases?.corta;
   else if (tipo === 'clase' && cupo === 'larga') bloque = disp.clases?.larga;
 
@@ -62,4 +65,172 @@ export async function permitirPago(items) {
   } catch (err) {
     return true;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cupos dentro del CARRITO
+// ---------------------------------------------------------------------------
+// El carrito no deja acumular más unidades de las que quedan disponibles:
+//  - si no hay reservas todavía, deja todas las que permita el cupo;
+//  - si ya quedan pocas, deja solo las que quedan;
+//  - una clase de 12 h y las clases sueltas no se pueden mezclar en el pedido.
+// Es solo una ayuda para el cliente: la comprobación que manda es la del
+// servidor (api/checkout.js y api/disponibilidad.js).
+
+const ETIQUETAS = {
+  servicios: 'servicios esta semana',
+  corta: 'clases sueltas esta semana',
+  larga: 'la clase de 12 horas esta semana',
+  seguimiento: 'seguimiento este mes',
+};
+
+// A qué cupo pertenece un artículo del carrito (null = sin límite).
+// "isClass" tiene prioridad sobre "isService", igual que en checkout.js.
+export function grupoDeCupo(item) {
+  if (!item) return null;
+  const cupo = item.cupo || '';
+  if (cupo === 'libre') return null;
+  if (cupo === 'seguimiento') return 'seguimiento';
+  if (item.isClass) return cupo === 'corta' ? 'corta' : cupo === 'larga' ? 'larga' : null;
+  if (item.isService) return 'servicios';
+  return null;
+}
+
+// Plazas que quedan en cada cupo (0 si está bloqueado; null si no se sabe).
+export function plazasPorGrupo(disp) {
+  const plazas = (bloque) => {
+    if (!bloque) return null;
+    if (bloque.disponible === false) return 0;
+    return typeof bloque.remaining === 'number' ? bloque.remaining : null;
+  };
+  return {
+    servicios: plazas(disp?.servicios),
+    corta: plazas(disp?.clases?.corta),
+    larga: plazas(disp?.clases?.larga),
+    seguimiento: plazas(disp?.seguimiento),
+  };
+}
+
+function mismoArticulo(a, id, isService) {
+  return a.id === id && a.isService === isService;
+}
+
+function unidadesEnGrupo(cart, grupo, excepto) {
+  let total = 0;
+  for (const i of cart) {
+    if (excepto && mismoArticulo(i, excepto.id, excepto.isService)) continue;
+    if (grupoDeCupo(i) === grupo) total += Number(i.quantity) || 1;
+  }
+  return total;
+}
+
+function bloqueDe(disp, grupo) {
+  if (grupo === 'servicios') return disp?.servicios;
+  if (grupo === 'corta') return disp?.clases?.corta;
+  if (grupo === 'larga') return disp?.clases?.larga;
+  return disp?.seguimiento;
+}
+
+// Máximo de unidades que admite ESE artículo en el carrito, teniendo en cuenta
+// lo que ya hay de su mismo cupo. Devuelve { max, motivo }; max = Infinity si
+// no tiene tope. "motivo" explica por qué (solo si hay tope).
+export function limiteDeItem(item, cart, disp) {
+  const sinTope = { max: Infinity, motivo: '' };
+  const grupo = grupoDeCupo(item);
+  if (!grupo || !disp) return sinTope;
+
+  const lista = Array.isArray(cart) ? cart : [];
+
+  // Una clase de 12 h y las clases sueltas no se mezclan en el mismo pedido.
+  const opuesto = grupo === 'corta' ? 'larga' : grupo === 'larga' ? 'corta' : null;
+  if (opuesto && unidadesEnGrupo(lista, opuesto) > 0) {
+    return {
+      max: 0,
+      motivo: 'No se puede reservar a la vez una clase de 12 horas y clases sueltas. Elige solo un tipo.',
+    };
+  }
+
+  const plazas = plazasPorGrupo(disp)[grupo];
+  if (plazas === null || plazas === undefined) return sinTope;
+
+  if (plazas <= 0) {
+    return {
+      max: 0,
+      motivo: bloqueDe(disp, grupo)?.motivo || `No quedan plazas de ${ETIQUETAS[grupo]}.`,
+    };
+  }
+
+  const otras = unidadesEnGrupo(lista, grupo, item);
+  return {
+    max: Math.max(0, plazas - otras),
+    motivo: `Solo ${plazas === 1 ? 'queda 1 plaza' : `quedan ${plazas} plazas`} de ${ETIQUETAS[grupo]}.`,
+  };
+}
+
+// Añade UNA unidad al carrito si cabe. Devuelve { cart, aviso } (aviso vacío
+// si se añadió sin problema). No modifica el carrito original.
+export function anadirAlCarrito(cart, item, isService, disp) {
+  const actual = Array.isArray(cart) ? cart : [];
+  const idx = actual.findIndex((i) => mismoArticulo(i, item.id, isService));
+  const candidato = idx > -1 ? actual[idx] : { ...item, quantity: 1, isService };
+  const cantidadNueva = (idx > -1 ? Number(actual[idx].quantity) || 1 : 0) + 1;
+
+  const { max, motivo } = limiteDeItem(candidato, actual, disp);
+  if (cantidadNueva > max) {
+    return { cart: actual, aviso: motivo || 'No quedan más plazas disponibles.' };
+  }
+
+  const nuevo =
+    idx > -1
+      ? actual.map((i, n) => (n === idx ? { ...i, quantity: (Number(i.quantity) || 1) + 1 } : i))
+      : [...actual, { ...item, quantity: 1, isService }];
+  return { cart: nuevo, aviso: '' };
+}
+
+// Cambia la cantidad de un artículo (0 o menos = quitarlo). Si piden más de lo
+// que cabe, se queda en lo máximo permitido y se explica por qué.
+export function cambiarCantidad(cart, id, isService, quantity, disp) {
+  const actual = Array.isArray(cart) ? cart : [];
+  if (quantity <= 0) {
+    return { cart: actual.filter((i) => !mismoArticulo(i, id, isService)), aviso: '' };
+  }
+  const idx = actual.findIndex((i) => mismoArticulo(i, id, isService));
+  if (idx === -1) return { cart: actual, aviso: '' };
+
+  const cantidadActual = Number(actual[idx].quantity) || 1;
+  let q = quantity;
+  let aviso = '';
+  if (q > cantidadActual) {
+    const { max, motivo } = limiteDeItem(actual[idx], actual, disp);
+    if (q > max) {
+      q = Math.max(cantidadActual, max);
+      aviso = motivo;
+    }
+  }
+  if (q === cantidadActual) return { cart: actual, aviso };
+  return { cart: actual.map((i, n) => (n === idx ? { ...i, quantity: q } : i)), aviso };
+}
+
+// Recorta las cantidades que ya estén por encima del cupo (por ejemplo un
+// carrito guardado de antes, o plazas que se han agotado mientras tanto).
+// No quita artículos: si no cabe ni una unidad, se deja tal cual y la pantalla
+// lo avisa (el servidor rechazará el pago con el motivo).
+export function ajustarCarrito(cart, disp) {
+  const actual = Array.isArray(cart) ? cart.slice() : [];
+  let cambiado = false;
+  const avisos = [];
+  for (let n = 0; n < actual.length; n++) {
+    const { max, motivo } = limiteDeItem(actual[n], actual, disp);
+    const q = Number(actual[n].quantity) || 1;
+    if (max >= 1 && q > max) {
+      actual[n] = { ...actual[n], quantity: max };
+      cambiado = true;
+      avisos.push(motivo);
+    }
+  }
+  return {
+    cart: cambiado ? actual : cart,
+    cambiado,
+    aviso: cambiado ? `${avisos[0]} Hemos ajustado la cantidad en tu carrito.` : '',
+  };
 }
