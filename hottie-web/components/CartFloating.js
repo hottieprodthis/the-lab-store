@@ -15,7 +15,9 @@ export default function CartFloating() {
     updateQuantity,
     clearCart,
     totalItems,
-    totalPrice
+    totalPrice,
+    aviso,
+    limiteDe,
   } = useCart();
 
   const [loading, setLoading] = useState(false);
@@ -199,6 +201,13 @@ export default function CartFloating() {
               </button>
             </div>
 
+            {/* Aviso cuando se ha limitado la cantidad por falta de plazas */}
+            {aviso && (
+              <div className="mt-4 rounded-sm border border-volt/40 bg-volt/10 p-3 text-xs text-paper">
+                {aviso}
+              </div>
+            )}
+
             {/* Lista de productos solicitados */}
             <div className="mt-6 max-h-[60vh] space-y-4 overflow-y-auto pr-2">
               {cart.length === 0 ? (
@@ -210,6 +219,10 @@ export default function CartFloating() {
                 cart.map((item, index) => {
                   const price = item.price || (item.price_cents ? item.price_cents / 100 : 0);
                   const title = item.title || item.name || item.nombre || 'Producto / Servicio';
+                  // Tope de unidades por cupo semanal/mensual (Infinity = sin tope)
+                  const limite = limiteDe(item);
+                  const cantidad = item.quantity || 1;
+                  const enElTope = cantidad >= limite.max;
                   return (
                     <div
                       key={`${item.id}-${item.isClass ? 'cls' : item.isService ? 'srv' : 'prd'}-${index}`}
@@ -235,11 +248,17 @@ export default function CartFloating() {
                           <span className="text-xs text-paper font-mono">{item.quantity || 1}</span>
                           <button
                             onClick={() => updateQuantity(item.id, item.isService, (item.quantity || 1) + 1)}
-                            className="w-5 h-5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center justify-center text-xs font-bold"
+                            disabled={enElTope}
+                            className="w-5 h-5 bg-white/10 rounded hover:bg-white/20 text-white flex items-center justify-center text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/10"
                           >
                             +
                           </button>
                         </div>
+                        {limite.max < 1 ? (
+                          <p className="mt-2 text-[11px] text-red-300">{limite.motivo}</p>
+                        ) : enElTope ? (
+                          <p className="mt-2 text-[11px] text-muted">{limite.motivo}</p>
+                        ) : null}
                       </div>
 
                       <div className="text-right ml-4">
