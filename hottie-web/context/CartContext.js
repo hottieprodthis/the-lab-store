@@ -1,10 +1,26 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import {
+  obtenerDisponibilidad,
+  limiteDeItem,
+  anadirAlCarrito,
+  cambiarCantidad,
+  ajustarCarrito,
+} from '../lib/disponibilidadClient';
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  // Cupo semanal/mensual: cuántas plazas quedan de cada tipo. Sirve para que el
+  // carrito no deje acumular más unidades de las que caben (null = no se sabe
+  // todavía; en ese caso no se limita nada y manda el servidor al pagar).
+  const [disp, setDisp] = useState(null);
+  const [aviso, setAviso] = useState('');
+  const cartRef = useRef([]);
+  const dispRef = useRef(null);
+  cartRef.current = cart;
+  dispRef.current = disp;
 
   // Cargar carrito del localStorage al iniciar
   useEffect(() => {
@@ -27,44 +43,57 @@ export function CartProvider({ children }) {
     }
   }, [cart]);
 
-  const addToCart = (item, isService = false) => {
-    setCart((prevCart) => {
-      const existingIndex = prevCart.findIndex(
-        (i) => i.id === item.id && i.isService === isService
-      );
-      if (existingIndex > -1) {
-        const updated = [...prevCart];
-        updated[existingIndex].quantity = (updated[existingIndex].quantity || 1) + 1;
-        return updated;
-      }
-      return [...prevCart, { ...item, quantity: 1, isService }];
+  // Plazas disponibles: al cargar y cada vez que se abre el carrito.
+  useEffect(() => {
+    let activo = true;
+    obtenerDisponibilidad().then((d) => {
+      if (activo) setDisp(d);
     });
+    return () => {
+      activo = false;
+    };
+  }, [isOpen]);
+
+  // Si el carrito ya traía más unidades de las que caben (un carrito guardado
+  // de antes, o plazas que se agotaron mientras tanto), se recortan.
+  useEffect(() => {
+    if (!disp || cart.length === 0) return;
+    const r = ajustarCarrito(cart, disp);
+    if (r.cambiado) {
+      cartRef.current = r.cart;
+      setCart(r.cart);
+      setAviso(r.aviso);
+    }
+  }, [disp, cart]);
+
+  const aplicar = (r) => {
+    cartRef.current = r.cart;
+    setCart(r.cart);
+    setAviso(r.aviso || '');
+  };
+
+  const addToCart = (item, isService = false) => {
+    aplicar(anadirAlCarrito(cartRef.current, item, isService, dispRef.current));
     setIsOpen(true); // Abre el panel del carrito al añadir
   };
 
   const removeFromCart = (id, isService = false) => {
-    setCart((prevCart) =>
-      prevCart.filter((item) => !(item.id === id && item.isService === isService))
-    );
+    aplicar({
+      cart: cartRef.current.filter((item) => !(item.id === id && item.isService === isService)),
+      aviso: '',
+    });
   };
 
   const updateQuantity = (id, isService, quantity) => {
-    if (quantity <= 0) {
-      removeFromCart(id, isService);
-      return;
-    }
-    setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.id === id && item.isService === isService
-          ? { ...item, quantity }
-          : item
-      )
-    );
+    aplicar(cambiarCantidad(cartRef.current, id, isService, quantity, dispRef.current));
   };
 
   const clearCart = () => {
-    setCart([]);
+    aplicar({ cart: [], aviso: '' });
   };
+
+  // Máximo de unidades que admite un artículo del carrito ({ max, motivo }).
+  const limiteDe = (item) => limiteDeItem(item, cart, disp);
 
   const totalItems = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
@@ -85,6 +114,8 @@ export function CartProvider({ children }) {
         clearCart,
         totalItems,
         totalPrice,
+        aviso,
+        limiteDe,
       }}
     >
       {children}
