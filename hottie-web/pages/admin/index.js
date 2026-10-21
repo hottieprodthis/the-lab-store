@@ -138,14 +138,16 @@ export default function AdminDashboard() {
 
   // --- LÍMITE SEMANAL DE SERVICIOS Y CLASES ---
   // Tres límites por semana natural (lunes a domingo): servicios, clases
-  // sueltas (1 h, 2 h… una sola sesión) y packs de 12 horas. Vacío = valor por
-  // defecto (5 / 4 / 1); 0 = no aceptar compras de ese tipo esa semana. Una
-  // semana con un pack de 12 h no admite clases sueltas y al revés (lo aplica
-  // el servidor). Se guarda
-  // a través de /api/admin/limites (que comprueba que la cuenta sea admin).
+  // sueltas (1 h, 2 h… una sola sesión) y clases de 12 horas; y un cuarto por
+  // MES natural: seguimientos. Vacío = valor por defecto (5 / 4 / 1 / 1);
+  // 0 = no aceptar compras de ese tipo en ese periodo. Una semana con una
+  // clase de 12 h no admite clases sueltas y al revés (lo aplica el
+  // servidor). Se guarda a través de /api/admin/limites (que comprueba que la
+  // cuenta sea admin).
   const [limitServicios, setLimitServicios] = useState('');
   const [limitCortas, setLimitCortas] = useState('');
   const [limitLargas, setLimitLargas] = useState('');
+  const [limitSeguimiento, setLimitSeguimiento] = useState('');
   const [limitEstado, setLimitEstado] = useState(null);
   const [limitMsg, setLimitMsg] = useState('');
   const [limitSaving, setLimitSaving] = useState(false);
@@ -170,6 +172,7 @@ export default function AdminDashboard() {
     setLimitServicios(g.servicios === null || g.servicios === undefined ? '' : String(g.servicios));
     setLimitCortas(g.cortas === null || g.cortas === undefined ? '' : String(g.cortas));
     setLimitLargas(g.largas === null || g.largas === undefined ? '' : String(g.largas));
+    setLimitSeguimiento(g.seguimiento === null || g.seguimiento === undefined ? '' : String(g.seguimiento));
   }
 
   async function loadLimits() {
@@ -199,6 +202,7 @@ export default function AdminDashboard() {
         servicios: limitServicios,
         cortas: limitCortas,
         largas: limitLargas,
+        seguimiento: limitSeguimiento,
       });
       if (data?.ok && data?.semana) {
         aplicarEstadoLimites(data);
@@ -318,9 +322,11 @@ export default function AdminDashboard() {
             <div className="mb-12 rounded-sm border border-white/10 bg-surface p-6">
               <h2 className="font-display text-xl tracking-wide text-paper mb-1">Límite semanal de compras</h2>
               <p className="mb-4 text-sm text-muted">
-                Máximo por semana (de lunes a domingo). Vacío = valor por defecto · 0 = no aceptar compras de ese tipo esa semana.
-                Una semana con un pack de 12 horas no admite clases sueltas (de 1 o 2 horas), y al revés. Las clases de seguimiento
-                (marcadas como &laquo;No cuenta&raquo;) y los pedidos gratuitos (0 €) no cuentan.
+                Servicios y clases: máximo por semana (de lunes a domingo). Seguimientos: máximo por mes natural.
+                Vacío = valor por defecto · 0 = no aceptar compras de ese tipo en ese periodo.
+                Una semana con una clase de 12 horas no admite clases sueltas (de 1 o 2 horas), y al revés.
+                El seguimiento (marcado como &laquo;Seguimiento&raquo; en su ficha) no gasta plazas semanales ni bloquea las clases.
+                Los pedidos gratuitos (0 €) no cuentan.
               </p>
               <form onSubmit={handleSaveLimits} className="flex flex-wrap items-end gap-4">
                 <label className="block">
@@ -348,7 +354,7 @@ export default function AdminDashboard() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs uppercase tracking-widest text-muted">Packs de 12 h / semana</span>
+                  <span className="mb-1 block text-xs uppercase tracking-widest text-muted">Clases de 12 h / semana</span>
                   <input
                     type="number"
                     min="0"
@@ -356,6 +362,18 @@ export default function AdminDashboard() {
                     value={limitLargas}
                     onChange={(e) => setLimitLargas(e.target.value)}
                     placeholder={`Por defecto ${limitEstado?.defectos?.largas ?? 1}`}
+                    className="w-44 rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:outline-none focus:border-volt"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs uppercase tracking-widest text-muted">Seguimientos / mes</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={limitSeguimiento}
+                    onChange={(e) => setLimitSeguimiento(e.target.value)}
+                    placeholder={`Por defecto ${limitEstado?.defectos?.seguimiento ?? 1}`}
                     className="w-44 rounded-sm border border-white/20 bg-surface2 px-4 py-2 text-paper focus:outline-none focus:border-volt"
                   />
                 </label>
@@ -370,12 +388,17 @@ export default function AdminDashboard() {
               {limitMsg && <p className="mt-3 text-xs text-volt">{limitMsg}</p>}
               {limitEstado?.semana && (
                 <p className="mt-3 text-sm text-muted">
-                  Esta semana (se renueva el {limitEstado.semana.renovacion}) — Servicios: {resumenLimite(limitEstado.semana.servicios)} · Clases sueltas: {resumenLimite(limitEstado.semana.cortas)} · Packs de 12 h: {resumenLimite(limitEstado.semana.largas)}
+                  Esta semana (se renueva el {limitEstado.semana.renovacion}) — Servicios: {resumenLimite(limitEstado.semana.servicios)} · Clases sueltas: {resumenLimite(limitEstado.semana.cortas)} · Clases de 12 h: {resumenLimite(limitEstado.semana.largas)}
+                </p>
+              )}
+              {limitEstado?.mes && (
+                <p className="mt-1 text-sm text-muted">
+                  Este mes (se renueva el {limitEstado.mes.renovacion}) — Seguimientos: {resumenLimite(limitEstado.mes.seguimiento)}
                 </p>
               )}
               {Array.isArray(limitEstado?.clasesSinTipo) && limitEstado.clasesSinTipo.length > 0 && (
                 <p className="mt-3 text-xs text-volt">
-                  Atención: estas clases no tienen tipo de cupo (suelta / pack de 12 h / No cuenta) y por ahora NO están limitadas:{' '}
+                  Atención: estas clases no tienen tipo de cupo (suelta / de 12 h / Seguimiento / No cuenta) y por ahora NO están limitadas:{' '}
                   {limitEstado.clasesSinTipo.join(', ')}. Edítalas en &laquo;Clases&raquo; y elige el cupo semanal.
                 </p>
               )}
