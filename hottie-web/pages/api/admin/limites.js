@@ -5,6 +5,7 @@ import {
   CLAVE_LIMITE_SERVICIOS,
   CLAVE_LIMITE_CORTAS,
   CLAVE_LIMITE_LARGAS,
+  CLAVE_LIMITE_SEGUIMIENTO,
   LIMITES_POR_DEFECTO,
 } from '../../../lib/limiteSemanal';
 
@@ -68,12 +69,17 @@ function respuesta(estado) {
       cortas: { limit: limites.cortas, used: usadas.cortas },
       largas: { limit: limites.largas, used: usadas.largas },
     },
+    // El seguimiento se cuenta por mes natural, no por semana.
+    mes: {
+      renovacion: estado.renovacionMes,
+      seguimiento: { limit: limites.seguimiento, used: usadas.seguimientos || 0 },
+    },
     clasesSinTipo: clasesSinTipo(filas.clases),
   };
 }
 
 // GET  -> límites actuales y lo usado esta semana.
-// POST -> { servicios, cortas, largas } guarda los límites (vacío = valor por
+// POST -> { servicios, cortas, largas, seguimiento } guarda los límites (vacío = valor por
 //         defecto, 0 = no aceptar compras de ese tipo esa semana).
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -91,7 +97,16 @@ export default async function handler(req, res) {
       const servicios = interpretar(req.body?.servicios);
       const cortas = interpretar(req.body?.cortas);
       const largas = interpretar(req.body?.largas);
-      if (servicios === undefined || cortas === undefined || largas === undefined) {
+      // Si el navegador no manda el campo del seguimiento (una página de admin
+      // antigua en caché), no se toca el valor guardado.
+      const quiereSeguimiento = req.body?.seguimiento !== undefined;
+      const seguimiento = interpretar(req.body?.seguimiento);
+      if (
+        servicios === undefined ||
+        cortas === undefined ||
+        largas === undefined ||
+        seguimiento === undefined
+      ) {
         return res.status(400).json({
           error: 'Los límites tienen que ser números enteros (o dejarlos vacíos para usar el valor por defecto).',
         });
@@ -101,6 +116,7 @@ export default async function handler(req, res) {
         [CLAVE_LIMITE_SERVICIOS, servicios, 'servicios'],
         [CLAVE_LIMITE_CORTAS, cortas, 'clases sueltas'],
         [CLAVE_LIMITE_LARGAS, largas, 'clases de 12 horas'],
+        ...(quiereSeguimiento ? [[CLAVE_LIMITE_SEGUIMIENTO, seguimiento, 'seguimientos']] : []),
       ];
       for (const [clave, valor, nombre] of pares) {
         const r = await guardar(clave, valor);
