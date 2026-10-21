@@ -92,6 +92,9 @@ export default function DetalleServicio({ service }) {
       name: `${service.name} (${plan.name})`,
       price_cents: planPriceCents,
       price: parseFloat(plan.price),
+      // El plan puede tener su propio tipo de cupo; el carrito lo necesita
+      // para no dejar acumular más unidades de las que caben.
+      cupo: plan.cupo || service.cupo || '',
     };
     addToCart(planItem, true);
   };
