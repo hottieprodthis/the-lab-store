@@ -14,18 +14,52 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
+// Los textos van dentro del HTML del correo: se escapan para que no se pueda
+// colar código ni enlaces en él.
+function escaparHtml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Método no permitido' });
   }
 
   try {
+    // Envía correos a toda la lista, así que solo responde a una sesión de
+    // admin (profiles.is_admin = true), igual que /api/admin/estadisticas.
+    // Lo llama components/ItemForm.js con la sesión del panel.
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'No autorizado: falta la sesión de admin.' });
+    }
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return res.status(401).json({ error: 'No autorizado: la sesión de admin no es válida o ha caducado.' });
+    }
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userData.user.id)
+      .single();
+    if (!perfil?.is_admin) {
+      return res.status(403).json({ error: 'Esta cuenta no tiene permisos de administrador (profiles.is_admin).' });
+    }
+
     const payload = req.body.record || req.body;
-    
+
     // Capturar el nombre tolerando las columnas de productos o servicios
-    const titulo = payload.title || payload.name || payload.nombre || 'Nuevo Lanzamiento';
-    const descripcion = payload.description || payload.descripcion || '';
-    const precio = payload.price || payload.precio || null;
+    // El asunto es texto plano (no HTML): ahí va el nombre tal cual.
+    const tituloAsunto = String(payload.title || payload.name || payload.nombre || 'Nuevo Lanzamiento');
+    const titulo = escaparHtml(tituloAsunto);
+    const descripcion = escaparHtml(payload.description || payload.descripcion || '');
+    const precio = payload.price || payload.precio ? escaparHtml(payload.price || payload.precio) : null;
     const tipoRaw = payload.type || payload.tipo || '';
     // Antes esto solo distinguía "servicio" (todo lo demás se etiquetaba
     // como "PRODUCTO", así que una clase nueva se anunciaba mal). Ahora
@@ -102,8 +136,8 @@ export default async function handler(req, res) {
         from: 'The Lab <pedidos@hottieprodthis.com>',
         to: listaEmails,
         subject: esCambioPrecio
-          ? `💸 NUEVO PRECIO EN ${tipoEtiqueta}: ${titulo}`
-          : `🔥 NUEVO ${tipoEtiqueta}: ${titulo}`,
+          ? `💸 NUEVO PRECIO EN ${tipoEtiqueta}: ${tituloAsunto}`
+          : `🔥 NUEVO ${tipoEtiqueta}: ${tituloAsunto}`,
         html: `
           <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px; text-align:center;">
             <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px; margin-bottom:10px;">THE LAB — NOTIFICACIONES</p>

@@ -177,9 +177,12 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
 
     if (active && (esNuevo || precioCambio)) {
       try {
+        // La ruta solo envía si la pide el admin: mandamos su sesión.
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token || '';
         await fetch('/api/notificar-nuevo-producto', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             title: payload.name,
             description: payload.description,

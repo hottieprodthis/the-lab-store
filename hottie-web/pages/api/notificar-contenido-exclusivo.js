@@ -15,13 +15,49 @@ const supabase = createClient(
 // visitantes que dejaron su email en la home. No se crea ninguna tabla
 // nueva ni sistema paralelo: solo se reutiliza "profiles" tal cual ya
 // existe.
+// Los textos van dentro del HTML del correo: se escapan para que no se pueda
+// colar código ni enlaces en él.
+function escaparHtml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Método no permitido' });
   }
 
   try {
-    const { tipo, titulo, descripcion } = req.body || {};
+    // Envía correos a todos los suscritos, así que solo responde a una sesión
+    // de admin (profiles.is_admin = true), igual que /api/admin/estadisticas.
+    // Lo llaman pages/admin/areaclientes/nuevo-post.js y nuevo-pack.js.
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'No autorizado: falta la sesión de admin.' });
+    }
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return res.status(401).json({ error: 'No autorizado: la sesión de admin no es válida o ha caducado.' });
+    }
+    const { data: perfilAdmin } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userData.user.id)
+      .single();
+    if (!perfilAdmin?.is_admin) {
+      return res.status(403).json({ error: 'Esta cuenta no tiene permisos de administrador (profiles.is_admin).' });
+    }
+
+    const { tipo } = req.body || {};
+    // El asunto es texto plano (no HTML): ahí va el título tal cual.
+    const tituloAsunto = String((req.body || {}).titulo || '');
+    const titulo = escaparHtml(tituloAsunto);
+    const descripcion = escaparHtml((req.body || {}).descripcion || '');
     const esPost = tipo === 'post';
     const etiqueta = esPost ? 'POST EXCLUSIVO' : 'PACK / KIT';
 
@@ -68,7 +104,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: 'The Lab <pedidos@hottieprodthis.com>',
         to: emails,
-        subject: `🔥 NUEVO ${etiqueta} EN TU ÁREA DE CLIENTES: ${titulo}`,
+        subject: `🔥 NUEVO ${etiqueta} EN TU ÁREA DE CLIENTES: ${tituloAsunto}`,
         html: `
           <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px; text-align:center;">
             <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px; margin-bottom:10px;">THE LAB — ÁREA DE CLIENTES</p>

@@ -27,9 +27,12 @@ export default function NuevoPackPage() {
       // nuevo. Si falla el envío no bloqueamos nada: el pack ya se guardó
       // correctamente.
       try {
+        // La ruta solo envía si la pide el admin: mandamos su sesión.
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token || '';
         await fetch('/api/notificar-contenido-exclusivo', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             tipo: 'pack',
             titulo: title,
