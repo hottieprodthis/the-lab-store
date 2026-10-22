@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 //        -> quita UN artículo de una compra (la línea que ves en el
 //           desglose). Si era el único artículo, se borra la compra entera.
 //   { accion: 'cliente', userId, tipo, year }
+//   { accion: 'cliente', email, tipo, year }   (comprador sin cuenta)
 //        -> quita TODOS los artículos de ese tipo (servicio/clase/producto)
 //           que ese cliente compró en ese año.
 //
@@ -124,8 +125,12 @@ export default async function handler(req, res) {
 
     // -------------------------------------------------------------- cliente
     if (accion === 'cliente') {
-      const { userId, year } = req.body;
-      if (typeof userId !== 'string' || !userId || !Number.isInteger(year) || year < 2000 || year > 2100) {
+      // Cliente con cuenta -> userId. Comprador sin cuenta -> email (las
+      // compras que tienen user_id vacío y ese email).
+      const { userId, email, year } = req.body;
+      const conCuenta = typeof userId === 'string' && userId;
+      const sinCuenta = !conCuenta && typeof email === 'string' && email;
+      if ((!conCuenta && !sinCuenta) || !Number.isInteger(year) || year < 2000 || year > 2100) {
         return res.status(400).json({ error: 'Faltan datos del cliente o del año.' });
       }
 
@@ -136,10 +141,11 @@ export default async function handler(req, res) {
       const compras = [];
       const TAMANO_PAGINA = 1000;
       for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
-        const { data: pagina, error } = await supabase
+        let consulta = supabase
           .from('purchases')
-          .select('id, user_id, amount, plan_name, items, created_at')
-          .eq('user_id', userId)
+          .select('id, user_id, amount, plan_name, items, created_at');
+        consulta = conCuenta ? consulta.eq('user_id', userId) : consulta.is('user_id', null).eq('email', email);
+        const { data: pagina, error } = await consulta
           .gte('created_at', desde)
           .lt('created_at', hasta)
           .order('created_at', { ascending: false })

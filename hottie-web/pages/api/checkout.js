@@ -528,11 +528,14 @@ export default async function handler(req, res) {
         } catch (e) {}
       }
 
-      if (resolvedUserId) {
+      // Sin cuenta pero con email: se guarda igual (user_id vacío + email)
+      // para que salga en las estadísticas del admin.
+      if (resolvedUserId || destinoEmail) {
         try {
           const { error: dbError } = await supabase.from('purchases').insert([
             {
-              user_id: resolvedUserId,
+              user_id: resolvedUserId || null,
+              ...(resolvedUserId ? {} : { email: String(destinoEmail).trim() }),
               amount: 0,
               plan_name: planNameToSave,
               items: itemsForHistory.length > 0 ? itemsForHistory : null,

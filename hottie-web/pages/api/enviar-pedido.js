@@ -307,6 +307,31 @@ export default async function handler(req, res) {
       } catch (e) {
         console.error('Excepción crítica guardando historial en Supabase:', e);
       }
+    } else if (emailCliente && metadata.type !== 'subscription') {
+      // Compra de alguien SIN cuenta: se guarda igualmente (user_id vacío +
+      // su email) para que gaste cupo y salga en las estadísticas del admin.
+      // No aparece en ningún área de clientes porque no hay cuenta.
+      try {
+        const { error: dbError } = await supabase
+          .from('purchases')
+          .insert([
+            {
+              user_id: null,
+              email: emailCliente.trim(),
+              amount: totalAmount,
+              plan_name: planNameToSave,
+              items: itemsForHistory.length > 0 ? itemsForHistory : null,
+            }
+          ]);
+
+        if (dbError) {
+          console.error('ERROR de Supabase al guardar compra sin cuenta:', dbError.message);
+        } else {
+          console.log(`Compra sin cuenta de "${planNameToSave}" (${totalAmount}€) guardada para ${emailCliente}`);
+        }
+      } catch (e) {
+        console.error('Excepción guardando compra sin cuenta en Supabase:', e);
+      }
     } else {
       console.error('AVISO: No se pudo asociar la compra a ningún usuario (userId nulo).');
     }

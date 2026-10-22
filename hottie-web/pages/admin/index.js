@@ -546,15 +546,17 @@ export default function AdminDashboard() {
                       </table>
 
                       {(() => {
-                        // Clientes distintos de este bloque (con su user_id) y
-                        // cuántos artículos tiene cada uno.
+                        // Clientes distintos de este bloque (con su user_id, o
+                        // "email:..." si compró sin cuenta) y cuántos
+                        // artículos tiene cada uno.
                         const filas = statsData.stats?.[expandedStat]?.breakdown || [];
                         const porCliente = new Map();
                         for (const f of filas) {
-                          if (!f.user_id) continue;
-                          const c = porCliente.get(f.user_id) || { email: f.email, n: 0 };
+                          const clave = f.user_id || (f.guest_email ? `email:${f.guest_email}` : null);
+                          if (!clave) continue;
+                          const c = porCliente.get(clave) || { email: f.email, n: 0 };
                           c.n += 1;
-                          porCliente.set(f.user_id, c);
+                          porCliente.set(clave, c);
                         }
                         if (porCliente.size === 0) return null;
                         const elegido = porCliente.get(clienteABorrar);
@@ -579,7 +581,14 @@ export default function AdminDashboard() {
                               disabled={!elegido || statsBorrando}
                               onClick={() =>
                                 borrarCompras(
-                                  { accion: 'cliente', userId: clienteABorrar, tipo: expandedStat, year: statsYear },
+                                  {
+                                    accion: 'cliente',
+                                    ...(clienteABorrar.startsWith('email:')
+                                      ? { email: clienteABorrar.slice(6) }
+                                      : { userId: clienteABorrar }),
+                                    tipo: expandedStat,
+                                    year: statsYear,
+                                  },
                                   `¿Borrar del todo ${elegido.n === 1 ? 'la línea' : `las ${elegido.n} líneas`} de "${nombreBloque}" de ${elegido.email} en ${statsYear}?\n\nDesaparecen de las estadísticas y del historial del cliente, y liberan su cupo. No se puede deshacer.`
                                 )
                               }

@@ -72,7 +72,9 @@ export default async function handler(req, res) {
     for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
       const { data: pagina, error } = await supabase
         .from('purchases')
-        .select('id, user_id, items, created_at')
+        // "*" (y no una lista de columnas) para que siga funcionando aunque
+        // la columna "email" (compras sin cuenta) aún no exista en Supabase.
+        .select('*')
         .gte('created_at', desde)
         .lt('created_at', hasta)
         .order('created_at', { ascending: false })
@@ -109,7 +111,12 @@ export default async function handler(req, res) {
 
     for (const compra of compras || []) {
       if (!Array.isArray(compra.items)) continue; // suscripciones o pedidos muy antiguos sin desglose
-      const email = emailPorUserId[compra.user_id] || 'Email no disponible';
+      // Compras sin cuenta: no hay user_id, se usa el email guardado en la compra.
+      const email = compra.user_id
+        ? emailPorUserId[compra.user_id] || 'Email no disponible'
+        : compra.email
+          ? `${compra.email} (sin cuenta)`
+          : 'Email no disponible';
 
       for (const [indice, articulo] of compra.items.entries()) {
         const tipo = articulo?.type;
@@ -123,6 +130,8 @@ export default async function handler(req, res) {
           // posición de la compra está el artículo.
           purchase_id: compra.id,
           user_id: compra.user_id || null,
+          // Email real de la compra sin cuenta (para "Borrar todas" de ese comprador).
+          guest_email: compra.user_id ? null : compra.email || null,
           item_index: indice,
           email,
           name: articulo.name || 'Artículo',

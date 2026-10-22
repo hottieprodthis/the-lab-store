@@ -119,11 +119,14 @@ export default async function handler(req, res) {
 
     const amount = typeof precioCents === 'number' ? precioCents / 100 : 0;
 
-    // 3. Guardamos en el historial del área de clientes.
-    if (resolvedUserId) {
+    // 3. Guardamos en el historial del área de clientes. Si quien paga no
+    // tiene cuenta, se guarda igual (user_id vacío + su email) para que gaste
+    // cupo y salga en las estadísticas del admin.
+    if (resolvedUserId || emailParaBuscar) {
       const { error: dbError } = await supabase.from('purchases').insert([
         {
           user_id: resolvedUserId,
+          ...(resolvedUserId ? {} : { email: String(emailParaBuscar).trim() }),
           amount,
           plan_name: nombreItem,
           items: [
@@ -326,10 +329,12 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
       }
     }
 
-    if (resolvedUserId) {
+    // Sin cuenta: se guarda igual (user_id vacío + email), como arriba.
+    if (resolvedUserId || emailParaBuscar) {
       const { error: dbError } = await supabase.from('purchases').insert([
         {
           user_id: resolvedUserId,
+          ...(resolvedUserId ? {} : { email: String(emailParaBuscar).trim() }),
           amount,
           plan_name: nombrePedido,
           items: enrichedCart.map((i) => ({
