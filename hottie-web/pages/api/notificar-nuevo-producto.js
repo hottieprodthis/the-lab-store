@@ -70,8 +70,12 @@ export default async function handler(req, res) {
     // crear un endpoint ni una tabla nueva para ello.
     const esCambioPrecio = payload.motivo === 'cambio_precio';
 
-    // Enlace directo a la página principal / inicio
-    const enlace = 'https://hottieprodthis.com';
+    // Enlace a la ficha del producto/servicio/clase. Solo se acepta un slug
+    // normal (letras, números y guiones, como los que genera el admin); si no
+    // llega o no lo es, el botón lleva a la portada como antes.
+    const seccion = tipoRaw === 'servicio' ? 'servicios' : tipoRaw === 'clase' ? 'clases' : 'tienda';
+    const slug = typeof payload.slug === 'string' && /^[a-z0-9-]+$/.test(payload.slug) ? payload.slug : '';
+    const enlace = slug ? `https://hottieprodthis.com/${seccion}/${slug}` : 'https://hottieprodthis.com';
 
     // 1. Suscriptores del boletín público (tabla "suscriptores": visitantes
     // que dejaron su email en la home, sin necesidad de tener cuenta).
@@ -137,7 +141,7 @@ export default async function handler(req, res) {
         to: listaEmails,
         subject: esCambioPrecio
           ? `💸 NUEVO PRECIO EN ${tipoEtiqueta}: ${tituloAsunto}`
-          : `🔥 NUEVO ${tipoEtiqueta}: ${tituloAsunto}`,
+          : `🔥 ${tipoEtiqueta === 'CLASE' ? 'NUEVA' : 'NUEVO'} ${tipoEtiqueta}: ${tituloAsunto}`,
         html: `
           <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px; text-align:center;">
             <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px; margin-bottom:10px;">THE LAB — NOTIFICACIONES</p>

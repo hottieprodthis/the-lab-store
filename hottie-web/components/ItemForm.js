@@ -188,6 +188,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
             description: payload.description,
             price: finalPriceCents !== null ? finalPriceCents / 100 : null,
             type: tipoNotificacion,
+            // Para que "VER EN LA WEB" lleve a la ficha y no a la portada.
+            slug: payload.slug,
             motivo: precioCambio && !esNuevo ? 'cambio_precio' : 'nuevo',
           }),
         });
