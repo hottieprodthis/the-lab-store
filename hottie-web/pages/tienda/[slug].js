@@ -6,34 +6,40 @@ import Footer from '../../components/Footer';
 import PayPalButton from '../../components/PayPalButton';
 import { supabase } from '../../lib/supabaseClient';
 import { formatPrice } from '../../lib/format';
+import { interpretarDemo } from '../../lib/demo';
 import { useCart } from '../../context/CartContext';
 
+// Muestra la demo según la web del enlace (ver lib/demo.js): reproductor de
+// YouTube, Spotify, SoundCloud, Vimeo, Apple Music o Google Drive; el
+// reproductor del navegador si es un archivo de audio; y para cualquier otra
+// web, un botón que la abre en otra pestaña.
 function ProductDemoPlayer({ demoUrl, fallbackCover }) {
-  if (!demoUrl) return null;
-
-  const isSpotify = demoUrl.includes('spotify.com');
-  const isYouTube = demoUrl.includes('youtube.com') || demoUrl.includes('youtu.be');
-
-  const getYouTubeEmbedUrl = (url) => {
-    let videoId = '';
-    if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
-    else if (url.includes('v=')) videoId = url.split('v=')[1]?.split('&')[0];
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
-  };
-
-  const getSpotifyEmbedUrl = (url) => {
-    return url.replace('open.spotify.com/', 'open.spotify.com/embed/');
-  };
+  const demo = interpretarDemo(demoUrl);
+  if (!demo) return null;
 
   return (
     <div className="mt-8 rounded-sm border border-white/10 bg-surface p-4 w-full">
       <p className="mb-3 text-xs font-bold uppercase tracking-wider text-volt">Escuchar / Ver Demo</p>
-      
-      {isSpotify && (
+
+      {demo.tipo === 'iframe' && demo.video && (
+        <div className="relative aspect-video w-full overflow-hidden rounded-sm">
+          <iframe
+            src={demo.src}
+            title={`Demo en ${demo.nombre}`}
+            className="absolute inset-0 h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allowFullScreen
+            loading="lazy"
+          />
+        </div>
+      )}
+
+      {demo.tipo === 'iframe' && !demo.video && (
         <iframe
-          src={getSpotifyEmbedUrl(demoUrl)}
+          src={demo.src}
+          title={`Demo en ${demo.nombre}`}
           width="100%"
-          height="152"
+          height={demo.alto || 152}
           frameBorder="0"
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           loading="lazy"
@@ -41,27 +47,27 @@ function ProductDemoPlayer({ demoUrl, fallbackCover }) {
         />
       )}
 
-      {isYouTube && getYouTubeEmbedUrl(demoUrl) && (
-        <div className="relative aspect-video w-full overflow-hidden rounded-sm">
-          <iframe
-            src={getYouTubeEmbedUrl(demoUrl)}
-            className="absolute inset-0 h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-      )}
-
-      {!isSpotify && !isYouTube && (
+      {demo.tipo === 'audio' && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {fallbackCover && (
             <img src={fallbackCover} alt="Portada" className="h-16 w-16 rounded-sm object-cover" />
           )}
           <audio controls className="w-full">
-            <source src={demoUrl} />
+            <source src={demo.src} />
             Tu navegador no soporta el reproductor de audio.
           </audio>
         </div>
+      )}
+
+      {demo.tipo === 'enlace' && (
+        <a
+          href={demo.src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block rounded-sm border border-volt px-5 py-3 text-xs font-bold uppercase tracking-widest text-volt transition hover:bg-volt hover:text-black"
+        >
+          Abrir la demo ↗
+        </a>
       )}
     </div>
   );
