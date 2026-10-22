@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { supabase } from '../../lib/supabaseClient';
+import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
+import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
 import { useCart } from '../../context/CartContext';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../../lib/disponibilidadClient';
 import PayPalButton from '../../components/PayPalButton';
@@ -255,8 +257,12 @@ export default function DetalleClase({ clase }) {
                   <div>
                     <h3 className="font-display text-2xl text-paper uppercase">{plan.name}</h3>
                     <p className="mt-4 text-2xl font-bold text-volt">
+                      {plan.precio_original !== undefined && (
+                        <PrecioTachado cents={Math.round(parseFloat(plan.precio_original) * 100)} currency={clase.currency} />
+                      )}
                       {formatPrice(Math.round(parseFloat(plan.price) * 100), clase.currency)}
                     </p>
+                    {plan.precio_original !== undefined && clase.oferta && <AvisoOferta fin={clase.oferta.fin} className="mt-1" />}
                     {plan.description && (
                       <p className="mt-4 text-sm text-muted leading-relaxed whitespace-pre-line">{plan.description}</p>
                     )}
@@ -327,8 +333,10 @@ export default function DetalleClase({ clase }) {
           <div className="mt-12 max-w-md">
             <div className="rounded-sm border border-white/10 bg-surface p-8 text-center">
               <p className="text-2xl font-bold text-volt">
+                {clase.oferta && <PrecioTachado cents={clase.oferta.precio_original_cents} currency={clase.currency} />}
                 {clase.price_cents ? formatPrice(clase.price_cents, clase.currency) : 'A consultar'}
               </p>
+              {clase.oferta && <AvisoOferta fin={clase.oferta.fin} className="mt-2" />}
 
               {clase.price_cents || clase.price ? (
                 <div className="mt-6 flex items-center justify-center gap-2">
@@ -409,7 +417,7 @@ export async function getServerSideProps({ params }) {
 
   return {
     props: {
-      clase: data || null,
+      clase: aplicarOferta(data) || null,
     },
   };
 }

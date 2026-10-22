@@ -4,6 +4,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../lib/supabaseClient';
 import PayPalButton from '../components/PayPalButton';
+import { AvisoOferta } from '../components/PrecioOferta';
+import { leerOfertaSuscripcion, precioSuscripcion } from '../lib/ofertas';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -13,6 +15,8 @@ export default function AreaClientePage() {
   const [purchases, setPurchases] = useState([]); // Nuevo estado para las compras
   const [loading, setLoading] = useState(true);
   const [subscriptionPrice, setSubscriptionPrice] = useState(7.99);
+  // Oferta de la suscripción (solo el primer mes; ver lib/ofertas.js).
+  const [ofertaSub, setOfertaSub] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [expandedPurchases, setExpandedPurchases] = useState(new Set());
   const [notifyNewItems, setNotifyNewItems] = useState(false);
@@ -86,6 +90,15 @@ export default function AreaClientePage() {
         setSubscriptionPrice(settingsData.value);
       }
 
+      const { data: ofertaData } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'subscription_offer')
+        .maybeSingle();
+      const precioNormalCents = Math.round(Number(settingsData?.value || 7.99) * 100);
+      const sub = precioSuscripcion(precioNormalCents, leerOfertaSuscripcion(ofertaData?.value));
+      setOfertaSub(sub.oferta ? sub : null);
+
       if (profileData?.is_subscribed || profileData?.is_admin) {
         const { data: postsData } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
         const { data: packsData } = await supabase.from('packs').select('*').order('created_at', { ascending: false });
@@ -99,6 +112,11 @@ export default function AreaClientePage() {
 
     loadData();
   }, [router]);
+
+  // Precio que se enseña: con oferta, el del primer mes y el normal después.
+  const textoPrecioSub = ofertaSub
+    ? `${(ofertaSub.cents / 100).toFixed(2)} € el primer mes (después ${subscriptionPrice} €/mes)`
+    : `${subscriptionPrice} €/mes`;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -154,7 +172,7 @@ export default function AreaClientePage() {
       const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
         .filter(Boolean)
         .join(' ');
-      const priceInCents = Math.round(Number(subscriptionPrice) * 100);
+      const priceInCents = ofertaSub ? ofertaSub.cents : Math.round(Number(subscriptionPrice) * 100);
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
@@ -359,13 +377,13 @@ export default function AreaClientePage() {
           <div className="rounded-sm border border-white/10 bg-surface p-8 text-center max-w-lg mx-auto my-12">
             <h2 className="font-display text-2xl mb-3 text-paper">🔒 Contenido Exclusivo Bloqueado</h2>
             <p className="text-sm text-muted mb-6 leading-relaxed">
-              Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo {subscriptionPrice} €/mes.
+              Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo {textoPrecioSub}.
             </p>
             <button
               onClick={() => setOpenSubPayment(true)}
               className="rounded-sm bg-volt px-6 py-3 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
             >
-              Suscribirse Ahora ({subscriptionPrice} €/mes)
+              Suscribirse Ahora ({textoPrecioSub})
             </button>
           </div>
         ) : (
@@ -648,8 +666,9 @@ export default function AreaClientePage() {
             </button>
 
             <h3 className="font-display text-2xl tracking-wide text-paper mb-6 border-b border-white/10 pb-4">
-              Suscribirse ({subscriptionPrice} €/mes)
+              Suscribirse ({textoPrecioSub})
             </h3>
+            {ofertaSub && <AvisoOferta fin={ofertaSub.oferta.fin} className="-mt-3 mb-5" />}
 
             <div className="space-y-3">
               <button
@@ -668,7 +687,7 @@ export default function AreaClientePage() {
                   <p className="text-xs text-muted text-center">Activando tu acceso…</p>
                 ) : (
                   <PayPalButton
-                    amount={Number(subscriptionPrice)}
+                    amount={ofertaSub ? ofertaSub.cents / 100 : Number(subscriptionPrice)}
                     currency="EUR"
                     label="Suscripción Área de Clientes (1 mes)"
                     onSuccess={handleSubscriptionPaypalSuccess}

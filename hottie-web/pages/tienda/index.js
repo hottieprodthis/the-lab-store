@@ -3,6 +3,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ProductCard from '../../components/ProductCard';
 import { supabase } from '../../lib/supabaseClient';
+import { aplicarOfertas } from '../../lib/ofertas';
 
 export default function Tienda({ products }) {
   return (
@@ -41,5 +42,5 @@ export async function getServerSideProps() {
     .eq('active', true)
     .order('sort_order', { ascending: true });
 
-  return { props: { products: data || [] } };
+  return { props: { products: aplicarOfertas(data || []) } };
 }

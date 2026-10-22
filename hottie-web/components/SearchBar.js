@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { aplicarOferta } from '../lib/ofertas';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -64,17 +65,17 @@ export default function SearchBar() {
         ]);
 
         if (resProducts.status === 'fulfilled' && resProducts.value.data) {
-          allItems.push(...resProducts.value.data.map(i => ({ ...i, categoryType: 'PRODUCTO' })));
+          allItems.push(...resProducts.value.data.map(i => ({ ...aplicarOferta(i), categoryType: 'PRODUCTO' })));
         } else if (resProducts.status === 'rejected') {
           console.error('Error cargando productos en el buscador:', resProducts.reason);
         }
         if (resServices.status === 'fulfilled' && resServices.value.data) {
-          allItems.push(...resServices.value.data.map(i => ({ ...i, categoryType: 'SERVICIO' })));
+          allItems.push(...resServices.value.data.map(i => ({ ...aplicarOferta(i), categoryType: 'SERVICIO' })));
         } else if (resServices.status === 'rejected') {
           console.error('Error cargando servicios en el buscador:', resServices.reason);
         }
         if (resClasses.status === 'fulfilled' && resClasses.value.data) {
-          allItems.push(...resClasses.value.data.map(i => ({ ...i, categoryType: 'CLASE' })));
+          allItems.push(...resClasses.value.data.map(i => ({ ...aplicarOferta(i), categoryType: 'CLASE' })));
         } else if (resClasses.status === 'rejected') {
           console.error('Error cargando clases en el buscador:', resClasses.reason);
         }

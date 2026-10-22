@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { supabase } from '../../lib/supabaseClient';
+import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
+import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
 import { useCart } from '../../context/CartContext';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../../lib/disponibilidadClient';
 import PayPalButton from '../../components/PayPalButton';
@@ -252,8 +254,12 @@ export default function DetalleServicio({ service }) {
                   <div>
                     <h3 className="font-display text-2xl text-paper uppercase">{plan.name}</h3>
                     <p className="mt-4 text-2xl font-bold text-volt">
+                      {plan.precio_original !== undefined && (
+                        <PrecioTachado cents={Math.round(parseFloat(plan.precio_original) * 100)} currency={service.currency} />
+                      )}
                       {formatPrice(Math.round(parseFloat(plan.price) * 100), service.currency)}
                     </p>
+                    {plan.precio_original !== undefined && service.oferta && <AvisoOferta fin={service.oferta.fin} className="mt-1" />}
                     {plan.description && (
                       <p className="mt-4 text-sm text-muted leading-relaxed whitespace-pre-line">{plan.description}</p>
                     )}
@@ -324,8 +330,10 @@ export default function DetalleServicio({ service }) {
           <div className="mt-12 max-w-md">
             <div className="rounded-sm border border-white/10 bg-surface p-8 text-center">
               <p className="text-2xl font-bold text-volt">
+                {service.oferta && <PrecioTachado cents={service.oferta.precio_original_cents} currency={service.currency} />}
                 {service.price_cents ? formatPrice(service.price_cents, service.currency) : 'A consultar'}
               </p>
+              {service.oferta && <AvisoOferta fin={service.oferta.fin} className="mt-2" />}
 
               {service.price_cents || service.price ? (
                 <div className="mt-6 flex items-center justify-center gap-2">
@@ -406,7 +414,7 @@ export async function getServerSideProps({ params }) {
 
   return {
     props: {
-      service: data || null,
+      service: aplicarOferta(data) || null,
     },
   };
 }

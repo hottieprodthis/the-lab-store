@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabaseAdmin as supabase } from '../lib/supabaseAdminClient';
 import { slugify } from '../lib/format';
+import { aInputFecha, precioOfertaValido } from '../lib/ofertas';
 
 export default function ItemForm({ table, initial, hasFileUrl }) {
   const router = useRouter();
@@ -57,6 +58,33 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
     };
   }, [table, supportsPlans]);
   const esClase = table === 'classes';
+
+  // OFERTA POR TIEMPO LIMITADO (lib/ofertas.js): % de descuento o precio
+  // nuevo entre dos fechas; fuera de ellas la web vuelve sola al precio
+  // normal. Igual que con el cupo, si las columnas aún no existen en la base
+  // de datos (supabase/migrations/2026-10-23_ofertas.sql) el apartado se
+  // oculta y no se envían, para no romper el guardado.
+  const [ofertaColumna, setOfertaColumna] = useState(false);
+  const [ofertaActiva, setOfertaActiva] = useState(Boolean(initial?.oferta_tipo));
+  const [ofertaTipo, setOfertaTipo] = useState(initial?.oferta_tipo || 'porcentaje');
+  const [ofertaValor, setOfertaValor] = useState(
+    initial?.oferta_valor !== undefined && initial?.oferta_valor !== null ? String(initial.oferta_valor) : ''
+  );
+  const [ofertaInicio, setOfertaInicio] = useState(aInputFecha(initial?.oferta_inicio));
+  const [ofertaFin, setOfertaFin] = useState(aInputFecha(initial?.oferta_fin));
+  useEffect(() => {
+    let activo = true;
+    supabase
+      .from(table)
+      .select('oferta_tipo')
+      .limit(1)
+      .then(({ error: probeError }) => {
+        if (activo) setOfertaColumna(!probeError);
+      });
+    return () => {
+      activo = false;
+    };
+  }, [table]);
 
   function handleNameChange(value) {
     setName(value);
@@ -114,6 +142,10 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         description: p.description ? p.description.trim() : '',
         // Solo se guarda el tipo de cupo del plan si se ha elegido uno.
         ...(p.cupo ? { cupo: p.cupo } : {}),
+        // Precio de oferta del plan (solo en ofertas de "precio nuevo").
+        ...(ofertaColumna && ofertaActiva && ofertaTipo === 'precio' && p.oferta_precio !== undefined && p.oferta_precio !== null && p.oferta_precio !== ''
+          ? { oferta_precio: parseFloat(p.oferta_precio) }
+          : {}),
       }));
 
     // Si hay planes, el precio base será el del plan más económico para referencia
@@ -144,6 +176,57 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
     if (supportsPlans) {
       payload.plans = formattedPlans;
       if (cupoColumna) payload.cupo = cupo || null;
+    }
+
+    // Oferta: se comprueba que tenga sentido antes de guardar.
+    if (ofertaColumna) {
+      if (ofertaActiva) {
+        const conPlanes = supportsPlans && formattedPlans.length > 0;
+        const inicio = ofertaInicio ? new Date(ofertaInicio) : new Date();
+        const fin = ofertaFin ? new Date(ofertaFin) : null;
+        if (!fin || Number.isNaN(fin.getTime()) || Number.isNaN(inicio.getTime())) {
+          setError('Oferta: elige la fecha y hora en que termina.');
+          return;
+        }
+        if (fin <= inicio) {
+          setError('Oferta: la fecha de fin tiene que ser posterior a la de inicio.');
+          return;
+        }
+        if (!conPlanes && !(finalPriceCents > 0)) {
+          setError('Oferta: para poner una oferta, primero pon un precio normal.');
+          return;
+        }
+        if (ofertaTipo === 'porcentaje') {
+          const pct = parseFloat(ofertaValor);
+          if (!(pct >= 1 && pct <= 99)) {
+            setError('Oferta: el descuento tiene que estar entre 1 % y 99 %.');
+            return;
+          }
+        } else if (conPlanes) {
+          const conOferta = formattedPlans.filter((p) => p.oferta_precio !== undefined);
+          if (conOferta.length === 0) {
+            setError('Oferta: escribe el precio de oferta de al menos un plan.');
+            return;
+          }
+          const malo = conOferta.find((p) => !precioOfertaValido(p.oferta_precio, p.price));
+          if (malo) {
+            setError(`Oferta: el precio de oferta del plan "${malo.name}" tiene que ser menor que su precio normal y de 0 € o al menos 0,50 €.`);
+            return;
+          }
+        } else if (!precioOfertaValido(parseFloat(ofertaValor), finalPriceCents / 100)) {
+          setError('Oferta: el precio de oferta tiene que ser menor que el precio normal y de 0 € o al menos 0,50 €.');
+          return;
+        }
+        payload.oferta_tipo = ofertaTipo;
+        payload.oferta_valor = ofertaTipo === 'porcentaje' || !conPlanes ? parseFloat(ofertaValor) : null;
+        payload.oferta_inicio = inicio.toISOString();
+        payload.oferta_fin = fin.toISOString();
+      } else {
+        payload.oferta_tipo = null;
+        payload.oferta_valor = null;
+        payload.oferta_inicio = null;
+        payload.oferta_fin = null;
+      }
     }
 
     setSaving(true);
@@ -406,6 +489,120 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* OFERTA POR TIEMPO LIMITADO */}
+      {ofertaColumna && (
+        <div className="border-t border-white/15 pt-6 space-y-4">
+          <label className="flex items-center gap-2 text-sm text-paper cursor-pointer">
+            <input
+              type="checkbox"
+              checked={ofertaActiva}
+              onChange={(e) => setOfertaActiva(e.target.checked)}
+              className="cursor-pointer"
+            />
+            Poner una oferta por tiempo limitado
+          </label>
+
+          {ofertaActiva && (
+            <div className="space-y-4 rounded-sm border border-volt/30 bg-volt/5 p-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Empieza</label>
+                  <input
+                    type="datetime-local"
+                    value={ofertaInicio}
+                    onChange={(e) => setOfertaInicio(e.target.value)}
+                    className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal [color-scheme:dark]"
+                  />
+                  <p className="mt-1 text-[11px] text-muted">Vacío = empieza ya al guardar.</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Termina</label>
+                  <input
+                    type="datetime-local"
+                    value={ofertaFin}
+                    onChange={(e) => setOfertaFin(e.target.value)}
+                    className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal [color-scheme:dark]"
+                  />
+                  <p className="mt-1 text-[11px] text-muted">Después vuelve solo al precio normal.</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Tipo de oferta</label>
+                <select
+                  value={ofertaTipo}
+                  onChange={(e) => setOfertaTipo(e.target.value)}
+                  className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
+                >
+                  <option value="porcentaje">Descuento en % {hasPlans ? '(se aplica a todos los planes)' : ''}</option>
+                  <option value="precio">Precio nuevo {hasPlans ? '(uno por plan)' : ''}</option>
+                </select>
+              </div>
+
+              {ofertaTipo === 'porcentaje' && (
+                <div>
+                  <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Descuento (%)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="99"
+                    value={ofertaValor}
+                    onChange={(e) => setOfertaValor(e.target.value)}
+                    placeholder="Ej: 20"
+                    className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal sm:w-40"
+                  />
+                </div>
+              )}
+
+              {ofertaTipo === 'precio' && !hasPlans && (
+                <div>
+                  <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
+                    Precio de oferta ({currency.toUpperCase()})
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={ofertaValor}
+                    onChange={(e) => setOfertaValor(e.target.value)}
+                    placeholder={price ? `Menos de ${price}` : ''}
+                    className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal sm:w-40"
+                  />
+                </div>
+              )}
+
+              {ofertaTipo === 'precio' && hasPlans && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted">Precio de oferta de cada plan (vacío = ese plan no tiene oferta):</p>
+                  {plans.map((plan, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <span className="w-40 truncate text-sm text-paper">
+                        {plan.name || `Plan ${index + 1}`}{' '}
+                        <span className="text-muted">({plan.price || '—'} {currency.toUpperCase()})</span>
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={plan.oferta_precio ?? ''}
+                        onChange={(e) => updatePlan(index, 'oferta_precio', e.target.value)}
+                        className="w-32 rounded-sm border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-signal"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[11px] text-muted">
+                Durante la oferta, en la web se verá el precio normal tachado, el de oferta y hasta cuándo dura.
+                No se envía ningún correo por la oferta.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

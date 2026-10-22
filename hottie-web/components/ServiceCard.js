@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabaseClient';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../lib/disponibilidadClient';
 import PayPalButton from './PayPalButton';
+import { PrecioTachado, AvisoOferta } from './PrecioOferta';
 
 export default function ServiceCard({ service }) {
   const [loading, setLoading] = useState(false);
@@ -144,6 +145,9 @@ export default function ServiceCard({ service }) {
       <div className="mt-6 flex items-center justify-between gap-2 border-t border-white/10 pt-4">
         {/* VISUALIZACIÓN DE PRECIO */}
         <span className="text-volt font-bold">
+          {service.oferta && (
+            <PrecioTachado cents={service.oferta.precio_original_cents} currency={service.currency} />
+          )}
           {hasPlans ? (
             minPlanPriceCents ? (
               `Desde ${formatPrice(minPlanPriceCents, service.currency)}`
@@ -155,6 +159,7 @@ export default function ServiceCard({ service }) {
           ) : (
             'A consultar'
           )}
+          {service.oferta && <AvisoOferta fin={service.oferta.fin} className="mt-1 text-[10px] font-normal" />}
         </span>
 
         {/* ACCIONES Y BOTONES */}

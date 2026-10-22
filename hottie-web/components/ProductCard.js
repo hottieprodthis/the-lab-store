@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { formatPrice } from '../lib/format';
+import { PrecioTachado, AvisoOferta } from './PrecioOferta';
 
 export default function ProductCard({ product }) {
   return (
@@ -24,7 +25,11 @@ export default function ProductCard({ product }) {
           <Link href={`/tienda/${product.slug}`}>
             <h3 className="font-display text-xl tracking-wide text-paper hover:text-volt transition">{product.name}</h3>
           </Link>
-          <p className="mt-1 text-signal">{formatPrice(product.price_cents, product.currency)}</p>
+          <p className="mt-1 text-signal">
+            {product.oferta && <PrecioTachado cents={product.oferta.precio_original_cents} currency={product.currency} />}
+            {formatPrice(product.price_cents, product.currency)}
+          </p>
+          {product.oferta && <AvisoOferta fin={product.oferta.fin} className="mt-1 text-[10px]" />}
         </div>
 
         {/* Botón de enlace a detalles del producto */}

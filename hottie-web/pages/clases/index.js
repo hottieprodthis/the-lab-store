@@ -3,6 +3,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ServiceCard from '../../components/ServiceCard';
 import { supabase } from '../../lib/supabaseClient';
+import { aplicarOfertas } from '../../lib/ofertas';
 
 export default function Clases({ classes }) {
   return (
@@ -50,5 +51,5 @@ export async function getServerSideProps() {
     .eq('active', true)
     .order('created_at', { ascending: false });
 
-  return { props: { classes: data || [] } };
+  return { props: { classes: aplicarOfertas(data || []) } };
 }

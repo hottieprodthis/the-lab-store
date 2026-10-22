@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { aplicarOferta } from '../../lib/ofertas';
 
 // Igual que en checkout.js / enviar-pedido.js: usamos la Service Role Key
 // en el servidor para poder escribir en "purchases" sin que las políticas
@@ -93,7 +94,8 @@ export default async function handler(req, res) {
     // de producto individual, ya en funcionamiento) no se mandan y el
     // comportamiento no cambia.
     const nombreItem = planName ? `${item.name || item.title || item.nombre || 'Artículo'} (${planName})` : (item.name || item.title || item.nombre || 'Artículo');
-    const precioCents = typeof amountCents === 'number' ? amountCents : (item.price_cents ?? item.precio_centimos ?? null);
+    // Sin precio de plan, el del artículo con su oferta si está en vigor.
+    const precioCents = typeof amountCents === 'number' ? amountCents : (aplicarOferta(item).price_cents ?? item.precio_centimos ?? null);
     const moneda = item.currency || item.moneda || 'eur';
     const imagen = item.image_url || item.imagen_url || null;
     const enlaceDescarga = tipoNormalizado === 'producto'

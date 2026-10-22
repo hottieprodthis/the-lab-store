@@ -3,6 +3,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ServiceCard from '../../components/ServiceCard';
 import { supabase } from '../../lib/supabaseClient';
+import { aplicarOfertas } from '../../lib/ofertas';
 
 export default function Servicios({ services }) {
   return (
@@ -41,5 +42,5 @@ export async function getServerSideProps() {
     .eq('active', true)
     .order('sort_order', { ascending: true });
 
-  return { props: { services: data || [] } };
+  return { props: { services: aplicarOfertas(data || []) } };
 }

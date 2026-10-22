@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
+import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -86,6 +87,7 @@ export default async function handler(req, res) {
       user_id: resolvedUserId || '',
     };
     let checkoutMode = 'payment';
+    let cuponSuscripcion = null; // cupón de Stripe de la oferta de la suscripción
     let totalCents = 0;
     let planNameToSave = 'Compra en tienda';
     let linksHtml = '';
@@ -112,7 +114,39 @@ export default async function handler(req, res) {
       const precioAjustes = Math.round(Number(settingData?.value) * 100);
       const finalPriceCents = Number.isFinite(precioAjustes) && precioAjustes > 0 ? precioAjustes : 799;
 
-      totalCents += finalPriceCents;
+      // Oferta de la suscripción (solo el PRIMER mes, decisión del dueño):
+      // el precio mensual sigue siendo el normal y Stripe descuenta la
+      // diferencia una sola vez con un cupón.
+      const { data: ofertaAjuste } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'subscription_offer')
+        .maybeSingle();
+      const sub = precioSuscripcion(finalPriceCents, leerOfertaSuscripcion(ofertaAjuste?.value));
+      if (sub.oferta) {
+        const rebaja = finalPriceCents - sub.cents;
+        const idCupon = `oferta-suscripcion-${rebaja}`;
+        try {
+          try {
+            await stripe.coupons.retrieve(idCupon);
+          } catch (e) {
+            await stripe.coupons.create({
+              id: idCupon,
+              amount_off: rebaja,
+              currency: 'eur',
+              duration: 'once',
+              name: 'Oferta primer mes',
+            });
+          }
+          cuponSuscripcion = idCupon;
+        } catch (e) {
+          // Si Stripe falla con el cupón, se cobra el precio normal en vez de
+          // dejar al cliente sin poder suscribirse.
+          console.error('No se pudo preparar el cupón de la oferta de suscripción:', e?.message || e);
+        }
+      }
+
+      totalCents += cuponSuscripcion ? sub.cents : finalPriceCents;
       planNameToSave = 'Suscripción Área de Clientes';
       lineItems = [{
         price_data: {
@@ -205,6 +239,8 @@ export default async function handler(req, res) {
           // El precio (y el nombre) salen de la base de datos, nunca del
           // navegador. Si el artículo ya no existe, está desactivado o el plan
           // no existe, no se puede cobrar: se avisa al cliente más abajo.
+          // Con la oferta ya aplicada si está en vigor (lib/ofertas.js).
+          if (filaDb) filaDb = aplicarOferta(filaDb);
           const plan = filaDb ? buscarPlan(filaDb, { planSlug }) : undefined;
           if (!filaDb || filaDb.active === false || plan === undefined) {
             return { invalido: true };
@@ -368,6 +404,7 @@ export default async function handler(req, res) {
 
       // Precio de la base de datos (del plan elegido, si lo hay). El precio
       // que manda el navegador (customPriceCents) ya no se usa.
+      item = aplicarOferta(item); // oferta en vigor, si la hay
       const planDirecto = buscarPlan(item, { planName });
       if (item.active === false || planDirecto === undefined) {
         return res.status(400).json({ error: 'Este artículo o plan ya no está disponible. Recarga la página.' });
@@ -648,7 +685,9 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.create({
       mode: checkoutMode,
       payment_method_types: isSubscription ? ['card'] : ['card', 'klarna', 'link', 'bizum'],
-      allow_promotion_codes: true,
+      // Stripe no deja usar a la vez códigos promocionales y un cupón: con la
+      // oferta de la suscripción va el cupón; sin ella, como siempre.
+      ...(cuponSuscripcion ? { discounts: [{ coupon: cuponSuscripcion }] } : { allow_promotion_codes: true }),
       line_items: lineItems,
       success_url: successUrl,
       cancel_url: cancelUrl,

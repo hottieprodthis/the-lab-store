@@ -4,6 +4,7 @@ import Head from 'next/head';
 import AdminGuard from '../../components/AdminGuard';
 import AdminHeader from '../../components/AdminHeader';
 import { supabaseAdmin as supabase } from '../../lib/supabaseAdminClient';
+import { aInputFecha, leerOfertaSuscripcion, precioOfertaValido } from '../../lib/ofertas';
 
 function Section({ title, items, kind, onDelete }) {
   const getAddUrl = () => {
@@ -96,6 +97,9 @@ export default function AdminDashboard() {
   const [packs, setPacks] = useState([]);
   const [subscriptionPrice, setSubscriptionPrice] = useState('7.99');
   const [priceMessage, setPriceMessage] = useState('');
+  // Oferta de la suscripción (settings "subscription_offer", ver lib/ofertas.js).
+  const [subOferta, setSubOferta] = useState({ activa: false, tipo: 'porcentaje', valor: '', inicio: '', fin: '' });
+  const [subOfertaMsg, setSubOfertaMsg] = useState('');
   const [subscribersCount, setSubscribersCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -292,6 +296,20 @@ export default function AdminDashboard() {
       setSubscriptionPrice(settingData[0].value);
     }
 
+    const { data: ofertaData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'subscription_offer')
+      .maybeSingle();
+    const o = leerOfertaSuscripcion(ofertaData?.value);
+    setSubOferta({
+      activa: Boolean(o?.oferta_tipo),
+      tipo: o?.oferta_tipo || 'porcentaje',
+      valor: o?.oferta_valor !== undefined && o?.oferta_valor !== null ? String(o.oferta_valor) : '',
+      inicio: aInputFecha(o?.oferta_inicio),
+      fin: aInputFecha(o?.oferta_fin),
+    });
+
     setSubscribersCount(subCount || 0);
     setLoading(false);
   }
@@ -312,6 +330,45 @@ export default function AdminDashboard() {
       setPriceMessage(`Error: ${error.message}`);
     } else {
       setPriceMessage('¡Precio actualizado correctamente!');
+      load();
+    }
+  }
+
+  async function handleGuardarOfertaSuscripcion(e) {
+    e.preventDefault();
+    setSubOfertaMsg('');
+    let valor = ''; // vacío = sin oferta
+    if (subOferta.activa) {
+      const inicio = subOferta.inicio ? new Date(subOferta.inicio) : new Date();
+      const fin = subOferta.fin ? new Date(subOferta.fin) : null;
+      const normal = parseFloat(String(subscriptionPrice).replace(',', '.'));
+      const v = parseFloat(subOferta.valor);
+      if (!fin || Number.isNaN(fin.getTime()) || Number.isNaN(inicio.getTime()) || fin <= inicio) {
+        setSubOfertaMsg('Error: elige una fecha de fin posterior a la de inicio.');
+        return;
+      }
+      if (subOferta.tipo === 'porcentaje' ? !(v >= 1 && v <= 99) : !(precioOfertaValido(v, normal) && v >= 0.5)) {
+        setSubOfertaMsg(
+          subOferta.tipo === 'porcentaje'
+            ? 'Error: el descuento tiene que estar entre 1 % y 99 %.'
+            : 'Error: el precio de oferta tiene que ser menor que el normal y de al menos 0,50 €.'
+        );
+        return;
+      }
+      valor = JSON.stringify({
+        oferta_tipo: subOferta.tipo,
+        oferta_valor: v,
+        oferta_inicio: inicio.toISOString(),
+        oferta_fin: fin.toISOString(),
+      });
+    }
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'subscription_offer', value: valor }, { onConflict: 'key' });
+    if (error) {
+      setSubOfertaMsg(`Error: ${error.message}`);
+    } else {
+      setSubOfertaMsg(subOferta.activa ? '¡Oferta guardada!' : 'Oferta quitada.');
       load();
     }
   }
@@ -356,6 +413,73 @@ export default function AdminDashboard() {
                 </button>
               </form>
               {priceMessage && <p className="mt-3 text-xs text-volt">{priceMessage}</p>}
+
+              {/* OFERTA DE LA SUSCRIPCIÓN (solo el primer mes) */}
+              <form onSubmit={handleGuardarOfertaSuscripcion} className="mt-6 space-y-4 border-t border-white/10 pt-5">
+                <label className="flex items-center gap-2 text-sm text-paper cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={subOferta.activa}
+                    onChange={(e) => setSubOferta({ ...subOferta, activa: e.target.checked })}
+                    className="cursor-pointer"
+                  />
+                  Oferta por tiempo limitado (solo el primer mes de quien se suscriba durante la oferta)
+                </label>
+                {subOferta.activa && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Empieza</label>
+                      <input
+                        type="datetime-local"
+                        value={subOferta.inicio}
+                        onChange={(e) => setSubOferta({ ...subOferta, inicio: e.target.value })}
+                        className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-paper focus:outline-none focus:border-volt [color-scheme:dark]"
+                      />
+                      <p className="mt-1 text-[11px] text-muted">Vacío = empieza ya al guardar.</p>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Termina</label>
+                      <input
+                        type="datetime-local"
+                        value={subOferta.fin}
+                        onChange={(e) => setSubOferta({ ...subOferta, fin: e.target.value })}
+                        className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-paper focus:outline-none focus:border-volt [color-scheme:dark]"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Tipo</label>
+                      <select
+                        value={subOferta.tipo}
+                        onChange={(e) => setSubOferta({ ...subOferta, tipo: e.target.value })}
+                        className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-paper focus:outline-none focus:border-volt"
+                      >
+                        <option value="porcentaje">Descuento en %</option>
+                        <option value="precio">Precio nuevo (€)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
+                        {subOferta.tipo === 'porcentaje' ? 'Descuento (%)' : 'Precio del primer mes (€)'}
+                      </label>
+                      <input
+                        type="number"
+                        step={subOferta.tipo === 'porcentaje' ? '1' : '0.01'}
+                        min="0"
+                        value={subOferta.valor}
+                        onChange={(e) => setSubOferta({ ...subOferta, valor: e.target.value })}
+                        className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-paper focus:outline-none focus:border-volt"
+                      />
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  className="rounded-sm border border-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-volt hover:bg-volt hover:text-ink"
+                >
+                  Guardar oferta
+                </button>
+                {subOfertaMsg && <p className="text-xs text-volt">{subOfertaMsg}</p>}
+              </form>
             </div>
 
             {/* LÍMITE SEMANAL DE COMPRAS */}

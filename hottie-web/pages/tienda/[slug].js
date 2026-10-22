@@ -5,7 +5,9 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PayPalButton from '../../components/PayPalButton';
 import { supabase } from '../../lib/supabaseClient';
+import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
+import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
 import { interpretarDemo } from '../../lib/demo';
 import { useCart } from '../../context/CartContext';
 
@@ -227,7 +229,11 @@ export default function ProductoDetalle({ product }) {
             </button>
           </div>
 
-          <p className="mt-3 text-2xl text-signal">{formatPrice(product.price_cents, product.currency)}</p>
+          <p className="mt-3 text-2xl text-signal">
+            {product.oferta && <PrecioTachado cents={product.oferta.precio_original_cents} currency={product.currency} />}
+            {formatPrice(product.price_cents, product.currency)}
+          </p>
+          {product.oferta && <AvisoOferta fin={product.oferta.fin} className="mt-2" />}
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
 
           <div className="mt-8 flex flex-col gap-5 w-full">
@@ -313,5 +319,5 @@ export async function getServerSideProps({ params }) {
     .eq('active', true)
     .single();
 
-  return { props: { product: data || null } };
+  return { props: { product: aplicarOferta(data) || null } };
 }
