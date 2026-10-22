@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -100,17 +101,16 @@ export default async function handler(req, res) {
     // 1. SUSCRIPCIÓN
     if (isSubscription) {
       checkoutMode = 'subscription';
-      let finalPriceCents = customPriceCents;
+      // El precio se lee SIEMPRE de los ajustes del admin, nunca del
+      // navegador (customPriceCents se ignora: el cliente podría cambiarlo).
+      const { data: settingData } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'subscription_price')
+        .single();
 
-      if (!finalPriceCents) {
-        const { data: settingData } = await supabase
-          .from('settings')
-          .select('value')
-          .eq('key', 'subscription_price')
-          .single();
-
-        finalPriceCents = settingData?.value ? Math.round(Number(settingData.value) * 100) : 799;
-      }
+      const precioAjustes = Math.round(Number(settingData?.value) * 100);
+      const finalPriceCents = Number.isFinite(precioAjustes) && precioAjustes > 0 ? precioAjustes : 799;
 
       totalCents += finalPriceCents;
       planNameToSave = 'Suscripción Área de Clientes';
@@ -118,7 +118,8 @@ export default async function handler(req, res) {
         price_data: {
           currency: 'eur',
           product_data: {
-            name: planName || 'Suscripción The Lab — Área de Clientes',
+            // Nombre fijo (antes venía del navegador).
+            name: 'Suscripción Área de Clientes',
             description: 'Acceso mensual exclusivo',
           },
           unit_amount: finalPriceCents,
@@ -150,6 +151,9 @@ export default async function handler(req, res) {
           let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
           let nameResolved = item.name || item.title || item.nombre || '';
           const cleanId = extractRealId(item.id);
+          const { planSlug } = partirIdCarrito(item.id);
+          // Fila real de la base de datos: de ella sale el precio que se cobra.
+          let filaDb = null;
 
           // Señal principal: lo que el propio carrito ya sabe (isClass/
           // isService se fijan en el navegador en el momento de "Añadir al
@@ -168,6 +172,7 @@ export default async function handler(req, res) {
             const { data: dbItem } = await supabase.from(tabla).select('*').eq('id', cleanId).single();
 
             if (dbItem) {
+              filaDb = dbItem;
               if (!downloadUrl && isProductItem) {
                 downloadUrl = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
               }
@@ -181,12 +186,14 @@ export default async function handler(req, res) {
               // antes de rendirnos, igual que se hacía antes.
               const { data: sData } = await supabase.from('services').select('*').eq('id', cleanId).single();
               if (sData) {
+                filaDb = sData;
                 isServiceItem = true;
                 isProductItem = false;
                 if (!nameResolved) nameResolved = sData.name || sData.title || sData.nombre || '';
               } else {
                 const { data: cData } = await supabase.from('classes').select('*').eq('id', cleanId).single();
                 if (cData) {
+                  filaDb = cData;
                   isClassItem = true;
                   isProductItem = false;
                   if (!nameResolved) nameResolved = cData.name || cData.title || cData.nombre || '';
@@ -195,13 +202,23 @@ export default async function handler(req, res) {
             }
           }
 
+          // El precio (y el nombre) salen de la base de datos, nunca del
+          // navegador. Si el artículo ya no existe, está desactivado o el plan
+          // no existe, no se puede cobrar: se avisa al cliente más abajo.
+          const plan = filaDb ? buscarPlan(filaDb, { planSlug }) : undefined;
+          if (!filaDb || filaDb.active === false || plan === undefined) {
+            return { invalido: true };
+          }
+          nameResolved = nombreConPlan(filaDb, plan) || nameResolved;
+
           if (!nameResolved) nameResolved = isServiceItem ? 'Servicio Digital' : (isClassItem ? 'Clase Digital' : 'Producto Digital');
           if (isServiceItem) hasService = true;
           if (isClassItem) hasClass = true;
           if (isProductItem) hasProduct = true;
 
-          const finalPriceCents = item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
-          totalCents += finalPriceCents * (item.quantity || 1);
+          const cantidad = Math.max(1, Math.floor(Number(item.quantity)) || 1);
+          const finalPriceCents = precioCentimos(filaDb, plan);
+          totalCents += finalPriceCents * cantidad;
 
           return {
             id: item.id,
@@ -210,14 +227,20 @@ export default async function handler(req, res) {
             isService: isServiceItem,
             isClass: isClassItem,
             file_url: downloadUrl,
-            quantity: item.quantity || 1,
+            quantity: cantidad,
             price_cents: finalPriceCents,
-            currency: item.moneda || item.currency || 'eur',
+            currency: filaDb.currency || filaDb.moneda || item.moneda || item.currency || 'eur',
             description: item.description,
             image_url: item.image_url || item.imagen_url
           };
         })
       );
+
+      if (enrichedCart.some((i) => i.invalido)) {
+        return res.status(400).json({
+          error: 'Algún artículo de tu carrito ya no está disponible o ha cambiado. Quítalo del carrito y vuelve a añadirlo.',
+        });
+      }
 
       planNameToSave = enrichedCart.map(i => i.title).join(' + ');
 
@@ -343,7 +366,13 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Artículo no encontrado.' });
       }
 
-      const unitAmount = customPriceCents || item.price_cents || item.precio_centimos || (item.price ? Math.round(item.price * 100) : 0);
+      // Precio de la base de datos (del plan elegido, si lo hay). El precio
+      // que manda el navegador (customPriceCents) ya no se usa.
+      const planDirecto = buscarPlan(item, { planName });
+      if (item.active === false || planDirecto === undefined) {
+        return res.status(400).json({ error: 'Este artículo o plan ya no está disponible. Recarga la página.' });
+      }
+      const unitAmount = precioCentimos(item, planDirecto);
       totalCents += unitAmount;
       if (hasClass || hasService) {
         itemsCupo.push({
