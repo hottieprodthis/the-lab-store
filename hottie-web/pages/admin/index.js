@@ -112,8 +112,8 @@ export default function AdminDashboard() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [expandedStat, setExpandedStat] = useState(null);
 
-  async function loadStats(year) {
-    setStatsLoading(true);
+  async function loadStats(year, silent = false) {
+    if (!silent) setStatsLoading(true);
     try {
       // Mandamos el token de la sesión de admin: la ruta comprueba que la
       // cuenta sea admin antes de devolver emails de clientes.
@@ -129,6 +129,46 @@ export default function AdminDashboard() {
       setStatsData(null);
     }
     setStatsLoading(false);
+  }
+
+  // --- BORRAR COMPRAS DE LAS ESTADÍSTICAS ---
+  // Borrado DEFINITIVO (ver pages/api/admin/borrar-compras.js): la compra
+  // desaparece de las estadísticas y del historial del cliente, y deja de
+  // gastar cupo. Siempre se pide confirmación antes.
+  const [statsMsg, setStatsMsg] = useState('');
+  const [statsBorrando, setStatsBorrando] = useState(false);
+  const [clienteABorrar, setClienteABorrar] = useState('');
+
+  async function borrarCompras(cuerpo, textoConfirmacion) {
+    if (!window.confirm(textoConfirmacion)) return;
+    setStatsMsg('');
+    setStatsBorrando(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token || '';
+      const res = await fetch('/api/admin/borrar-compras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(cuerpo),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        setStatsMsg(data?.error || 'No se pudo borrar.');
+      } else {
+        setStatsMsg(
+          data.articulos === 1
+            ? 'Borrado: 1 artículo.'
+            : `Borrados: ${data.articulos} artículos (${data.compras} compras).`
+        );
+        setClienteABorrar('');
+        await loadStats(statsYear, true);
+        loadLimits(); // el cupo semanal/mensual se libera al borrar
+      }
+    } catch (e) {
+      console.error('Error borrando compras:', e);
+      setStatsMsg('No se pudo borrar. Inténtalo de nuevo.');
+    }
+    setStatsBorrando(false);
   }
 
   useEffect(() => {
@@ -320,10 +360,12 @@ export default function AdminDashboard() {
 
             {/* LÍMITE SEMANAL DE COMPRAS */}
             <div className="mb-12 rounded-sm border border-white/10 bg-surface p-6">
-              <h2 className="font-display text-xl tracking-wide text-paper mb-1">Límite semanal de compras</h2>
+              <h2 className="font-display text-xl tracking-wide text-paper mb-1">Límites de compras (semanales y mensual)</h2>
               <p className="mb-4 text-sm text-muted">
-                Servicios y clases: máximo por semana (de lunes a domingo). Seguimientos: máximo por mes natural.
+                <strong>Por semana</strong> (de lunes a domingo): servicios, clases sueltas y clases de 12 horas.{' '}
+                <strong>Por mes natural</strong> (del día 1 al último día del mes): seguimientos.
                 Vacío = valor por defecto · 0 = no aceptar compras de ese tipo en ese periodo.
+                Los límites cuentan las compras de todos los clientes juntos.
                 Una semana con una clase de 12 horas no admite clases sueltas (de 1 o 2 horas), y al revés.
                 El seguimiento (marcado como &laquo;Seguimiento&raquo; en su ficha) no gasta plazas semanales ni bloquea las clases.
                 Los pedidos gratuitos (0 €) no cuentan.
@@ -457,12 +499,13 @@ export default function AdminDashboard() {
                             <th className="px-4 py-3">Artículo</th>
                             <th className="px-4 py-3">Cantidad</th>
                             <th className="px-4 py-3">Fecha</th>
+                            <th className="px-4 py-3"></th>
                           </tr>
                         </thead>
                         <tbody>
                           {(statsData.stats?.[expandedStat]?.breakdown || []).length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-4 py-3 text-muted">
+                              <td colSpan={5} className="px-4 py-3 text-muted">
                                 Sin ventas registradas en {statsYear}.
                               </td>
                             </tr>
@@ -475,13 +518,81 @@ export default function AdminDashboard() {
                                 <td className="px-4 py-3 text-muted">
                                   {new Date(row.created_at).toLocaleDateString('es-ES')}
                                 </td>
+                                <td className="px-4 py-3 text-right">
+                                  <button
+                                    type="button"
+                                    disabled={statsBorrando || !row.purchase_id}
+                                    onClick={() =>
+                                      borrarCompras(
+                                        {
+                                          accion: 'linea',
+                                          compraId: row.purchase_id,
+                                          indice: row.item_index,
+                                          tipo: expandedStat,
+                                          nombre: row.name,
+                                        },
+                                        `¿Borrar del todo "${row.name}" (${row.quantity} ud.) de ${row.email}?\n\nDesaparece de las estadísticas y del historial del cliente, y libera su cupo. No se puede deshacer.`
+                                      )
+                                    }
+                                    className="text-xs font-semibold text-red-400 hover:text-red-300 disabled:opacity-40"
+                                  >
+                                    Borrar
+                                  </button>
+                                </td>
                               </tr>
                             ))
                           )}
                         </tbody>
                       </table>
+
+                      {(() => {
+                        // Clientes distintos de este bloque (con su user_id) y
+                        // cuántos artículos tiene cada uno.
+                        const filas = statsData.stats?.[expandedStat]?.breakdown || [];
+                        const porCliente = new Map();
+                        for (const f of filas) {
+                          if (!f.user_id) continue;
+                          const c = porCliente.get(f.user_id) || { email: f.email, n: 0 };
+                          c.n += 1;
+                          porCliente.set(f.user_id, c);
+                        }
+                        if (porCliente.size === 0) return null;
+                        const elegido = porCliente.get(clienteABorrar);
+                        const nombreBloque = STAT_BLOCKS.find((b) => b.key === expandedStat)?.label || '';
+                        return (
+                          <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-surface px-4 py-3">
+                            <span className="text-xs text-muted">Borrar todas las de un cliente:</span>
+                            <select
+                              value={clienteABorrar}
+                              onChange={(e) => setClienteABorrar(e.target.value)}
+                              className="rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:outline-none focus:border-volt"
+                            >
+                              <option value="">Elige un cliente…</option>
+                              {[...porCliente.entries()].map(([id, c]) => (
+                                <option key={id} value={id}>
+                                  {c.email} ({c.n})
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              disabled={!elegido || statsBorrando}
+                              onClick={() =>
+                                borrarCompras(
+                                  { accion: 'cliente', userId: clienteABorrar, tipo: expandedStat, year: statsYear },
+                                  `¿Borrar del todo ${elegido.n === 1 ? 'la línea' : `las ${elegido.n} líneas`} de "${nombreBloque}" de ${elegido.email} en ${statsYear}?\n\nDesaparecen de las estadísticas y del historial del cliente, y liberan su cupo. No se puede deshacer.`
+                                )
+                              }
+                              className="rounded-sm border border-red-400/60 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-red-400 transition hover:bg-red-400 hover:text-black disabled:opacity-40"
+                            >
+                              Borrar todas
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
+                  {statsMsg && <p className="mt-3 text-xs text-volt">{statsMsg}</p>}
                 </>
               )}
             </div>

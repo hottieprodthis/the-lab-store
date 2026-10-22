@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../../components/SeguimientoForm';
 
 export default function BriefingPage() {
   const router = useRouter();
@@ -15,18 +16,40 @@ export default function BriefingPage() {
     detalles: ''
   });
 
+  // Datos del formulario de SEGUIMIENTO (solo se usa si la URL trae
+  // seg=solo o seg=con; ver pages/api/checkout.js).
+  const [segData, setSegData] = useState(SEGUIMIENTO_INICIAL);
+  const seg = typeof router.query.seg === 'string' ? router.query.seg : '';
+  const mostrarSeguimiento = seg === 'solo' || seg === 'con';
+  const mostrarServicio = seg !== 'solo';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch('/api/guardar-briefing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      const peticiones = [];
+      if (mostrarSeguimiento) {
+        peticiones.push(
+          fetch('/api/guardar-briefing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...segData, tipo: 'seguimiento' }),
+          })
+        );
+      }
+      if (mostrarServicio) {
+        peticiones.push(
+          fetch('/api/guardar-briefing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+          })
+        );
+      }
+      const respuestas = await Promise.all(peticiones);
 
-      if (res.ok) {
+      if (respuestas.every((r) => r.ok)) {
         // Redirige a la página de agradecimientos tras enviar los datos
         router.push('/gracias?tipo=servicio');
       } else {
@@ -39,6 +62,16 @@ export default function BriefingPage() {
       setLoading(false);
     }
   };
+
+  // Esperamos a que el router conozca la URL para no enseñar un instante el
+  // formulario equivocado.
+  if (!router.isReady) {
+    return (
+      <div style={{ maxWidth: '650px', margin: '60px auto', padding: '30px 20px', color: '#ffffff' }}>
+        <p style={{ color: '#a1a1aa' }}>Cargando…</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -62,6 +95,24 @@ export default function BriefingPage() {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {mostrarSeguimiento && (
+            <div style={seg === 'con' ? bloqueStyle : undefined}>
+              {seg === 'con' && <h2 style={tituloBloqueStyle}>Formulario para tu Seguimiento</h2>}
+              <SeguimientoForm data={segData} setData={setSegData} prefijo="seg" />
+            </div>
+          )}
+
+          {seg === 'con' && <div style={{ borderBottom: '2px dashed #27272a', margin: '10px 0' }}></div>}
+
+          {mostrarServicio && (
+            <div
+              style={
+                seg === 'con'
+                  ? { ...bloqueStyle, display: 'flex', flexDirection: 'column', gap: '20px' }
+                  : { display: 'flex', flexDirection: 'column', gap: '20px' }
+              }
+            >
+              {seg === 'con' && <h2 style={tituloBloqueStyle}>Formulario para tu Servicio de Estudio</h2>}
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#ccc' }}>
               Nombre y Apellidos / Nombre Artístico *
@@ -164,6 +215,8 @@ export default function BriefingPage() {
               style={{ ...inputStyle, resize: 'vertical' }}
             />
           </div>
+            </div>
+          )}
 
           <button 
             type="submit" 
@@ -200,4 +253,18 @@ const inputStyle = {
   fontSize: '0.95rem',
   outline: 'none',
   boxSizing: 'border-box'
+};
+
+const bloqueStyle = {
+  border: '1px solid #27272a',
+  padding: '20px',
+  borderRadius: '8px',
+  backgroundColor: '#09090b',
+};
+
+const tituloBloqueStyle = {
+  fontSize: '1.2rem',
+  color: '#cbfe00',
+  marginBottom: '15px',
+  textTransform: 'uppercase',
 };

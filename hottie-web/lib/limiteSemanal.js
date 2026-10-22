@@ -478,6 +478,39 @@ export async function resumirPedido(supabase, items) {
   return resumen;
 }
 
+// Decide qué formulario de servicio debe ver el cliente después de pagar:
+//   'solo' -> todos los SERVICIOS del pedido son seguimientos
+//   'con'  -> hay seguimientos y también servicios normales
+//   ''     -> no hay ningún seguimiento (formulario de servicio de siempre)
+// Solo mira los artículos de tipo "servicio": un seguimiento marcado en una
+// clase seguiría usando el formulario de clases. Como en resumirPedido, el
+// tipo se lee de la base de datos (id + nombre/plan), nunca del navegador.
+export async function tipoFormularioServicios(supabase, items) {
+  let seguimientos = 0;
+  let otros = 0;
+  const cache = new Map();
+
+  for (const item of (Array.isArray(items) ? items : []).slice(0, 50)) {
+    if (item?.tipo !== 'servicio') continue;
+    const id = extraerIdReal(item.id);
+    if (!id) continue;
+
+    const clave = `services:${id}`;
+    if (!cache.has(clave)) {
+      const { data } = await supabase.from('services').select('*').eq('id', id).single();
+      cache.set(clave, data || null);
+    }
+    const fila = cache.get(clave);
+    if (!fila) continue;
+
+    if (cupoDeItem(fila, item.name) === 'seguimiento') seguimientos += 1;
+    else otros += 1;
+  }
+
+  if (seguimientos === 0) return '';
+  return otros === 0 ? 'solo' : 'con';
+}
+
 // Comprueba si un pedido ({ servicios, cortas, largas, seguimientos }) cabe en
 // lo que queda de semana (y de mes, para el seguimiento). Devuelve
 // { ok, message }.

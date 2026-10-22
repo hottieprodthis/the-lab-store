@@ -13,10 +13,29 @@ export default async function handler(req, res) {
     detalles,
     nivel,
     tipo,
+    modalidad,
+    enlacesProyectos,
+    plugins,
   } = req.body;
 
   if (!nombre || !email || !telefono || !estilo) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  }
+
+  // Briefing de SEGUIMIENTO: además de los cuatro campos de siempre exige
+  // qué se trabaja (mezcla y master o producción), los enlaces a los
+  // proyectos más recientes y los plugins que más usa el cliente.
+  const esSeguimiento = tipo === 'seguimiento';
+  const MODALIDADES = {
+    mezcla_master: 'Mezcla y master',
+    produccion: 'Producción',
+  };
+  if (esSeguimiento) {
+    const enlacesOk = typeof enlacesProyectos === 'string' && enlacesProyectos.trim();
+    const pluginsOk = typeof plugins === 'string' && plugins.trim();
+    if (!MODALIDADES[modalidad] || !enlacesOk || !pluginsOk) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios del seguimiento' });
+    }
   }
 
   const resendApiKey = process.env.RESEND_API_KEY;
@@ -32,13 +51,39 @@ export default async function handler(req, res) {
   const tipoNormalizado = tipo === 'clase' ? 'clase' : 'servicio';
   const esClase = tipoNormalizado === 'clase';
 
-  const etiquetaTipo = esClase ? 'CLASE' : 'SERVICIO';
+  const etiquetaTipo = esSeguimiento ? 'SEGUIMIENTO' : esClase ? 'CLASE' : 'SERVICIO';
 
-  const camposEspecificosHtml = esClase
+  // Los textos libres del seguimiento se escapan para que lo que escriba el
+  // cliente no pueda alterar el correo.
+  const escapar = (texto) =>
+    String(texto)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br />');
+
+  const camposEspecificosHtml = esSeguimiento
+    ? `
+          <p><strong>Quiere trabajar:</strong> ${MODALIDADES[modalidad]}</p>
+          <p><strong>Enlaces a sus proyectos más recientes:</strong><br />${escapar(enlacesProyectos.trim())}</p>
+          <p><strong>Plugins que usa mayoritariamente:</strong><br />${escapar(plugins.trim())}</p>
+        `
+    : esClase
     ? `<p><strong>Nivel de experiencia:</strong> ${nivel || 'No especificado'}</p>`
     : `
           <p><strong>Enlace a Demo/Maqueta:</strong> ${enlaceDemo ? `<a href="${enlaceDemo}">${enlaceDemo}</a>` : 'No adjuntado'}</p>
           <p><strong>¿Tiene Stems / Tracks listos?:</strong> ${tieneStems ? 'SÍ' : 'NO'}</p>
+        `;
+
+  // El seguimiento no tiene "detalles adicionales" (no se piden en su
+  // formulario), así que ese bloque del correo solo sale en servicio/clase.
+  const detallesHtml = esSeguimiento
+    ? ''
+    : `
+          <br />
+          <h3>Detalles adicionales y referencias:</h3>
+          <p style="background: #111; color: #fff; padding: 15px; border-radius: 5px;">${detalles || 'Sin notas adicionales'}</p>
         `;
 
   try {
@@ -54,15 +99,13 @@ export default async function handler(req, res) {
         to: ['pedidos.thelab@gmail.com'],
         subject: `📋 NUEVO BRIEFING DE ${etiquetaTipo}: ${nombre}`,
         html: `
-          <h2>¡Nuevo briefing de ${esClase ? 'clase' : 'proyecto'} recibido!</h2>
+          <h2>¡Nuevo briefing de ${esSeguimiento ? 'seguimiento' : esClase ? 'clase' : 'proyecto'} recibido!</h2>
           <p><strong>Nombre / Nombre Artístico:</strong> ${nombre}</p>
           <p><strong>Email de contacto:</strong> ${email}</p>
           <p><strong>Teléfono / WhatsApp:</strong> ${telefono}</p>
           <p><strong>Estilo musical:</strong> ${estilo}</p>
           ${camposEspecificosHtml}
-          <br />
-          <h3>Detalles adicionales y referencias:</h3>
-          <p style="background: #111; color: #fff; padding: 15px; border-radius: 5px;">${detalles || 'Sin notas adicionales'}</p>
+          ${detallesHtml}
         `,
       }),
     });

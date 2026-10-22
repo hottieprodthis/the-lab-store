@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../components/SeguimientoForm';
 
 // Página de briefing COMBINADO: se usa cuando un mismo pedido mezcla
 // dos o más categorías (producto+servicio, producto+clase,
@@ -11,7 +12,7 @@ import Head from 'next/head';
 // contiene el "tipo" recibido por la URL.
 export default function BriefingUnificadoPage() {
   const router = useRouter();
-  const { tipo, session_id } = router.query;
+  const { tipo, session_id, seg } = router.query;
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
   const [hasServicio, setHasServicio] = useState(false);
@@ -41,6 +42,13 @@ export default function BriefingUnificadoPage() {
     detalles: '',
   });
 
+  // Formulario de SEGUIMIENTO (seg=solo: sustituye al de servicio; seg=con:
+  // se añade al de servicio). Ver pages/api/checkout.js.
+  const [seguimientoData, setSeguimientoData] = useState(SEGUIMIENTO_INICIAL);
+  const segStr = typeof seg === 'string' ? seg : '';
+  const hasSeguimiento = hasServicio && (segStr === 'solo' || segStr === 'con');
+  const hasServicioNormal = hasServicio && segStr !== 'solo';
+
   useEffect(() => {
     if (!router.isReady) return;
     const tipoStr = typeof tipo === 'string' ? tipo : '';
@@ -66,7 +74,17 @@ export default function BriefingUnificadoPage() {
         );
       }
 
-      if (hasServicio) {
+      if (hasSeguimiento) {
+        peticiones.push(
+          fetch('/api/guardar-briefing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...seguimientoData, tipo: 'seguimiento' }),
+          })
+        );
+      }
+
+      if (hasServicioNormal) {
         peticiones.push(
           fetch('/api/guardar-briefing', {
             method: 'POST',
@@ -226,8 +244,23 @@ export default function BriefingUnificadoPage() {
             <div style={{ borderBottom: '2px dashed #27272a', margin: '10px 0' }}></div>
           )}
 
+          {/* BLOQUE DE SEGUIMIENTO */}
+          {hasSeguimiento && (
+            <div style={{ border: '1px solid #27272a', padding: '20px', borderRadius: '8px', backgroundColor: '#09090b' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#cbfe00', marginBottom: '15px', textTransform: 'uppercase' }}>
+                Formulario para tu Seguimiento
+              </h2>
+              <SeguimientoForm data={seguimientoData} setData={setSeguimientoData} prefijo="seg" />
+            </div>
+          )}
+
+          {/* SEPARADOR ENTRE SEGUIMIENTO Y SERVICIO NORMAL */}
+          {hasSeguimiento && hasServicioNormal && (
+            <div style={{ borderBottom: '2px dashed #27272a', margin: '10px 0' }}></div>
+          )}
+
           {/* BLOQUE DE SERVICIOS */}
-          {hasServicio && (
+          {hasServicioNormal && (
             <div style={{ border: '1px solid #27272a', padding: '20px', borderRadius: '8px', backgroundColor: '#09090b' }}>
               <h2 style={{ fontSize: '1.2rem', color: '#cbfe00', marginBottom: '15px', textTransform: 'uppercase' }}>
                 Formulario para tu Servicio de Estudio

@@ -113,6 +113,16 @@ export default function ServiceCard({ service }) {
     } catch (err) {
       console.error('No se pudo registrar el pago de PayPal de este artículo en el historial:', err);
     }
+
+    // Igual que al pagar con tarjeta, el cliente va nada más pagar al
+    // formulario que le corresponde: clase, seguimiento o servicio.
+    if (service.isClass) {
+      window.location.href = '/clases/briefing?tipo=clase';
+    } else if (service.cupo === 'seguimiento') {
+      window.location.href = '/servicios/briefing?tipo=servicio&seg=solo';
+    } else {
+      window.location.href = '/servicios/briefing?tipo=servicio';
+    }
   };
 
   return (

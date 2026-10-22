@@ -9,10 +9,10 @@ import { useCart } from '../../context/CartContext';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../../lib/disponibilidadClient';
 import PayPalButton from '../../components/PayPalButton';
 
-export default function DetalleClase({ clase }) {
+export default function DetalleServicio({ service }) {
   const [loadingPlan, setLoadingPlan] = useState(null);
-  // Límite semanal de clases (panel de admin): si ya no quedan plazas esta
-  // semana se desactivan "+ Carrito" y "RESERVAR" y se avisa.
+  // Límite semanal de servicios (panel de admin): si ya no quedan plazas
+  // esta semana se desactivan "+ Carrito" y "RESERVAR" y se avisa.
   const [disp, setDisp] = useState(null);
   useEffect(() => {
     let activo = true;
@@ -23,7 +23,7 @@ export default function DetalleClase({ clase }) {
       activo = false;
     };
   }, []);
-  const bloqueoBase = bloqueoPara(disp, 'clase', clase?.cupo);
+  const bloqueoBase = bloqueoPara(disp, 'servicio', service?.cupo);
   const agotado = bloqueoBase.agotado;
   // Nombre del plan cuyo menú de "cómo pagar" está abierto (Stripe/Bizum o
   // PayPal). Antes RESERVAR lanzaba Stripe directamente sin dar opción a
@@ -32,21 +32,21 @@ export default function DetalleClase({ clase }) {
   const [paypalDonePlan, setPaypalDonePlan] = useState(null);
   const { addToCart } = useCart();
 
-  if (!clase) {
+  if (!service) {
     return (
       <>
         <Navbar />
         <div className="mx-auto max-w-4xl px-5 py-24 text-center">
-          <h1 className="text-3xl font-bold text-paper">Clase no encontrada</h1>
+          <h1 className="text-3xl font-bold text-paper">Servicio no encontrado</h1>
         </div>
         <Footer />
       </>
     );
   }
 
-  const hasPlans = Array.isArray(clase.plans) && clase.plans.length > 0;
-  // El tipo de cupo de cada plan manda sobre el del clase.
-  const bloqueoDe = (plan) => bloqueoPara(disp, 'clase', (plan && plan.cupo) || clase.cupo);
+  const hasPlans = Array.isArray(service.plans) && service.plans.length > 0;
+  // El tipo de cupo de cada plan manda sobre el del servicio.
+  const bloqueoDe = (plan) => bloqueoPara(disp, 'servicio', (plan && plan.cupo) || service.cupo);
 
   const handleCheckoutPlan = async (plan) => {
     setLoadingPlan(plan.name);
@@ -60,7 +60,7 @@ export default function DetalleClase({ clase }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          productId: clase.id,
+          productId: service.id,
           isService: true,
           planName: plan.name,
           customPriceCents: planPriceCents,
@@ -86,32 +86,23 @@ export default function DetalleClase({ clase }) {
 
   const handleAddToCartPlan = (plan) => {
     const planPriceCents = Math.round(parseFloat(plan.price) * 100);
-    // OJO: antes esto ponía "isService: true" y nada de "isClass", así que
-    // el carrito y el checkout no tenían forma de saber que esto era una
-    // CLASE (la trataban como un servicio más). Por eso un pedido de
-    // servicio+clase (o producto+clase) solo pedía el formulario y la
-    // página de gracias de servicio. Ahora se marca explícitamente como
-    // clase, y "addToCart(planItem, false)" evita que el segundo
-    // parámetro (que fuerza isService) la vuelva a marcar como servicio.
     const planItem = {
-      ...clase,
-      id: `${clase.id}-${plan.name.toLowerCase().replace(/\s+/g, '-')}`,
-      name: `${clase.name} (${plan.name})`,
+      ...service,
+      id: `${service.id}-${plan.name.toLowerCase().replace(/\s+/g, '-')}`,
+      name: `${service.name} (${plan.name})`,
       price_cents: planPriceCents,
       price: parseFloat(plan.price),
-      isClass: true,
-      isService: false,
       // El plan puede tener su propio tipo de cupo; el carrito lo necesita
       // para no dejar acumular más unidades de las que caben.
-      cupo: plan.cupo || clase.cupo || '',
+      cupo: plan.cupo || service.cupo || '',
     };
-    addToCart(planItem, false);
+    addToCart(planItem, true);
   };
 
   // Registra en el historial (y envía los correos) una reserva de un plan
   // concreto pagada con PayPal. Se manda el precio y el nombre YA con el
   // plan incluido porque pages/api/registrar-pago-paypal.js guarda por
-  // defecto el precio base de la clase, no el de un plan concreto.
+  // defecto el precio base del servicio, no el de un plan concreto.
   const handlePaypalPlanSuccess = async (plan, details) => {
     setPaypalDonePlan(plan.name);
     try {
@@ -126,8 +117,8 @@ export default function DetalleClase({ clase }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tipo: 'clase',
-          itemId: clase.id,
+          tipo: 'servicio',
+          itemId: service.id,
           planName: plan.name,
           amountCents: planPriceCents,
           userId: session?.user?.id || null,
@@ -138,14 +129,21 @@ export default function DetalleClase({ clase }) {
         }),
       });
     } catch (err) {
-      console.error('No se pudo registrar el pago de PayPal de esta clase en el historial:', err);
+      console.error('No se pudo registrar el pago de PayPal de este servicio en el historial:', err);
     }
+
+    // Igual que al pagar con tarjeta, el cliente va nada más pagar a su
+    // formulario (el tipo del plan manda sobre el del servicio).
+    window.location.href =
+      (plan.cupo || service.cupo) === 'seguimiento'
+        ? '/servicios/briefing?tipo=servicio&seg=solo'
+        : '/servicios/briefing?tipo=servicio';
   };
 
-  // --- Compra directa cuando la clase NO tiene planes (precio único) ---
-  // Antes, si entrabas aquí (por ejemplo desde el buscador) a una clase sin
-  // planes, esta página solo mostraba el precio, sin ninguna forma de
-  // comprarla: el "+ Carrito" y "RESERVAR" solo existían en la tarjeta del
+  // --- Compra directa cuando el servicio NO tiene planes (precio único) ---
+  // Antes, si entrabas aquí (por ejemplo desde el buscador) a un servicio
+  // sin planes, esta página solo mostraba el precio, sin ninguna forma de
+  // comprarlo: el "+ Carrito" y "RESERVAR" solo existían en la tarjeta del
   // listado (components/ServiceCard.js), nunca en esta ficha. Usamos
   // openPaymentPlan/paypalDonePlan/loadingPlan con la clave especial
   // 'unico' para no duplicar estados, ya que esta rama y la de planes
@@ -159,7 +157,7 @@ export default function DetalleClase({ clase }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          productId: clase.id,
+          productId: service.id,
           isService: true,
           returnUrl: window.location.href,
           userId: session?.user?.id || null,
@@ -194,8 +192,8 @@ export default function DetalleClase({ clase }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tipo: 'clase',
-          itemId: clase.id,
+          tipo: 'servicio',
+          itemId: service.id,
           userId: session?.user?.id || null,
           userEmail: session?.user?.email || payerEmail,
           payerEmail,
@@ -204,15 +202,22 @@ export default function DetalleClase({ clase }) {
         }),
       });
     } catch (err) {
-      console.error('No se pudo registrar el pago de PayPal de esta clase (sin plan) en el historial:', err);
+      console.error('No se pudo registrar el pago de PayPal de este servicio (sin plan) en el historial:', err);
     }
+
+    // Igual que al pagar con tarjeta, el cliente va nada más pagar a su
+    // formulario.
+    window.location.href =
+      service.cupo === 'seguimiento'
+        ? '/servicios/briefing?tipo=servicio&seg=solo'
+        : '/servicios/briefing?tipo=servicio';
   };
 
   return (
     <>
       <Head>
-        <title>{clase.name} — The Lab</title>
-        <meta name="description" content={clase.description} />
+        <title>{service.name} — The Lab</title>
+        <meta name="description" content={service.description} />
       </Head>
 
       <Navbar />
@@ -220,13 +225,13 @@ export default function DetalleClase({ clase }) {
       <section className="mx-auto max-w-5xl px-5 py-16">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{clase.name}</h1>
-            <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{clase.description}</p>
+            <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{service.name}</h1>
+            <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{service.description}</p>
           </div>
-          {clase.image_url && (
+          {service.image_url && (
             <img
-              src={clase.image_url}
-              alt={clase.name}
+              src={service.image_url}
+              alt={service.name}
               className="h-24 w-24 shrink-0 rounded-sm border border-white/10 object-cover sm:h-32 sm:w-32"
             />
           )}
@@ -242,12 +247,12 @@ export default function DetalleClase({ clase }) {
           <div className="mt-12 space-y-6">
             <h2 className="font-display text-xl text-volt uppercase tracking-wider">Planes disponibles</h2>
             <div className="grid gap-6 md:grid-cols-3">
-              {clase.plans.map((plan, i) => (
+              {service.plans.map((plan, i) => (
                 <div key={i} className="flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
                   <div>
                     <h3 className="font-display text-2xl text-paper uppercase">{plan.name}</h3>
                     <p className="mt-4 text-2xl font-bold text-volt">
-                      {formatPrice(Math.round(parseFloat(plan.price) * 100), clase.currency)}
+                      {formatPrice(Math.round(parseFloat(plan.price) * 100), service.currency)}
                     </p>
                     {plan.description && (
                       <p className="mt-4 text-sm text-muted leading-relaxed whitespace-pre-line">{plan.description}</p>
@@ -299,11 +304,11 @@ export default function DetalleClase({ clase }) {
                           <div className="w-full relative z-10 min-h-[50px]">
                             <PayPalButton
                               amount={parseFloat(plan.price)}
-                              currency={(clase.currency || 'eur').toUpperCase()}
-                              label={`${clase.name} (${plan.name})`}
+                              currency={(service.currency || 'eur').toUpperCase()}
+                              label={`${service.name} (${plan.name})`}
                               onSuccess={(details) => handlePaypalPlanSuccess(plan, details)}
                               checkBeforePay={() =>
-                                permitirPago([{ tipo: 'clase', id: clase.id, name: `${clase.name} (${plan.name})`, quantity: 1 }])
+                                permitirPago([{ tipo: 'servicio', id: service.id, name: `${service.name} (${plan.name})`, quantity: 1 }])
                               }
                             />
                           </div>
@@ -319,13 +324,13 @@ export default function DetalleClase({ clase }) {
           <div className="mt-12 max-w-md">
             <div className="rounded-sm border border-white/10 bg-surface p-8 text-center">
               <p className="text-2xl font-bold text-volt">
-                {clase.price_cents ? formatPrice(clase.price_cents, clase.currency) : 'A consultar'}
+                {service.price_cents ? formatPrice(service.price_cents, service.currency) : 'A consultar'}
               </p>
 
-              {clase.price_cents || clase.price ? (
+              {service.price_cents || service.price ? (
                 <div className="mt-6 flex items-center justify-center gap-2">
                   <button
-                    onClick={() => addToCart({ ...clase, isClass: true, isService: false }, false)}
+                    onClick={() => addToCart(service, true)}
                     disabled={agotado}
                     className="rounded-sm border border-[#CCFF00] px-3 py-2 text-xs font-semibold uppercase tracking-widest text-[#CCFF00] transition hover:bg-[#CCFF00] hover:text-black disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#CCFF00]"
                   >
@@ -341,7 +346,7 @@ export default function DetalleClase({ clase }) {
                 </div>
               ) : (
                 <Link
-                  href={`/contacto?clase=${clase.slug}`}
+                  href={`/contacto?servicio=${service.slug}`}
                   className="mt-6 inline-block rounded-sm border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
                 >
                   Consultar
@@ -349,7 +354,7 @@ export default function DetalleClase({ clase }) {
               )}
             </div>
 
-            {openPaymentPlan === 'unico' && (clase.price_cents || clase.price) && (
+            {openPaymentPlan === 'unico' && (service.price_cents || service.price) && (
               <div className="mt-4 rounded-sm border border-white/10 bg-surface p-6 space-y-3">
                 {paypalDonePlan === 'unico' ? (
                   <p className="text-sm text-volt text-center">¡Pago con PayPal completado! Revisa tu correo.</p>
@@ -369,12 +374,12 @@ export default function DetalleClase({ clase }) {
                     </div>
                     <div className="w-full relative z-10 min-h-[50px]">
                       <PayPalButton
-                        amount={(clase.price_cents || Math.round((clase.price || 0) * 100)) / 100}
-                        currency={(clase.currency || 'eur').toUpperCase()}
-                        label={clase.name}
+                        amount={(service.price_cents || Math.round((service.price || 0) * 100)) / 100}
+                        currency={(service.currency || 'eur').toUpperCase()}
+                        label={service.name}
                         onSuccess={handlePaypalBaseSuccess}
                         checkBeforePay={() =>
-                          permitirPago([{ tipo: 'clase', id: clase.id, name: clase.name, quantity: 1 }])
+                          permitirPago([{ tipo: 'servicio', id: service.id, name: service.name, quantity: 1 }])
                         }
                       />
                     </div>
@@ -393,7 +398,7 @@ export default function DetalleClase({ clase }) {
 
 export async function getServerSideProps({ params }) {
   const { data } = await supabase
-    .from('classes')
+    .from('services')
     .select('*')
     .eq('slug', params.slug)
     .eq('active', true)
@@ -401,7 +406,7 @@ export async function getServerSideProps({ params }) {
 
   return {
     props: {
-      clase: data || null,
+      service: data || null,
     },
   };
 }

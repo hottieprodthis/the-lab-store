@@ -130,9 +130,17 @@ export default function CartFloating() {
     const tipoQuery = tipoParts.length > 0 ? tipoParts.join('_') : 'producto';
     const totalCategorias = (hasProduct ? 1 : 0) + (hasService ? 1 : 0) + (hasClass ? 1 : 0);
 
+    // Seguimiento: igual que hace pages/api/checkout.js, si entre los
+    // servicios del carrito hay seguimientos se añade "seg=solo" (todos son
+    // seguimientos) o "seg=con" (también hay servicios normales).
+    const serviciosCarrito = cart.filter((i) => !i.isClass && i.isService);
+    const nSeguimientos = serviciosCarrito.filter((i) => i.cupo === 'seguimiento').length;
+    const segQuery =
+      nSeguimientos === 0 ? '' : nSeguimientos === serviciosCarrito.length ? '&seg=solo' : '&seg=con';
+
     let destino = `/gracias?tipo=${tipoQuery}`;
-    if (totalCategorias > 1) destino = `/briefing?tipo=${tipoQuery}`;
-    else if (hasService) destino = `/servicios/briefing?tipo=${tipoQuery}`;
+    if (totalCategorias > 1) destino = `/briefing?tipo=${tipoQuery}${segQuery}`;
+    else if (hasService) destino = `/servicios/briefing?tipo=${tipoQuery}${segQuery}`;
     else if (hasClass) destino = `/clases/briefing?tipo=${tipoQuery}`;
 
     clearCart();

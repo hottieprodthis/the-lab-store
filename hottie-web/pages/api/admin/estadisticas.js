@@ -111,13 +111,19 @@ export default async function handler(req, res) {
       if (!Array.isArray(compra.items)) continue; // suscripciones o pedidos muy antiguos sin desglose
       const email = emailPorUserId[compra.user_id] || 'Email no disponible';
 
-      for (const articulo of compra.items) {
+      for (const [indice, articulo] of compra.items.entries()) {
         const tipo = articulo?.type;
         if (tipo !== 'servicio' && tipo !== 'clase' && tipo !== 'producto') continue;
 
         const cantidad = Number(articulo.quantity) || 1;
         stats[tipo].count += cantidad;
         stats[tipo].breakdown.push({
+          // Para poder borrar esta línea desde el panel (ver
+          // /api/admin/borrar-compras): qué compra es, qué cliente y en qué
+          // posición de la compra está el artículo.
+          purchase_id: compra.id,
+          user_id: compra.user_id || null,
+          item_index: indice,
           email,
           name: articulo.name || 'Artículo',
           quantity: cantidad,

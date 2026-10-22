@@ -101,6 +101,9 @@ export default function DetalleClase({ clase }) {
       price: parseFloat(plan.price),
       isClass: true,
       isService: false,
+      // El plan puede tener su propio tipo de cupo; el carrito lo necesita
+      // para no dejar acumular más unidades de las que caben.
+      cupo: plan.cupo || clase.cupo || '',
     };
     addToCart(planItem, false);
   };
@@ -137,6 +140,10 @@ export default function DetalleClase({ clase }) {
     } catch (err) {
       console.error('No se pudo registrar el pago de PayPal de esta clase en el historial:', err);
     }
+
+    // Igual que al pagar con tarjeta, el cliente va nada más pagar al
+    // formulario de su clase.
+    window.location.href = '/clases/briefing?tipo=clase';
   };
 
   // --- Compra directa cuando la clase NO tiene planes (precio único) ---
@@ -203,6 +210,10 @@ export default function DetalleClase({ clase }) {
     } catch (err) {
       console.error('No se pudo registrar el pago de PayPal de esta clase (sin plan) en el historial:', err);
     }
+
+    // Igual que al pagar con tarjeta, el cliente va nada más pagar al
+    // formulario de su clase.
+    window.location.href = '/clases/briefing?tipo=clase';
   };
 
   return (

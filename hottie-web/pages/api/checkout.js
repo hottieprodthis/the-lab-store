@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { estadoSemana, resumirPedido, comprobarPedido } from '../../lib/limiteSemanal';
+import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -472,6 +472,21 @@ export default async function handler(req, res) {
     const needsBriefing = hasService || hasClass;
     const isMixedCategories = totalCategories > 1;
 
+    // Si el pedido incluye algún servicio de SEGUIMIENTO, la página de
+    // briefing enseña el formulario de seguimiento ("seg=solo") o el de
+    // seguimiento más el de servicio normal ("seg=con"). Sin seguimiento no
+    // se añade nada y todo queda exactamente igual que antes. Si la
+    // consulta falla, se deja el formulario de servicio de siempre.
+    let segQuery = '';
+    if (hasService && !isSubscription) {
+      try {
+        const seg = await tipoFormularioServicios(supabase, itemsCupo);
+        if (seg) segQuery = `&seg=${seg}`;
+      } catch (segErr) {
+        console.error('No se pudo comprobar si el pedido incluye un seguimiento:', segErr);
+      }
+    }
+
     let successUrl = `${siteUrl}/gracias?tipo=${tipoQuery}`;
     if (isSubscription) {
       // Suscripción: comportamiento intacto.
@@ -481,11 +496,11 @@ export default async function handler(req, res) {
       // Servicio+Clase o Producto+Servicio+Clase): todos los briefings que
       // hagan falta (servicio y/o clase) se muestran juntos en la misma
       // página. Los productos nunca generan briefing.
-      successUrl = `${siteUrl}/briefing?tipo=${tipoQuery}&session_id={CHECKOUT_SESSION_ID}`;
+      successUrl = `${siteUrl}/briefing?tipo=${tipoQuery}${segQuery}&session_id={CHECKOUT_SESSION_ID}`;
     } else if (hasService) {
       // Comportamiento exactamente igual que antes: compra de un único
       // servicio (sola o con varias unidades del mismo servicio).
-      successUrl = `${siteUrl}/servicios/briefing?tipo=${tipoQuery}&session_id={CHECKOUT_SESSION_ID}`;
+      successUrl = `${siteUrl}/servicios/briefing?tipo=${tipoQuery}${segQuery}&session_id={CHECKOUT_SESSION_ID}`;
     } else if (hasClass) {
       // Comportamiento exactamente igual que antes: compra de una única
       // clase.
