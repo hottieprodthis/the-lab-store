@@ -261,10 +261,26 @@ export default function AreaClientePage() {
     const confirmar = window.confirm("¿Seguro que quieres borrar este registro del historial? Esta acción no se puede deshacer.");
     if (!confirmar) return;
 
-    const { error } = await supabase
-      .from('purchases')
-      .delete()
-      .eq('id', idCompra);
+    // La compra se quita de este perfil pero no se borra: sigue contando para
+    // el cupo y las estadísticas (ver pages/api/quitar-de-historial.js).
+    let error = null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/quitar-de-historial', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ compraId: idCompra }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        error = { message: data.error || `HTTP ${res.status}` };
+      }
+    } catch (e) {
+      error = { message: e.message };
+    }
 
     if (error) {
       console.error('Error al borrar la compra:', error.message);
