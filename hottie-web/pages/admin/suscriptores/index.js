@@ -59,7 +59,8 @@ export default function AdminSuscriptores() {
       // Insertar nuevo suscriptor
       const { error } = await supabase
         .from('suscriptores')
-        .insert([{ email: emailLimpio }]);
+        // Añadido a mano por el admin (con el permiso de esa persona): ya confirmado.
+        .insert([{ email: emailLimpio, confirmado: true, confirmado_en: new Date().toISOString() }]);
 
       if (error) {
         setMensaje({ tipo: 'error', texto: 'Error al añadir el suscriptor.' });
@@ -175,7 +176,15 @@ export default function AdminSuscriptores() {
                 <tbody className="divide-y divide-white/5">
                   {suscriptores.map((s) => (
                     <tr key={s.id || s.email}>
-                      <td className="py-3 font-medium">{s.email}</td>
+                      <td className="py-3 font-medium">
+                        {s.email}
+                        {/* Pendiente = se apuntó pero aún no ha pulsado "Confirmar" en su correo: no recibe nada. */}
+                        {s.confirmado === false && (
+                          <span className="ml-2 rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                            Pendiente de confirmar
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 text-center text-muted text-xs">
                         {s.created_at
                           ? new Date(s.created_at).toLocaleDateString()

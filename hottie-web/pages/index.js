@@ -4,11 +4,12 @@ import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BrandsBanner from '../components/BrandsBanner';
-import { supabase } from '../lib/supabaseClient';
 
 export default function Home() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  // Campo invisible anti-bots del boletín (las personas no lo ven).
+  const [trampaBots, setTrampaBots] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -42,34 +43,20 @@ export default function Home() {
     setSubscribed(false);
 
     try {
-      const emailLimpio = email.trim().toLowerCase();
-
-      const { data: existente } = await supabase
-        .from('suscriptores')
-        .select('email')
-        .eq('email', emailLimpio)
-        .maybeSingle();
-
-      if (existente) {
-        setErrorMessage('Este correo electrónico ya está suscrito.');
-        setLoading(false);
-        return;
-      }
-
-      const { error } = await supabase
-        .from('suscriptores')
-        .insert([{ email: emailLimpio }]);
-
-      if (error) {
-        console.error('Detalle del error en Supabase:', error);
-        if (error.code === '23505') {
-          setErrorMessage('Este correo electrónico ya está suscrito.');
-        } else {
-          setErrorMessage('Hubo un problema al guardar tu correo. Inténtalo de nuevo.');
-        }
-      } else {
+      // El alta la hace el servidor (pages/api/boletin.js): manda un correo
+      // para confirmar y solo entra en la lista si se confirma. "web" es el
+      // campo invisible anti-bots.
+      const res = await fetch('/api/boletin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, web: trampaBots }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
         setSubscribed(true);
         setEmail('');
+      } else {
+        setErrorMessage(data.error || 'Hubo un problema al guardar tu correo. Inténtalo de nuevo.');
       }
     } catch (err) {
       console.error('Error al suscribir:', err);
@@ -196,6 +183,13 @@ export default function Home() {
 
         <div className="mt-10 mx-auto max-w-md rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur">
           <form onSubmit={handleSubscribe} className="space-y-3">
+            {/* Trampa anti-bots: oculta para las personas, los bots la rellenan. */}
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: '1px', height: '1px', overflow: 'hidden' }}>
+              <label>
+                No rellenar
+                <input type="text" name="web" tabIndex={-1} autoComplete="off" value={trampaBots} onChange={(e) => setTrampaBots(e.target.value)} />
+              </label>
+            </div>
             <div className="flex gap-2">
               <input
                 type="email"
@@ -221,7 +215,7 @@ export default function Home() {
 
           {subscribed && (
             <p className="mt-3 text-sm font-semibold text-signal">
-              ¡Gracias! Te avisaremos cuando subamos nuevos productos o servicios.
+              ¡Casi listo! Te hemos enviado un correo: pulsa «Confirmar» para empezar a recibir las novedades (mira también en spam).
             </p>
           )}
 

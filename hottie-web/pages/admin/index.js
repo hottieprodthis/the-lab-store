@@ -283,7 +283,8 @@ export default function AdminDashboard() {
       supabase.from('posts').select('*').order('created_at', { ascending: false }),
       supabase.from('packs').select('*').order('created_at', { ascending: false }),
       supabase.from('settings').select('value').eq('key', 'subscription_price'),
-      supabase.from('suscriptores').select('*', { count: 'exact', head: true }),
+      // Solo los que han confirmado su email (los pendientes no reciben nada).
+      supabase.from('suscriptores').select('*', { count: 'exact', head: true }).eq('confirmado', true),
     ]);
 
     setProducts(p || []);

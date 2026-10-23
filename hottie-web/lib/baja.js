@@ -34,6 +34,28 @@ export function enlaceBaja(email) {
   return `${SITIO}/baja?${consulta(email)}`;
 }
 
+// --- Confirmación del alta en el boletín (doble confirmación) ---
+// Mismo sistema de firma, con otra clave: un enlace de baja no sirve para
+// confirmar un alta ni al revés.
+export function firmaConfirmacion(email) {
+  return createHmac('sha256', `alta-boletin:${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`)
+    .update(normalizarEmail(email))
+    .digest('hex')
+    .slice(0, 32);
+}
+
+export function firmaConfirmacionValida(email, firma) {
+  if (typeof firma !== 'string' || firma.length !== 32 || !normalizarEmail(email)) return false;
+  const esperada = Buffer.from(firmaConfirmacion(email));
+  const recibida = Buffer.from(firma);
+  return esperada.length === recibida.length && timingSafeEqual(esperada, recibida);
+}
+
+// Página donde la persona confirma su alta (pages/boletin/confirmar.js).
+export function enlaceConfirmacion(email) {
+  return `${SITIO}/boletin/confirmar?email=${encodeURIComponent(normalizarEmail(email))}&t=${firmaConfirmacion(email)}`;
+}
+
 // Cabeceras para que Gmail y otros muestren su botón de "Cancelar suscripción"
 // de un clic (llama directamente a pages/api/baja.js).
 export function cabecerasBaja(email) {

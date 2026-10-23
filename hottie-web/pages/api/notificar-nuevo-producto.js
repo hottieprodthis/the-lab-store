@@ -83,7 +83,9 @@ export default async function handler(req, res) {
     // que dejaron su email en la home, sin necesidad de tener cuenta).
     const { data: suscriptores, error } = await supabase
       .from('suscriptores')
-      .select('email');
+      .select('email')
+      // Solo quien ha confirmado su email (pages/api/boletin.js).
+      .eq('confirmado', true);
 
     if (error) {
       return res.status(500).json({ error: error.message });
