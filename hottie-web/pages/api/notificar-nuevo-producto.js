@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { enviarCorreosIndividuales } from '../../lib/correos';
 
 // OJO: este endpoint es server-side (pages/api), así que necesita la
 // Service Role Key y NO el cliente compartido de lib/supabaseClient.js
@@ -129,16 +130,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Falta RESEND_API_KEY en Vercel' });
     }
 
-    // 2. Enviar el e-mail a la lista
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    // 2. Enviar el e-mail a la lista: uno por persona (lib/correos.js), para
+    // que nadie vea los emails de los demás. Antes iban todos en el mismo
+    // "Para:".
+    const correo = {
         from: 'The Lab <pedidos@hottieprodthis.com>',
-        to: listaEmails,
         subject: esCambioPrecio
           ? `💸 NUEVO PRECIO EN ${tipoEtiqueta}: ${tituloAsunto}`
           : `🔥 ${tipoEtiqueta === 'CLASE' ? 'NUEVA' : 'NUEVO'} ${tipoEtiqueta}: ${tituloAsunto}`,
@@ -156,16 +152,11 @@ export default async function handler(req, res) {
             </div>
           </div>
         `,
-      }),
-    });
+    };
 
-    const resendData = await resendResponse.json();
+    const enviados = await enviarCorreosIndividuales(listaEmails.map((email) => ({ ...correo, to: [email] })));
 
-    if (!resendResponse.ok) {
-      return res.status(500).json({ error: resendData });
-    }
-
-    return res.status(200).json({ success: true, enviados: listaEmails.length, resendData });
+    return res.status(200).json({ success: true, enviados });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });

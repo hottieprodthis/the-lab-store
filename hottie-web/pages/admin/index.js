@@ -321,16 +321,50 @@ export default function AdminDashboard() {
   async function handleUpdatePrice(e) {
     e.preventDefault();
     setPriceMessage('');
-    
-    const { error } = await supabase
-      .from('settings')
-      .upsert({ key: 'subscription_price', value: subscriptionPrice }, { onConflict: 'key' });
 
-    if (error) {
-      setPriceMessage(`Error: ${error.message}`);
-    } else {
-      setPriceMessage('¡Precio actualizado correctamente!');
+    // Lo hace el servidor (pages/api/admin/precio-suscripcion.js): guarda el
+    // precio, lo aplica a las suscripciones con tarjeta en sus próximos cobros
+    // (si sube, tras 30 días de aviso) y avisa por correo a los suscriptores.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token || '';
+    const cabeceras = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+    try {
+      const info = await fetch('/api/admin/precio-suscripcion', { headers: cabeceras }).then((r) => r.json());
+      if (info?.activos > 0) {
+        const ok = window.confirm(
+          `Hay ${info.activos} ${info.activos === 1 ? 'suscriptor activo' : 'suscriptores activos'}. ` +
+            `Se le${info.activos === 1 ? '' : 's'} enviará un correo avisando del nuevo precio.\n\n` +
+            `Si el precio SUBE, lo pagarán a partir de su primera renovación pasados ${info.diasAviso} días. ` +
+            `Si BAJA, desde su próxima renovación.\n\n¿Guardar el nuevo precio?`
+        );
+        if (!ok) return;
+      }
+
+      const res = await fetch('/api/admin/precio-suscripcion', {
+        method: 'POST',
+        headers: cabeceras,
+        body: JSON.stringify({ precio: subscriptionPrice }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPriceMessage(`Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      if (data.sinCambios || !data.activos) {
+        setPriceMessage('¡Precio actualizado correctamente!');
+      } else {
+        const fecha = new Date(data.desde).toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' });
+        setPriceMessage(
+          `¡Precio actualizado! Avisados ${data.avisados} de ${data.activos} suscriptores. ` +
+            (data.sube ? `Lo pagarán a partir de su primera renovación desde el ${fecha}.` : 'Lo pagarán desde su próxima renovación.') +
+            (data.errorCorreo ? ` OJO: fallo al enviar correos (${data.errorCorreo}).` : '') +
+            (data.fallosStripe?.length ? ` OJO: no se pudo cambiar en Stripe a: ${data.fallosStripe.join(', ')}.` : '')
+        );
+      }
       load();
+    } catch (err) {
+      setPriceMessage(`Error: ${err.message}`);
     }
   }
 

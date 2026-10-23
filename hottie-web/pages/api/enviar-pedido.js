@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { finSegunStripe } from '../../lib/suscripcion';
+import { finSegunStripe, proximaRenovacionStripe, ajustarPrecioStripe, precioRenovacion, leerCambioPrecio, altaStripe } from '../../lib/suscripcion';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -125,13 +125,25 @@ export default async function handler(req, res) {
     const subId = factura.subscription || factura.parent?.subscription_details?.subscription;
     if (typeof subId === 'string') {
       try {
-        const fin = finSegunStripe(await stripe.subscriptions.retrieve(subId));
+        const sub = await stripe.subscriptions.retrieve(subId);
+        const fin = finSegunStripe(sub);
         if (fin) {
           const { error } = await supabase
             .from('profiles')
             .update({ is_subscribed: true, subscribed_until: fin.toISOString() })
             .eq('stripe_subscription_id', subId);
           if (error) console.error('Webhook invoice.paid: error de Supabase:', error.message);
+        }
+
+        // Si el admin cambió el precio, el próximo cobro pasa al que toque en
+        // esa fecha (con la subida, solo cuando ya han pasado los 30 días de
+        // aviso; ver pages/api/admin/precio-suscripcion.js).
+        const { data: ajustePrecio } = await supabase.from('settings').select('value').eq('key', 'subscription_price').maybeSingle();
+        const { data: ajusteCambio } = await supabase.from('settings').select('value').eq('key', 'subscription_price_change').maybeSingle();
+        const precioActual = Math.round(Number(ajustePrecio?.value) * 100);
+        const proxima = proximaRenovacionStripe(sub);
+        if (Number.isFinite(precioActual) && precioActual >= 50 && proxima) {
+          await ajustarPrecioStripe(stripe, sub, precioRenovacion(precioActual, leerCambioPrecio(ajusteCambio?.value), proxima, altaStripe(sub)));
         }
       } catch (e) {
         console.error('Webhook invoice.paid: no se pudo leer la suscripción', subId, e.message);

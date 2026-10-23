@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { paypalConfigurado, verificarPedidoPaypal } from '../../lib/paypal';
-import { finTrasMesPaypal } from '../../lib/suscripcion';
+import { finTrasMesPaypal, suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../../lib/suscripcion';
 
 // Igual que en checkout.js / enviar-pedido.js: usamos la Service Role Key
 // en el servidor para poder escribir en "purchases" sin que las políticas
@@ -561,11 +561,20 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
     }
 
     // Precio real: el de los ajustes del admin con su oferta del primer mes.
+    // Si ya está suscrito y el admin ha subido el precio, durante los 30 días
+    // de aviso renueva al precio anterior (lib/suscripcion.js).
     const { data: ajustePrecio } = await supabase.from('settings').select('value').eq('key', 'subscription_price').maybeSingle();
     const { data: ajusteOferta } = await supabase.from('settings').select('value').eq('key', 'subscription_offer').maybeSingle();
+    const { data: ajusteCambio } = await supabase.from('settings').select('value').eq('key', 'subscription_price_change').maybeSingle();
+    const { data: perfilActual } = await supabase
+      .from('profiles')
+      .select('is_subscribed, subscribed_until')
+      .eq('id', usuarioSesion.id)
+      .maybeSingle();
     const precioNormal = Math.round(Number(ajustePrecio?.value) * 100);
+    const precioBase = Number.isFinite(precioNormal) && precioNormal > 0 ? precioNormal : 799;
     const esperadoCents = precioSuscripcion(
-      Number.isFinite(precioNormal) && precioNormal > 0 ? precioNormal : 799,
+      suscripcionActiva(perfilActual) ? precioRenovacion(precioBase, leerCambioPrecio(ajusteCambio?.value)) : precioBase,
       leerOfertaSuscripcion(ajusteOferta?.value)
     ).cents;
 
@@ -576,11 +585,6 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
     // Pago comprobado: se activa el acceso desde el servidor (antes lo hacía
     // el navegador con la función activar_mi_suscripcion, sin comprobar nada)
     // y dura 1 mes; si aún le quedaban días, el mes se suma al final.
-    const { data: perfilActual } = await supabase
-      .from('profiles')
-      .select('subscribed_until')
-      .eq('id', usuarioSesion.id)
-      .maybeSingle();
     const nuevoFin = finTrasMesPaypal(perfilActual?.subscribed_until);
     const { error: subError } = await supabase
       .from('profiles')

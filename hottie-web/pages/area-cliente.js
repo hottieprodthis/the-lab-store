@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import PayPalButton from '../components/PayPalButton';
 import { AvisoOferta } from '../components/PrecioOferta';
 import { leerOfertaSuscripcion, precioSuscripcion } from '../lib/ofertas';
-import { suscripcionActiva } from '../lib/suscripcion';
+import { suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../lib/suscripcion';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -96,7 +96,21 @@ export default function AreaClientePage() {
         .select('value')
         .eq('key', 'subscription_offer')
         .maybeSingle();
-      const precioNormalCents = Math.round(Number(settingsData?.value || 7.99) * 100);
+      let precioNormalCents = Math.round(Number(settingsData?.value || 7.99) * 100);
+      // Si ya está suscrito y el precio ha subido hace menos de 30 días, sus
+      // renovaciones siguen al precio anterior (lib/suscripcion.js).
+      if (suscripcionActiva(profileData)) {
+        const { data: cambioData } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'subscription_price_change')
+          .maybeSingle();
+        const renovacion = precioRenovacion(precioNormalCents, leerCambioPrecio(cambioData?.value));
+        if (renovacion !== precioNormalCents) {
+          precioNormalCents = renovacion;
+          setSubscriptionPrice((renovacion / 100).toFixed(2));
+        }
+      }
       const sub = precioSuscripcion(precioNormalCents, leerOfertaSuscripcion(ofertaData?.value));
       setOfertaSub(sub.oferta ? sub : null);
 

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { enviarCorreosIndividuales } from '../../lib/correos';
 
 // Usamos la Service Role Key porque necesitamos leer el email real de cada
 // cuenta con auth.admin.getUserById (la tabla "profiles" no guarda el
@@ -97,15 +98,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Falta RESEND_API_KEY en Vercel' });
     }
 
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    // Un correo por persona (lib/correos.js), para que nadie vea los emails de
+    // los demás. Antes iban todos en el mismo "Para:".
+    const correo = {
         from: 'The Lab <pedidos@hottieprodthis.com>',
-        to: emails,
         subject: `🔥 NUEVO ${etiqueta} EN TU ÁREA DE CLIENTES: ${tituloAsunto}`,
         html: `
           <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px; text-align:center;">
@@ -120,15 +116,11 @@ export default async function handler(req, res) {
             </div>
           </div>
         `,
-      }),
-    });
+    };
 
-    const resendData = await resendResponse.json();
-    if (!resendResponse.ok) {
-      return res.status(500).json({ error: resendData });
-    }
+    const enviados = await enviarCorreosIndividuales(emails.map((email) => ({ ...correo, to: [email] })));
 
-    return res.status(200).json({ success: true, enviados: emails.length });
+    return res.status(200).json({ success: true, enviados });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
