@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Seo from '../components/Seo';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -15,9 +16,11 @@ function Titulo({ children }) {
 export default function CondicionesDeVenta() {
   return (
     <>
-      <Head>
-        <title>Condiciones de Venta | The Lab – Hottie</title>
-      </Head>
+      <Seo
+        title="Condiciones de Venta | The Lab – Hottie"
+        description="Condiciones de compra de productos digitales, servicios, clases y suscripción en The Lab by Hottie."
+        path="/condiciones-de-venta"
+      />
 
       <Navbar />
 

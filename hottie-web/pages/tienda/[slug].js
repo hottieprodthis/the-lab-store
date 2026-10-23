@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Seo from '../../components/Seo';
 import { useRouter } from 'next/router';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -201,10 +202,13 @@ export default function ProductoDetalle({ product }) {
 
   return (
     <>
-      <Head>
-        <title>{product.name} — The Lab</title>
-        <meta name="description" content={product.description?.slice(0, 150)} />
-      </Head>
+      <Seo
+        title={`${product.name} — The Lab`}
+        description={product.description || `${product.name}: kit de producción de The Lab by Hottie.`}
+        path={`/tienda/${product.slug}`}
+        image={product.image_url}
+        type="product"
+      />
 
       <Navbar />
 

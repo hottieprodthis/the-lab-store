@@ -1,4 +1,5 @@
-import Head from 'next/head';
+import Head from 'next/head';
+import Seo from '../../components/Seo';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ServiceCard from '../../components/ServiceCard';
@@ -8,10 +9,7 @@ import { aplicarOfertas } from '../../lib/ofertas';
 export default function Servicios({ services }) {
   return (
     <>
-      <Head>
-        <title>Servicios — The Lab</title>
-        <meta name="description" content="Mezcla, masterización y producción." />
-      </Head>
+      <Seo title="Servicios — The Lab" description="Mezcla, masterización, producción y seguimiento personalizado para tus canciones, con Hottie." path="/servicios" />
 
       <Navbar />
 

@@ -1,4 +1,5 @@
-import Head from 'next/head';
+import Head from 'next/head';
+import Seo from '../components/Seo';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -116,9 +117,11 @@ const faqCategories = [
 export default function FAQ() {
   return (
     <>
-      <Head>
-        <title>Preguntas Frecuentes (FAQ) — THE LAB</title>
-      </Head>
+      <Seo
+        title="Preguntas Frecuentes (FAQ) — The Lab"
+        description="Dudas sobre las clases, los servicios de mezcla y mastering, los kits de sonido, los pagos y las devoluciones de The Lab by Hottie."
+        path="/faq"
+      />
 
       <Navbar />
 

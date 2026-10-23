@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Seo from '../../components/Seo';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
@@ -217,10 +218,12 @@ export default function DetalleServicio({ service }) {
 
   return (
     <>
-      <Head>
-        <title>{service.name} — The Lab</title>
-        <meta name="description" content={service.description} />
-      </Head>
+      <Seo
+        title={`${service.name} — The Lab`}
+        description={service.description || `${service.name}: servicio de The Lab by Hottie.`}
+        path={`/servicios/${service.slug}`}
+        image={service.image_url}
+      />
 
       <Navbar />
 

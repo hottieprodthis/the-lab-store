@@ -1,13 +1,16 @@
-import Head from 'next/head';
+import Head from 'next/head';
+import Seo from '../components/Seo';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 export default function PoliticaDeCookies() {
   return (
     <>
-      <Head>
-        <title>Política de Cookies | The Lab – Hottie</title>
-      </Head>
+      <Seo
+        title="Política de Cookies | The Lab – Hottie"
+        description="Qué cookies usa The Lab by Hottie y cómo aceptarlas o rechazarlas."
+        path="/politica-de-cookies"
+      />
 
       <Navbar />
 

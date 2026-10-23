@@ -1,4 +1,5 @@
-import Head from 'next/head';
+import Head from 'next/head';
+import Seo from '../components/Seo';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -52,9 +53,11 @@ const contactLinks = [
 export default function Contacto() {
   return (
     <>
-      <Head>
-        <title>Contacto — The Lab</title>
-      </Head>
+      <Seo
+        title="Contacto — The Lab"
+        description="Escribe a Hottie por email, WhatsApp o Instagram para cualquier duda sobre producción, mezcla, mastering o clases."
+        path="/contacto"
+      />
 
       <Navbar />
 

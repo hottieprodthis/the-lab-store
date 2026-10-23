@@ -1,4 +1,5 @@
-import Head from 'next/head';
+import Head from 'next/head';
+import Seo from '../../components/Seo';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ServiceCard from '../../components/ServiceCard';
@@ -8,10 +9,7 @@ import { aplicarOfertas } from '../../lib/ofertas';
 export default function Clases({ classes }) {
   return (
     <>
-      <Head>
-        <title>Clases — The Lab</title>
-        <meta name="description" content="Aprende producción musical, mezcla y masterización con sesiones personalizadas por reserva." />
-      </Head>
+      <Seo title="Clases — The Lab" description="Aprende producción musical, mezcla y masterización con sesiones personalizadas por reserva." path="/clases" />
 
       <Navbar />
 

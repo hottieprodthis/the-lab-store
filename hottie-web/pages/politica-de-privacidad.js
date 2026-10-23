@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Seo from '../components/Seo';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -14,9 +15,11 @@ function Titulo({ children }) {
 export default function PoliticaDePrivacidad() {
   return (
     <>
-      <Head>
-        <title>Política de Privacidad | The Lab – Hottie</title>
-      </Head>
+      <Seo
+        title="Política de Privacidad | The Lab – Hottie"
+        description="Qué datos recoge The Lab by Hottie, para qué los usa, con quién los comparte y cómo ejercer tus derechos."
+        path="/politica-de-privacidad"
+      />
 
       <Navbar />
 

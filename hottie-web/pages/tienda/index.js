@@ -1,4 +1,5 @@
-import Head from 'next/head';
+import Head from 'next/head';
+import Seo from '../../components/Seo';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ProductCard from '../../components/ProductCard';
@@ -8,10 +9,7 @@ import { aplicarOfertas } from '../../lib/ofertas';
 export default function Tienda({ products }) {
   return (
     <>
-      <Head>
-        <title>Tienda — The Lab</title>
-        <meta name="description" content="Kits de producción, packs y descargas digitales." />
-      </Head>
+      <Seo title="Tienda — The Lab" description="Kits de producción, sample packs y descargas digitales de Hottie para tus producciones." path="/tienda" />
 
       <Navbar />
 

@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Seo from '../components/Seo';
 import Link from 'next/link';
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
@@ -68,13 +69,13 @@ export default function Home() {
 
   return (
     <>
+      <Seo
+        title="The Lab by Hottie | Estudio Profesional"
+        description="The Lab es el estudio de producción musical, mezcla y mastering de Hottie (Hottieprod) en Salamanca. Especializado en tech house, electrónica, latina y urbana."
+        path="/"
+      />
       <Head>
-        <title>The Lab by Hottie | Estudio Profesional</title>
-        <meta name="description" content="The Lab es el estudio de producción musical, mezcla y mastering de Hottie (Hottieprod) en Salamanca. Especializado en tech house, electrónica, latina y urbana." />
         <meta name="keywords" content="hottie, the lab, hottieprod, hottieprodthis, productor musical, the lab hottie, estudio de grabacion, salamanca, dj" />
-        <meta property="og:title" content="The Lab by Hottie | Producción Musical" />
-        <meta property="og:description" content="Estudio de producción musical, mezcla y mastering de Hottie (Hottieprod)." />
-        <meta property="og:url" content="https://www.hottieprodthis.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}

@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Seo from '../../components/Seo';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
@@ -220,10 +221,12 @@ export default function DetalleClase({ clase }) {
 
   return (
     <>
-      <Head>
-        <title>{clase.name} — The Lab</title>
-        <meta name="description" content={clase.description} />
-      </Head>
+      <Seo
+        title={`${clase.name} — The Lab`}
+        description={clase.description || `${clase.name}: clase de producción musical de The Lab by Hottie.`}
+        path={`/clases/${clase.slug}`}
+        image={clase.image_url}
+      />
 
       <Navbar />
 
