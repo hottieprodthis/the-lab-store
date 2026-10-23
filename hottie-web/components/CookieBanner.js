@@ -27,22 +27,38 @@ export default function CookieBanner() {
     setMostrar(false);
   };
 
+  // Rechazar tiene que ser igual de fácil que aceptar. Se guarda 'false':
+  // pages/_app.js solo activa Google Analytics con 'true', así que siguen
+  // sin guardarse cookies de estadística, y el banner no vuelve a salir.
+  const handleRechazar = () => {
+    localStorage.setItem('cookie_consent_accepted', 'false');
+    setMostrar(false);
+  };
+
   if (!mostrar) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-ink/95 px-6 py-4 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
         <p className="text-xs text-muted leading-relaxed">
-          Este sitio web utiliza cookies de terceros para optimizar tu navegación, adaptarse a tus preferencias y realizar labores analíticas. Al continuar navegando aceptas nuestra Política de cookies.
+          Usamos cookies de terceros (Google Analytics) para saber cómo se usa la web. Solo se activan si pulsas &laquo;Aceptar&raquo;; puedes rechazarlas sin ningún problema.
         </p>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
           {/* Botón Aceptar: Fondo Volt sólido con letras negras */}
           <button
             onClick={handleAceptar}
             className="rounded bg-volt px-5 py-2 text-xs font-bold uppercase tracking-wider text-ink transition hover:bg-signal"
           >
             Aceptar
+          </button>
+
+          {/* Botón Rechazar: mismo tamaño y visibilidad que Aceptar */}
+          <button
+            onClick={handleRechazar}
+            className="rounded border border-white/40 px-5 py-2 text-xs font-bold uppercase tracking-wider text-paper transition hover:bg-white/10"
+          >
+            Rechazar
           </button>
 
           {/* Botón Leer Más: Borde Volt con letras Volt sobre fondo transparente */}

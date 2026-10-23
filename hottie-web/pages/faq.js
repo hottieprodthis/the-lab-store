@@ -7,6 +7,7 @@ const faqCategories = [
   {
     category: "Clases de Producción, Mezcla y Mastering",
     icon: "🎓",
+    // Lenguaje: se dice "clase de 12 horas", nunca "pack" (decisión del dueño).
     questions: [
       {
         q: "¿Qué DAW o nivel necesito para tomar las clases?",
@@ -17,8 +18,8 @@ const faqCategories = [
         a: "El horario habitual de atención y clases es de Lunes a Viernes de 16:00 a 21:00 y Sábados de 19:00 a 20:00 (Hora de España peninsular / CET). Tenlo en cuenta para coordinar tu cita si te conectas desde fuera de España."
       },
       {
-        q: "¿Cómo se reparten las horas de los packs de clases?",
-        a: "• Pack 2 Horas: Se imparte en una única sesión.\n• Pack 12 Horas: Se estructura en 4 sesiones de 3 horas cada una.\n\nNota importante: Todos los packs de clases deben consumirse en un plazo máximo de 2 semanas desde las citas y horarios programados."
+        q: "¿Cómo se reparten las horas de las clases?",
+        a: "• Clases sueltas (1 hora, 2 horas…): se imparten en una única sesión.\n• Clase de 12 horas: se estructura en 4 sesiones de 3 horas cada una, dentro de una misma semana (de lunes a viernes)."
       },
       {
         q: "¿Las clases son adaptadas o hay un temario fijo?",
@@ -98,11 +99,11 @@ const faqCategories = [
     questions: [
       {
         q: "¿Qué métodos de pago puedo utilizar?",
-        a: "Aceptamos Tarjeta de crédito/débito, PayPal, Apple Pay, Bizum, Stripe, entre otros."
+        a: "Aceptamos tarjeta de crédito/débito, Apple Pay, Bizum, Klarna y PayPal."
       },
       {
         q: "¿Qué debo hacer justo después de pagar un servicio?",
-        a: "Debes contactar con Hottie enviando tu comprobante de pago vía WhatsApp, Email o Instagram para constar tu pedido."
+        a: "Nada más pagar, la web te lleva a un formulario para que nos cuentes los detalles de tu proyecto o clase. Al enviarlo nos llega todo automáticamente y nos pondremos en contacto contigo para coordinarlo. También recibirás un correo de confirmación de tu compra."
       },
       {
         q: "¿Cuál es la política de devoluciones?",

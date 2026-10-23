@@ -31,7 +31,7 @@ export default function PoliticaDeCookies() {
           <p className="font-semibold text-paper pt-2">Este sitio web utiliza las siguientes cookies de terceros:</p>
           <ul className="list-disc pl-5 space-y-2">
             <li>
-              <strong className="text-paper">Google Analytics:</strong> Almacena cookies para poder elaborar estadísticas sobre el tráfico y volumen de visitas de esta web. Al utilizar este sitio web estás consintiendo el tratamiento de información acerca de ti por Google. Por tanto, el ejercicio de cualquier derecho en este sentido deberá hacerlo comunicando directamente con Google.
+              <strong className="text-paper">Google Analytics:</strong> Almacena cookies para poder elaborar estadísticas sobre el tráfico y volumen de visitas de esta web. Solo se activan si pulsas &laquo;Aceptar&raquo; en el aviso de cookies; si pulsas &laquo;Rechazar&raquo;, no se guardan. Para cambiar tu decisión, borra las cookies y los datos de esta web en tu navegador y vuelve a entrar: el aviso aparecerá de nuevo.
             </li>
             <li>
               <strong className="text-paper">Redes sociales:</strong> Cada red social utiliza sus propias cookies para que tu puedas pinchar en botones del tipo Me gusta o Compartir.
