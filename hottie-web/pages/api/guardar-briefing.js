@@ -1,3 +1,5 @@
+import { prepararCorreo } from '../../lib/correos';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Método no permitido' });
@@ -94,7 +96,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepararCorreo({
         from: 'The Lab System <pedidos@hottieprodthis.com>',
         to: ['pedidos.thelab@gmail.com'],
         subject: `📋 NUEVO BRIEFING DE ${etiquetaTipo}: ${nombre}`,
@@ -107,7 +109,7 @@ export default async function handler(req, res) {
           ${camposEspecificosHtml}
           ${detallesHtml}
         `,
-      }),
+      })),
     });
 
     // Si Resend no acepta el correo, el cliente tiene que saberlo (antes veía

@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { prepararCorreo } from '../../lib/correos';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
@@ -629,7 +630,7 @@ export default async function handler(req, res) {
               'Authorization': `Bearer ${resendApiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepararCorreo({
               from: 'The Lab System <pedidos@hottieprodthis.com>',
               to: ['pedidos.thelab@gmail.com'],
               subject: `🚨 NUEVO PEDIDO / RESERVA GRATUITA (0€): ${nombreClienteReal}`,
@@ -640,7 +641,7 @@ export default async function handler(req, res) {
                 <p><strong>Total:</strong> 0.00 €</p>
                 <p><strong>Concepto:</strong> ${linksText || planNameToSave}</p>
               `,
-            }),
+            })),
           });
 
           // 2. Correo de confirmación para el cliente
@@ -666,13 +667,13 @@ export default async function handler(req, res) {
               'Authorization': `Bearer ${resendApiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepararCorreo({
               from: 'The Lab <pedidos@hottieprodthis.com>',
               reply_to: 'pedidos.thelab@gmail.com',
               to: [destinoEmail],
               subject: 'Tu solicitud en The Lab - Confirmación y Accesos',
               html: fullEmailHtml,
-            }),
+            })),
           });
         } catch (emailError) {
           console.error('Error enviando correos de 0€ con Resend:', emailError);

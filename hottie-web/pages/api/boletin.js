@@ -79,16 +79,19 @@ export default async function handler(req, res) {
       {
         from: 'The Lab <pedidos@hottieprodthis.com>',
         to: [email],
-        subject: 'Confirma tu suscripción a las novedades de The Lab',
+        subject: 'Un último paso para recibir las novedades de The Lab',
+        // Texto cercano y explicando por qué le llega: los correos de
+        // "confirma" muy escuetos se parecen a los de estafas y van a spam.
         html: `
           <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px; text-align:center;">
-            <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px;">THE LAB — NOVEDADES</p>
-            <h2 style="color:#ffffff;">¿Quieres recibir nuestras novedades?</h2>
-            <p style="color:#dddddd;">Pulsa el botón para confirmar que quieres recibir avisos de nuevos productos, servicios, clases y cambios de precio.</p>
+            <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px;">THE LAB — HOTTIE</p>
+            <h2 style="color:#ffffff;">¡Hola! Gracias por apuntarte</h2>
+            <p style="color:#dddddd;">Alguien (seguramente tú) ha escrito este email en el formulario de novedades de <a href="https://hottieprodthis.com" style="color:#CCFF00;">hottieprodthis.com</a>, la web de producción musical de Hottie.</p>
+            <p style="color:#dddddd;">Para empezar a recibir los avisos de nuevos kits, servicios, clases y cambios de precio, confirma tu email:</p>
             <div style="margin-top:24px;">
-              <a href="${enlaceConfirmacion(email)}" style="background-color:#CCFF00; color:#000000; padding:14px 28px; text-decoration:none; font-weight:900; border-radius:4px; display:inline-block; text-transform:uppercase;">Confirmar</a>
+              <a href="${enlaceConfirmacion(email)}" style="background-color:#CCFF00; color:#000000; padding:14px 28px; text-decoration:none; font-weight:900; border-radius:4px; display:inline-block; text-transform:uppercase;">Confirmar mi email</a>
             </div>
-            <p style="color:#888888; font-size:12px; margin-top:24px;">Si no te has apuntado tú, ignora este correo: no recibirás nada más.</p>
+            <p style="color:#888888; font-size:12px; margin-top:24px;">Si no has sido tú, ignora este correo: no recibirás nada más. Si tienes cualquier duda, responde a este correo.</p>
           </div>
         `,
       },

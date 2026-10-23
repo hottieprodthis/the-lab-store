@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { prepararCorreo } from '../../lib/correos';
 import { finSegunStripe, proximaRenovacionStripe, ajustarPrecioStripe, precioRenovacion, leerCambioPrecio, altaStripe } from '../../lib/suscripcion';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -457,7 +458,7 @@ export default async function handler(req, res) {
           'Authorization': `Bearer ${resendApiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepararCorreo({
           from: 'The Lab System <pedidos@hottieprodthis.com>',
           to: ['pedidos.thelab@gmail.com'],
           subject: `🚨 NUEVO PAGO RECIBIDO: ${nombreCliente}`,
@@ -468,7 +469,7 @@ export default async function handler(req, res) {
             <p><strong>Total pagado:</strong> ${totalAmount} €</p>
             <p><strong>Artículos/Enlaces:</strong> ${linksText}</p>
           `,
-        }),
+        })),
       });
 
       if (emailCliente) {
@@ -478,13 +479,13 @@ export default async function handler(req, res) {
             'Authorization': `Bearer ${resendApiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepararCorreo({
             from: 'The Lab <pedidos@hottieprodthis.com>',
             reply_to: 'pedidos.thelab@gmail.com',
             to: [emailCliente],
             subject: 'Tu pedido en The Lab - Acceso a tus artículos',
             html: fullEmailHtml,
-          }),
+          })),
         });
       }
     } catch (error) {

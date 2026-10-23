@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { prepararCorreo } from '../../lib/correos';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { paypalConfigurado, verificarPedidoPaypal } from '../../lib/paypal';
@@ -51,7 +52,7 @@ async function pagoComprobado(res, paypalOrderId, esperadoCents, resumen) {
       await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(prepararCorreo({
           from: 'The Lab System <pedidos@hottieprodthis.com>',
           to: ['pedidos.thelab@gmail.com'],
           subject: '⚠️ PAGO DE PAYPAL SIN VERIFICAR — revisar',
@@ -61,7 +62,7 @@ async function pagoComprobado(res, paypalOrderId, esperadoCents, resumen) {
             <p><strong>Pedido:</strong> ${resumen}</p>
             <p>No se ha guardado la compra ni se ha enviado nada al cliente. Revísalo en tu cuenta de PayPal y, si el pago es correcto, atiéndelo a mano (o devuélvelo).</p>
           `,
-        }),
+        })),
       });
     } catch (e) {
       console.error('registrar-pago-paypal: no se pudo avisar al admin:', e);
@@ -265,7 +266,7 @@ export default async function handler(req, res) {
             'Authorization': `Bearer ${resendApiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepararCorreo({
             from: 'The Lab System <pedidos@hottieprodthis.com>',
             to: ['pedidos.thelab@gmail.com'],
             subject: `🚨 NUEVO PAGO RECIBIDO (PayPal): ${nombreCliente}`,
@@ -277,7 +278,7 @@ export default async function handler(req, res) {
               <p><strong>Artículo:</strong> ${linksText}</p>
               ${paypalOrderId ? `<p><strong>ID de orden PayPal:</strong> ${paypalOrderId}</p>` : ''}
             `,
-          }),
+          })),
         });
 
         // Confirmación al cliente
@@ -304,13 +305,13 @@ export default async function handler(req, res) {
               'Authorization': `Bearer ${resendApiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepararCorreo({
               from: 'The Lab <pedidos@hottieprodthis.com>',
               reply_to: 'pedidos.thelab@gmail.com',
               to: [destinoEmail],
               subject: 'Tu pedido en The Lab - Acceso a tus artículos',
               html: fullEmailHtml,
-            }),
+            })),
           });
         }
       } catch (emailError) {
@@ -478,7 +479,7 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
             'Authorization': `Bearer ${resendApiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepararCorreo({
             from: 'The Lab System <pedidos@hottieprodthis.com>',
             to: ['pedidos.thelab@gmail.com'],
             subject: `🚨 NUEVO PAGO RECIBIDO (PayPal): ${nombreCliente}`,
@@ -490,7 +491,7 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
               <p><strong>Artículos:</strong> ${linksText}</p>
               ${paypalOrderId ? `<p><strong>ID de orden PayPal:</strong> ${paypalOrderId}</p>` : ''}
             `,
-          }),
+          })),
         });
 
         if (destinoEmail) {
@@ -516,13 +517,13 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
               'Authorization': `Bearer ${resendApiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepararCorreo({
               from: 'The Lab <pedidos@hottieprodthis.com>',
               reply_to: 'pedidos.thelab@gmail.com',
               to: [destinoEmail],
               subject: 'Tu pedido en The Lab - Confirmación',
               html: fullEmailHtml,
-            }),
+            })),
           });
         }
       } catch (emailError) {
@@ -641,7 +642,7 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
             'Authorization': `Bearer ${resendApiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepararCorreo({
             from: 'The Lab System <pedidos@hottieprodthis.com>',
             to: ['pedidos.thelab@gmail.com'],
             subject: `🚨 NUEVO PAGO RECIBIDO (PayPal): ${nombreCliente}`,
@@ -653,7 +654,7 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
               <p style="color:#ff9900;"><strong>OJO:</strong> este pago NO se renueva solo — solo Stripe hace renovación automática.</p>
               ${paypalOrderId ? `<p><strong>ID de orden PayPal:</strong> ${paypalOrderId}</p>` : ''}
             `,
-          }),
+          })),
         });
 
         if (destinoEmail) {
@@ -663,7 +664,7 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
               'Authorization': `Bearer ${resendApiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepararCorreo({
               from: 'The Lab <pedidos@hottieprodthis.com>',
               reply_to: 'pedidos.thelab@gmail.com',
               to: [destinoEmail],
@@ -682,7 +683,7 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
                 </body>
                 </html>
               `,
-            }),
+            })),
           });
         }
       } catch (emailError) {
