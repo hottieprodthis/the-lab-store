@@ -14,10 +14,23 @@ export default function AdminLogin() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) {
+      setLoading(false);
       setError('Correo o contraseña incorrectos.');
+      return;
+    }
+    // Solo entran cuentas marcadas como admin (profiles.is_admin): una
+    // cuenta de cliente normal no puede abrir el panel.
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', signInData.user.id)
+      .maybeSingle();
+    setLoading(false);
+    if (!perfil?.is_admin) {
+      await supabase.auth.signOut();
+      setError('Esta cuenta no tiene acceso al panel de administración.');
       return;
     }
     router.push('/admin');

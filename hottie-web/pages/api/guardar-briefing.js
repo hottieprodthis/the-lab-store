@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
   try {
     // Envía la notificación con todos los datos del proyecto a tu correo personal
-    await fetch('https://api.resend.com/emails', {
+    const respuestaResend = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${resendApiKey}`,
@@ -109,6 +109,14 @@ export default async function handler(req, res) {
         `,
       }),
     });
+
+    // Si Resend no acepta el correo, el cliente tiene que saberlo (antes veía
+    // "enviado" aunque el briefing no llegase a pedidos.thelab@gmail.com).
+    if (!respuestaResend.ok) {
+      const detalle = await respuestaResend.text().catch(() => '');
+      console.error('guardar-briefing: Resend rechazó el correo:', respuestaResend.status, detalle);
+      return res.status(502).json({ error: 'No se ha podido enviar el formulario. Inténtalo de nuevo en unos minutos.' });
+    }
 
     return res.status(200).json({ success: true });
   } catch (error) {

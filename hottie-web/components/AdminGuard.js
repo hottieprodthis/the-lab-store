@@ -9,12 +9,26 @@ export default function AdminGuard({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    // Hace falta una sesión Y que la cuenta sea admin (profiles.is_admin).
+    // Antes bastaba con cualquier sesión iniciada.
+    supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return;
-      if (data.session) {
+      if (!data.session) {
+        setStatus('denied');
+        router.replace('/admin/login');
+        return;
+      }
+      const { data: perfil } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', data.session.user.id)
+        .maybeSingle();
+      if (!mounted) return;
+      if (perfil?.is_admin) {
         setStatus('ok');
       } else {
         setStatus('denied');
+        await supabase.auth.signOut();
         router.replace('/admin/login');
       }
     });
