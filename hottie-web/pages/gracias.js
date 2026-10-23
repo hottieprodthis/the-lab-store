@@ -35,29 +35,31 @@ export default function Gracias() {
       if (tipo === 'suscripcion' && session_id) {
         setSubscribing(true);
         try {
-          // Nos aseguramos de obtener la sesión actual antes de invocar la función
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session) {
-            console.log('Sesión activa encontrada. Activando suscripción vía RPC...');
-            const { error } = await supabase.rpc('activar_mi_suscripcion');
-
-            if (error) {
-              console.error('Error al activar suscripción:', error.message);
-              setSubMessage('Hubo un error al activar tu suscripción. Contacta con soporte.');
-            } else {
-              console.log('¡Suscripción marcada como true en la base de datos con éxito!');
+          // El servidor comprueba con Stripe que esta sesión de pago es una
+          // suscripción pagada por este usuario antes de activarla
+          // (pages/api/activar-suscripcion.js).
+          const activar = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return false;
+            const res = await fetch('/api/activar-suscripcion', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ session_id }),
+            });
+            if (res.ok) {
               setSubMessage('¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
+            } else {
+              const datos = await res.json().catch(() => ({}));
+              console.error('Error al activar suscripción:', datos.error);
+              setSubMessage('Hubo un error al activar tu suscripción. Contacta con soporte.');
             }
-          } else {
+            return true;
+          };
+
+          if (!(await activar())) {
             console.warn('Esperando a que la sesión se sincronice...');
             // Pequeño reintento por si la sesión tarda un segundo en cargarse tras el redirect de Stripe
-            setTimeout(async () => {
-              const { error } = await supabase.rpc('activar_mi_suscripcion');
-              if (!error) {
-                setSubMessage('¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
-              }
-            }, 1500);
+            setTimeout(activar, 1500);
           }
         } catch (err) {
           console.error('Error procesando suscripción:', err);

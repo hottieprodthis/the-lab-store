@@ -162,11 +162,9 @@ export default function AreaClientePage() {
   const handleSubscriptionPaypalSuccess = async (details) => {
     setSubPaypalLoading(true);
     try {
-      const { error } = await supabase.rpc('activar_mi_suscripcion');
-      if (error) {
-        console.error('Error activando suscripción tras PayPal:', error.message);
-        alert('El pago se ha realizado, pero hubo un problema activando el acceso. Escríbenos y lo resolvemos.');
-      }
+      // El acceso lo activa el servidor tras comprobar el pago con PayPal
+      // (pages/api/registrar-pago-paypal.js), con la sesión del cliente.
+      const { data: { session } } = await supabase.auth.getSession();
 
       const payerEmail = details?.payer?.email_address || null;
       const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
@@ -174,9 +172,9 @@ export default function AreaClientePage() {
         .join(' ');
       const priceInCents = ofertaSub ? ofertaSub.cents : Math.round(Number(subscriptionPrice) * 100);
 
-      await fetch('/api/registrar-pago-paypal', {
+      const respuesta = await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({
           tipo: 'suscripcion',
           amountCents: priceInCents,
@@ -187,6 +185,10 @@ export default function AreaClientePage() {
           paypalOrderId: details?.id || null,
         }),
       });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => ({}));
+        alert(datos.error || 'El pago se ha realizado, pero hubo un problema activando el acceso. Escríbenos y lo resolvemos.');
+      }
     } catch (err) {
       console.error('No se pudo registrar el pago de PayPal de la suscripción:', err);
     } finally {

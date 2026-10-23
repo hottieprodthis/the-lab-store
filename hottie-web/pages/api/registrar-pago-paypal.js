@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { aplicarOferta } from '../../lib/ofertas';
+import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
+import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
+import { paypalConfigurado, verificarPedidoPaypal } from '../../lib/paypal';
 
 // Igual que en checkout.js / enviar-pedido.js: usamos la Service Role Key
 // en el servidor para poder escribir en "purchases" sin que las políticas
@@ -14,6 +16,65 @@ const TABLE_BY_TIPO = {
   servicio: 'services',
   clase: 'classes',
 };
+
+// Comprueba con PayPal que el pedido existe, está cobrado y se ha pagado lo
+// que vale según la base de datos (lib/paypal.js), y que no se había
+// registrado ya. Devuelve true si se puede seguir; si no, ya ha respondido al
+// navegador y ha avisado al admin. Si la clave de PayPal aún no está puesta
+// en Vercel, se sigue como antes (sin comprobar) y se deja aviso en el log.
+async function pagoComprobado(res, paypalOrderId, esperadoCents, resumen) {
+  if (!paypalConfigurado()) {
+    console.warn('registrar-pago-paypal: falta PAYPAL_CLIENT_SECRET en Vercel; el pago NO se ha comprobado con PayPal.');
+    return true;
+  }
+
+  const { data: yaRegistrado } = await supabase
+    .from('purchases')
+    .select('id')
+    .eq('paypal_order_id', String(paypalOrderId || ''))
+    .limit(1);
+  if (Array.isArray(yaRegistrado) && yaRegistrado.length > 0) {
+    res.status(409).json({ error: 'Este pago ya estaba registrado.' });
+    return false;
+  }
+
+  const r = typeof esperadoCents === 'number'
+    ? await verificarPedidoPaypal(paypalOrderId, esperadoCents)
+    : { ok: false, motivo: 'Algún artículo o plan ya no existe en la tienda, no se puede calcular su precio.' };
+  if (r.ok) return true;
+
+  console.error('registrar-pago-paypal: pago NO verificado:', r.motivo, resumen);
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    try {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'The Lab System <pedidos@hottieprodthis.com>',
+          to: ['pedidos.thelab@gmail.com'],
+          subject: '⚠️ PAGO DE PAYPAL SIN VERIFICAR — revisar',
+          html: `
+            <h2>Un pago de PayPal no ha pasado la comprobación</h2>
+            <p><strong>Motivo:</strong> ${r.motivo}</p>
+            <p><strong>Pedido:</strong> ${resumen}</p>
+            <p>No se ha guardado la compra ni se ha enviado nada al cliente. Revísalo en tu cuenta de PayPal y, si el pago es correcto, atiéndelo a mano (o devuélvelo).</p>
+          `,
+        }),
+      });
+    } catch (e) {
+      console.error('registrar-pago-paypal: no se pudo avisar al admin:', e);
+    }
+  }
+  res.status(402).json({ error: 'Hemos recibido tu pago, pero tenemos que revisarlo. Te escribiremos en breve a tu email.' });
+  return false;
+}
+
+// Campo extra para la compra: el número de pedido de PayPal (para no
+// registrar dos veces el mismo pago). Solo cuando la comprobación está activa.
+function campoPedidoPaypal(paypalOrderId) {
+  return paypalConfigurado() && paypalOrderId ? { paypal_order_id: String(paypalOrderId) } : {};
+}
 
 const btnStyle = 'background-color:#CCFF00 !important; color:#000000 !important; padding:14px 22px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:900; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; border:none;';
 
@@ -94,8 +155,17 @@ export default async function handler(req, res) {
     // de producto individual, ya en funcionamiento) no se mandan y el
     // comportamiento no cambia.
     const nombreItem = planName ? `${item.name || item.title || item.nombre || 'Artículo'} (${planName})` : (item.name || item.title || item.nombre || 'Artículo');
-    // Sin precio de plan, el del artículo con su oferta si está en vigor.
-    const precioCents = typeof amountCents === 'number' ? amountCents : (aplicarOferta(item).price_cents ?? item.precio_centimos ?? null);
+    // Precio real según la base de datos (plan elegido y oferta en vigor). El
+    // que manda el navegador (amountCents) solo se usa si no se puede calcular
+    // y la comprobación con PayPal no está activa.
+    const itemConOferta = aplicarOferta(item);
+    const planElegido = buscarPlan(itemConOferta, { planName });
+    const precioServidor = planElegido === undefined ? null : precioCentimos(itemConOferta, planElegido);
+    const precioCents = precioServidor ?? (typeof amountCents === 'number' ? amountCents : null);
+
+    if (!(await pagoComprobado(res, paypalOrderId, precioServidor, `${nombreItem} · pedido PayPal ${paypalOrderId || '—'} · ${userEmail || payerEmail || 'sin email'}`))) {
+      return;
+    }
     const moneda = item.currency || item.moneda || 'eur';
     const imagen = item.image_url || item.imagen_url || null;
     const enlaceDescarga = tipoNormalizado === 'producto'
@@ -129,6 +199,7 @@ export default async function handler(req, res) {
         {
           user_id: resolvedUserId,
           ...(resolvedUserId ? {} : { email: String(emailParaBuscar).trim() }),
+          ...campoPedidoPaypal(paypalOrderId),
           amount,
           plan_name: nombreItem,
           items: [
@@ -283,10 +354,18 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
         let nombreResuelto = item.title || item.name || item.nombre || '';
         let imagen = item.image_url || item.imagen_url || null;
         let enlaceDescarga = item.file_url || item.drive_url || item.driveUrl || item.link || '';
+        // Precio real según la base de datos (plan y oferta incluidos).
+        let precioServidor = null;
 
         if (cleanId) {
           const { data: dbItem } = await supabase.from(tabla).select('*').eq('id', cleanId).single();
           if (dbItem) {
+            const filaConOferta = aplicarOferta(dbItem);
+            const plan = buscarPlan(filaConOferta, { planSlug: partirIdCarrito(item.id).planSlug });
+            if (plan !== undefined) {
+              precioServidor = precioCentimos(filaConOferta, plan);
+              nombreResuelto = nombreConPlan(dbItem, plan) || nombreResuelto;
+            }
             if (!imagen) imagen = dbItem.image_url || dbItem.imagen_url || null;
             if (isProductItem && !enlaceDescarga) {
               enlaceDescarga = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
@@ -298,14 +377,15 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
           nombreResuelto = tipo === 'servicio' ? 'Servicio Digital' : tipo === 'clase' ? 'Clase Digital' : 'Producto Digital';
         }
 
-        const precioCents = typeof item.price_cents === 'number'
+        const precioCents = precioServidor ?? (typeof item.price_cents === 'number'
           ? item.price_cents
-          : (item.price ? Math.round(item.price * 100) : 0);
+          : (item.price ? Math.round(item.price * 100) : 0));
 
         return {
           title: nombreResuelto,
           type: tipo,
-          quantity: item.quantity || 1,
+          precioServidor,
+          quantity: Math.max(1, Math.floor(Number(item.quantity)) || 1),
           price_cents: precioCents,
           currency: (item.currency || item.moneda || 'eur').toLowerCase(),
           image_url: imagen,
@@ -316,6 +396,13 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
 
     const amount = enrichedCart.reduce((acc, i) => acc + (i.price_cents / 100) * i.quantity, 0);
     const nombrePedido = enrichedCart.map((i) => i.title).join(' + ');
+
+    const esperadoCents = enrichedCart.some((i) => i.precioServidor === null)
+      ? null
+      : enrichedCart.reduce((acc, i) => acc + i.precioServidor * i.quantity, 0);
+    if (!(await pagoComprobado(res, paypalOrderId, esperadoCents, `${nombrePedido} · pedido PayPal ${paypalOrderId || '—'} · ${userEmail || payerEmail || 'sin email'}`))) {
+      return;
+    }
 
     let resolvedUserId = userId || null;
     const emailParaBuscar = userEmail || payerEmail || null;
@@ -337,6 +424,7 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
         {
           user_id: resolvedUserId,
           ...(resolvedUserId ? {} : { email: String(emailParaBuscar).trim() }),
+          ...campoPedidoPaypal(paypalOrderId),
           amount,
           plan_name: nombrePedido,
           items: enrichedCart.map((i) => ({
@@ -451,18 +539,52 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
 }
 
 // Registra en el historial y envía los correos de confirmación de un mes
-// de suscripción del área de clientes pagado con PayPal. La activación del
-// acceso (profiles.is_subscribed) NO se hace aquí: pages/area-cliente.js ya
-// la hace antes, con la sesión del propio cliente (igual que pages/gracias.js
-// hace tras un pago con Stripe), porque esa función usa el usuario que ha
-// iniciado sesión y aquí solo tenemos la Service Role Key.
+// de suscripción del área de clientes pagado con PayPal, y activa el acceso
+// (profiles.is_subscribed) para el usuario de la sesión, después de
+// comprobar el pago con PayPal.
 async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmail, payerEmail, payerName, paypalOrderId }) {
   try {
-    const amount = typeof amountCents === 'number' ? amountCents / 100 : 0;
     const nombreItem = 'Suscripción Área de Clientes';
 
-    let resolvedUserId = userId || null;
-    const emailParaBuscar = userEmail || payerEmail || null;
+    // Quién se suscribe sale de su SESIÓN (cabecera Authorization), no de lo
+    // que mande el navegador en el cuerpo.
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    let usuarioSesion = null;
+    if (token) {
+      const { data: userData } = await supabase.auth.getUser(token);
+      usuarioSesion = userData?.user || null;
+    }
+    if (!usuarioSesion) {
+      return res.status(401).json({ error: 'Tienes que iniciar sesión para activar la suscripción.' });
+    }
+
+    // Precio real: el de los ajustes del admin con su oferta del primer mes.
+    const { data: ajustePrecio } = await supabase.from('settings').select('value').eq('key', 'subscription_price').maybeSingle();
+    const { data: ajusteOferta } = await supabase.from('settings').select('value').eq('key', 'subscription_offer').maybeSingle();
+    const precioNormal = Math.round(Number(ajustePrecio?.value) * 100);
+    const esperadoCents = precioSuscripcion(
+      Number.isFinite(precioNormal) && precioNormal > 0 ? precioNormal : 799,
+      leerOfertaSuscripcion(ajusteOferta?.value)
+    ).cents;
+
+    if (!(await pagoComprobado(res, paypalOrderId, esperadoCents, `${nombreItem} · pedido PayPal ${paypalOrderId || '—'} · ${usuarioSesion.email}`))) {
+      return;
+    }
+
+    // Pago comprobado: se activa el acceso desde el servidor (antes lo hacía
+    // el navegador con la función activar_mi_suscripcion, sin comprobar nada).
+    const { error: subError } = await supabase
+      .from('profiles')
+      .upsert({ id: usuarioSesion.id, email: usuarioSesion.email, is_subscribed: true }, { onConflict: 'id' });
+    if (subError) {
+      console.error('registrar-pago-paypal (suscripción): no se pudo activar el acceso:', subError.message);
+      return res.status(500).json({ error: 'El pago se ha realizado, pero hubo un problema activando el acceso. Escríbenos y lo resolvemos.' });
+    }
+
+    const amount = esperadoCents / 100;
+    let resolvedUserId = usuarioSesion.id;
+    const emailParaBuscar = usuarioSesion.email || userEmail || payerEmail || null;
 
     if (!resolvedUserId && emailParaBuscar) {
       try {
@@ -479,6 +601,7 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
       const { error: dbError } = await supabase.from('purchases').insert([
         {
           user_id: resolvedUserId,
+          ...campoPedidoPaypal(paypalOrderId),
           amount,
           plan_name: nombreItem,
           items: null,
