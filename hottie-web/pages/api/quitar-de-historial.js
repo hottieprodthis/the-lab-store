@@ -34,7 +34,8 @@ export default async function handler(req, res) {
     }
 
     const { compraId } = req.body || {};
-    if (typeof compraId !== 'string' || !compraId) {
+    // El id de las compras es un número en la base de datos (purchases.id).
+    if ((typeof compraId !== 'string' && typeof compraId !== 'number') || compraId === '') {
       return res.status(400).json({ error: 'Falta la compra.' });
     }
 

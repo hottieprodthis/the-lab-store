@@ -99,7 +99,9 @@ export default async function handler(req, res) {
     // ---------------------------------------------------------------- línea
     if (accion === 'linea') {
       const { compraId, indice, nombre } = req.body;
-      if (typeof compraId !== 'string' || !compraId || !Number.isInteger(indice) || indice < 0) {
+      // El id de las compras es un número en la base de datos (purchases.id).
+      const idValido = (typeof compraId === 'string' && compraId) || typeof compraId === 'number';
+      if (!idValido || !Number.isInteger(indice) || indice < 0) {
         return res.status(400).json({ error: 'Faltan datos de la compra a borrar.' });
       }
 
