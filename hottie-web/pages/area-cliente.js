@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import PayPalButton from '../components/PayPalButton';
 import { AvisoOferta } from '../components/PrecioOferta';
 import { leerOfertaSuscripcion, precioSuscripcion } from '../lib/ofertas';
+import { suscripcionActiva } from '../lib/suscripcion';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -99,7 +100,7 @@ export default function AreaClientePage() {
       const sub = precioSuscripcion(precioNormalCents, leerOfertaSuscripcion(ofertaData?.value));
       setOfertaSub(sub.oferta ? sub : null);
 
-      if (profileData?.is_subscribed || profileData?.is_admin) {
+      if (suscripcionActiva(profileData)) {
         const { data: postsData } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
         const { data: packsData } = await supabase.from('packs').select('*').order('created_at', { ascending: false });
         
@@ -375,7 +376,7 @@ export default function AreaClientePage() {
         </div>
 
         {/* Verificación de suscripción */}
-        {!profile?.is_subscribed && !profile?.is_admin ? (
+        {!suscripcionActiva(profile) ? (
           <div className="rounded-sm border border-white/10 bg-surface p-8 text-center max-w-lg mx-auto my-12">
             <h2 className="font-display text-2xl mb-3 text-paper">🔒 Contenido Exclusivo Bloqueado</h2>
             <p className="text-sm text-muted mb-6 leading-relaxed">
@@ -440,15 +441,37 @@ export default function AreaClientePage() {
               )}
             </div>
 
-            {/* Botón para cancelar la suscripción */}
-            <div className="border-t border-white/10 pt-8 text-center">
-              <button
-                onClick={handleCancelSubscription}
-                className="rounded-sm border border-red-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition"
-              >
-                Cancelar mi suscripción
-              </button>
-            </div>
+            {/* Estado de la suscripción: hasta cuándo dura y renovar/cancelar */}
+            {profile?.is_subscribed && (
+              <div className="border-t border-white/10 pt-8 text-center space-y-4">
+                {profile?.subscribed_until && (
+                  <p className="text-sm text-muted">
+                    {profile?.stripe_subscription_id
+                      ? 'Tu suscripción se renueva automáticamente cada mes. Periodo pagado hasta el '
+                      : 'Tu acceso (pagado con PayPal, no se renueva solo) termina el '}
+                    <strong className="text-paper">
+                      {new Date(profile.subscribed_until).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Madrid' })}
+                    </strong>
+                    .
+                  </p>
+                )}
+                {profile?.stripe_subscription_id ? (
+                  <button
+                    onClick={handleCancelSubscription}
+                    className="rounded-sm border border-red-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition"
+                  >
+                    Cancelar mi suscripción
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setOpenSubPayment(true)}
+                    className="rounded-sm bg-volt px-6 py-3 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                  >
+                    Renovar 1 mes más ({textoPrecioSub})
+                  </button>
+                )}
+              </div>
+            )}
 
           </div>
         )}

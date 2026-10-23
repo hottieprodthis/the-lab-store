@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { finSegunStripe } from '../../lib/suscripcion';
 
 // Activa la suscripción del área de clientes al volver de pagar con tarjeta
 // (pages/gracias.js). Antes lo hacía el navegador llamando directamente a la
@@ -52,6 +53,19 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Ese pago no corresponde a una suscripción tuya completada.' });
     }
 
+    // Hasta cuándo dura lo que Stripe ha cobrado (lib/suscripcion.js).
+    let fin = null;
+    if (typeof sesion.subscription === 'string') {
+      try {
+        fin = finSegunStripe(await stripe.subscriptions.retrieve(sesion.subscription));
+      } catch (e) {
+        console.error('activar-suscripcion: no se pudo leer la suscripción de Stripe:', e.message);
+      }
+    }
+    if (!fin) {
+      return res.status(500).json({ error: 'No se pudo comprobar hasta cuándo dura tu suscripción. Inténtalo de nuevo en un momento.' });
+    }
+
     const { error } = await supabase
       .from('profiles')
       .upsert(
@@ -59,6 +73,7 @@ export default async function handler(req, res) {
           id: usuario.id,
           email: usuario.email,
           is_subscribed: true,
+          subscribed_until: fin.toISOString(),
           ...(typeof sesion.subscription === 'string' ? { stripe_subscription_id: sesion.subscription } : {}),
         },
         { onConflict: 'id' }

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { paypalConfigurado, verificarPedidoPaypal } from '../../lib/paypal';
+import { finTrasMesPaypal } from '../../lib/suscripcion';
 
 // Igual que en checkout.js / enviar-pedido.js: usamos la Service Role Key
 // en el servidor para poder escribir en "purchases" sin que las políticas
@@ -573,10 +574,20 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
     }
 
     // Pago comprobado: se activa el acceso desde el servidor (antes lo hacía
-    // el navegador con la función activar_mi_suscripcion, sin comprobar nada).
+    // el navegador con la función activar_mi_suscripcion, sin comprobar nada)
+    // y dura 1 mes; si aún le quedaban días, el mes se suma al final.
+    const { data: perfilActual } = await supabase
+      .from('profiles')
+      .select('subscribed_until')
+      .eq('id', usuarioSesion.id)
+      .maybeSingle();
+    const nuevoFin = finTrasMesPaypal(perfilActual?.subscribed_until);
     const { error: subError } = await supabase
       .from('profiles')
-      .upsert({ id: usuarioSesion.id, email: usuarioSesion.email, is_subscribed: true }, { onConflict: 'id' });
+      .upsert(
+        { id: usuarioSesion.id, email: usuarioSesion.email, is_subscribed: true, subscribed_until: nuevoFin.toISOString() },
+        { onConflict: 'id' }
+      );
     if (subError) {
       console.error('registrar-pago-paypal (suscripción): no se pudo activar el acceso:', subError.message);
       return res.status(500).json({ error: 'El pago se ha realizado, pero hubo un problema activando el acceso. Escríbenos y lo resolvemos.' });
@@ -662,8 +673,8 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
                 </head>
                 <body style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:20px;">
                   <h2 style="color:#ffffff;">¡Gracias, ${nombreCliente}!</h2>
-                  <p style="color:#dddddd;">Tu pago con PayPal se ha procesado correctamente y ya tienes acceso al Área de Clientes durante este mes.</p>
-                  <p style="color:#dddddd;">Este pago no se renueva automáticamente: el mes que viene tendrás que volver a pulsar "Suscribirse Ahora" si quieres seguir con acceso.</p>
+                  <p style="color:#dddddd;">Tu pago con PayPal se ha procesado correctamente y ya tienes acceso al Área de Clientes hasta el ${nuevoFin.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Madrid' })}.</p>
+                  <p style="color:#dddddd;">Este pago no se renueva automáticamente: antes de esa fecha tendrás que volver a pulsar "Suscribirse" en tu área si quieres seguir con acceso (el mes nuevo se suma al que te queda).</p>
                 </body>
                 </html>
               `,

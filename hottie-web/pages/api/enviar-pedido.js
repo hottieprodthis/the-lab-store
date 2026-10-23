@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { finSegunStripe } from '../../lib/suscripcion';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -115,6 +116,46 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error(`Error de firma de Webhook: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // --- Suscripción con tarjeta: renovaciones, cobros fallidos y cancelaciones ---
+  // Stripe cobra un mes nuevo -> se alarga la fecha de fin del acceso.
+  if (event.type === 'invoice.paid') {
+    const factura = event.data.object;
+    const subId = factura.subscription || factura.parent?.subscription_details?.subscription;
+    if (typeof subId === 'string') {
+      try {
+        const fin = finSegunStripe(await stripe.subscriptions.retrieve(subId));
+        if (fin) {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ is_subscribed: true, subscribed_until: fin.toISOString() })
+            .eq('stripe_subscription_id', subId);
+          if (error) console.error('Webhook invoice.paid: error de Supabase:', error.message);
+        }
+      } catch (e) {
+        console.error('Webhook invoice.paid: no se pudo leer la suscripción', subId, e.message);
+      }
+    }
+    return res.status(200).json({ received: true });
+  }
+
+  // La suscripción se cancela o deja de pagarse (Stripe la da por perdida
+  // tras reintentar el cobro) -> se quita el acceso. Si vuelve a estar al
+  // día, se reactiva con su nueva fecha de fin.
+  if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
+    const sub = event.data.object;
+    const perdida = event.type === 'customer.subscription.deleted' || ['canceled', 'unpaid', 'incomplete_expired'].includes(sub.status);
+    const alDia = ['active', 'trialing'].includes(sub.status);
+    const fin = finSegunStripe(sub);
+    if (perdida || (alDia && fin)) {
+      const cambios = perdida
+        ? { is_subscribed: false, subscribed_until: new Date().toISOString() }
+        : { is_subscribed: true, subscribed_until: fin.toISOString() };
+      const { error } = await supabase.from('profiles').update(cambios).eq('stripe_subscription_id', sub.id);
+      if (error) console.error(`Webhook ${event.type}: error de Supabase:`, error.message);
+    }
+    return res.status(200).json({ received: true });
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -343,10 +384,26 @@ export default async function handler(req, res) {
     // cliente pulsara cancelar, Stripe seguiría cobrando cada mes.
     if (userId && metadata.type === 'subscription' && session.subscription) {
       try {
+        // Hasta cuándo dura lo que Stripe acaba de cobrar (lib/suscripcion.js).
+        let fin = null;
+        try {
+          fin = finSegunStripe(await stripe.subscriptions.retrieve(session.subscription));
+        } catch (e) {
+          console.error('No se pudo leer la suscripción de Stripe:', e.message);
+        }
+        // upsert (no update): el cliente puede no tener aún fila en profiles.
         const { error: subError } = await supabase
           .from('profiles')
-          .update({ is_subscribed: true, stripe_subscription_id: session.subscription })
-          .eq('id', userId);
+          .upsert(
+            {
+              id: userId,
+              ...(emailCliente ? { email: emailCliente } : {}),
+              is_subscribed: true,
+              stripe_subscription_id: session.subscription,
+              ...(fin ? { subscribed_until: fin.toISOString() } : {}),
+            },
+            { onConflict: 'id' }
+          );
 
         if (subError) {
           console.error('ERROR guardando stripe_subscription_id en el perfil:', subError.message);

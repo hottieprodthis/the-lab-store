@@ -64,7 +64,9 @@ export default async function handler(req, res) {
     const { data: perfiles, error: perfilesError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('is_subscribed', true);
+      .eq('is_subscribed', true)
+      // Solo suscripciones sin caducar (lib/suscripcion.js).
+      .gt('subscribed_until', new Date().toISOString());
 
     if (perfilesError) {
       return res.status(500).json({ error: perfilesError.message });
