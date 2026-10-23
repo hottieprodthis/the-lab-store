@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { enviarCorreosIndividuales } from '../../lib/correos';
+import { enlaceBaja, cabecerasBaja } from '../../lib/baja';
 
 // OJO: este endpoint es server-side (pages/api), así que necesita la
 // Service Role Key y NO el cliente compartido de lib/supabaseClient.js
@@ -154,7 +155,19 @@ export default async function handler(req, res) {
         `,
     };
 
-    const enviados = await enviarCorreosIndividuales(listaEmails.map((email) => ({ ...correo, to: [email] })));
+    // Cada correo lleva su propio enlace de "Darme de baja" (lib/baja.js).
+    const enviados = await enviarCorreosIndividuales(
+      listaEmails.map((email) => ({
+        ...correo,
+        to: [email],
+        headers: cabecerasBaja(email),
+        html: `${correo.html}
+          <p style="font-family: Arial, sans-serif; font-size:12px; color:#888888; text-align:center; margin-top:20px;">
+            Recibes este correo porque te apuntaste a las novedades de The Lab.
+            <a href="${enlaceBaja(email)}" style="color:#888888; text-decoration:underline;">Darme de baja</a>
+          </p>`,
+      }))
+    );
 
     return res.status(200).json({ success: true, enviados });
 
