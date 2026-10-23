@@ -418,6 +418,10 @@ export async function getServerSideProps({ params }) {
     .eq('active', true)
     .single();
 
+  // Si no existe o está despublicado: página 404 de verdad (pages/404.js),
+  // para que Google lo quite de sus resultados.
+  if (!data) return { notFound: true };
+
   return {
     props: {
       clase: aplicarOferta(data) || null,

@@ -60,7 +60,9 @@ ${urls
 `;
 
   res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+  // Se guarda como mucho 10 minutos: al publicar o borrar algo, el mapa se
+  // actualiza enseguida.
+  res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=600');
   res.write(xml);
   res.end();
   return { props: {} };
