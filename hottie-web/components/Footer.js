@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Footer() {
   return (
     <footer className="border-t border-white/10 py-16">
@@ -41,6 +43,12 @@ export default function Footer() {
           <p className="text-xs uppercase tracking-widest text-muted">
             ©️ {new Date().getFullYear()} The Lab — Hottie · Salamanca, España
           </p>
+          {/* Enlaces legales */}
+          <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-muted">
+            <Link href="/condiciones-de-venta" className="transition hover:text-volt">Condiciones de venta</Link>
+            <Link href="/politica-de-privacidad" className="transition hover:text-volt">Política de privacidad</Link>
+            <Link href="/politica-de-cookies" className="transition hover:text-volt">Política de cookies</Link>
+          </nav>
         </div>
 
       </div>
