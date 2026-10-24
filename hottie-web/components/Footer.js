@@ -43,6 +43,14 @@ export default function Footer() {
           <p className="text-xs uppercase tracking-widest text-muted">
             ©️ {new Date().getFullYear()} The Lab — Hottie · Salamanca, España
           </p>
+          {/* Secciones principales (también ayudan a Google a ver qué páginas importan) */}
+          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-semibold uppercase tracking-widest text-paper">
+            <Link href="/tienda" className="transition hover:text-volt">Tienda</Link>
+            <Link href="/servicios" className="transition hover:text-volt">Servicios</Link>
+            <Link href="/clases" className="transition hover:text-volt">Clases</Link>
+            <Link href="/faq" className="transition hover:text-volt">FAQ</Link>
+            <Link href="/contacto" className="transition hover:text-volt">Contacto</Link>
+          </nav>
           {/* Enlaces legales */}
           <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-muted">
             <Link href="/condiciones-de-venta" className="transition hover:text-volt">Condiciones de venta</Link>

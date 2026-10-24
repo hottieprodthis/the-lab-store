@@ -26,7 +26,7 @@ export default function Home() {
       "name": "The Lab by Hottie",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://www.hottieprodthis.com/sobre-mi-imagen.jpeg"
+        "url": "https://www.hottieprodthis.com/favicon.png"
       },
       "sameAs": [
         "https://www.instagram.com/hottieprodthis/",
