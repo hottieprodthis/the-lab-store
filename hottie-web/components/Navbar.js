@@ -201,7 +201,6 @@ export default function Navbar() {
           } ${open ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}
         >
           {l.label}
-          {!l.cliente && <span className="font-body text-xs tracking-widest text-volt">0{i + 1}</span>}
         </Link>
       ))}
     </nav>
