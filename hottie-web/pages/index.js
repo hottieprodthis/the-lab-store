@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BrandsBanner from '../components/BrandsBanner';
+import TextoDescifrado from '../components/TextoDescifrado';
 
 export default function Home() {
   const [email, setEmail] = useState('');
@@ -96,9 +97,9 @@ export default function Home() {
           </div>
 
           <h2 className="font-display text-6xl tracking-wide text-paper md:text-8xl leading-[0.95]">
-            TU PRÓXIMO HIT
+            <TextoDescifrado texto="TU PRÓXIMO HIT" />
             <br />
-            <span className="text-volt">COMIENZA AQUÍ.</span>
+            <span className="text-volt"><TextoDescifrado texto="COMIENZA AQUÍ." retraso={350} /></span>
           </h2>
 
           <p className="max-w-xl text-lg text-muted font-body leading-relaxed">
