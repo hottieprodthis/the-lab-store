@@ -1,10 +1,14 @@
 import Link from 'next/link';
 import { formatPrice } from '../lib/format';
 import { PrecioTachado, AvisoOferta } from './PrecioOferta';
+import { useFoco, Foco } from './Animaciones';
 
 export default function ProductCard({ product }) {
+  const foco = useFoco();
   return (
-    <div className="group block overflow-hidden rounded-sm border border-white/10 bg-surface transition hover:border-volt/60">
+    <div {...foco.props} className="group relative block overflow-hidden rounded-sm border border-white/10 bg-surface transition hover:border-volt/60">
+      {/* Brillo verde (el mismo color que el borde de los productos) */}
+      <Foco color="204,255,0" />
       <Link href={`/tienda/${product.slug}`} className="block">
         <div className="aspect-square overflow-hidden bg-surface2">
           {product.image_url ? (

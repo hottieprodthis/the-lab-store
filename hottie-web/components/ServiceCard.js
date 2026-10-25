@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../lib/disponibilidadClient';
 import PayPalButton from './PayPalButton';
 import { PrecioTachado, AvisoOferta } from './PrecioOferta';
+import { useFoco, Foco } from './Animaciones';
 
 export default function ServiceCard({ service }) {
   const [loading, setLoading] = useState(false);
@@ -30,6 +31,7 @@ export default function ServiceCard({ service }) {
   const [openPayment, setOpenPayment] = useState(false);
   const [paypalDone, setPaypalDone] = useState(false);
   const { addToCart } = useCart();
+  const foco = useFoco();
 
   const hasPlans = Array.isArray(service.plans) && service.plans.length > 0;
   // Determina la ruta según si es una clase o un servicio
@@ -127,7 +129,9 @@ export default function ServiceCard({ service }) {
   };
 
   return (
-    <div className="flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
+    <div {...foco.props} className="group relative flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
+      {/* Brillo turquesa (el mismo color que el borde de servicios y clases) */}
+      <Foco color="41,241,195" />
       <div>
         <div className="flex items-start justify-between gap-4">
           <h3 className="font-display text-2xl tracking-wide text-paper">{service.name}</h3>

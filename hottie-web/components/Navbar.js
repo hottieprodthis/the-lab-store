@@ -129,7 +129,7 @@ export default function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-signal"
+              className="font-body text-sm uppercase tracking-widest text-muted transition hover:text-volt"
             >
               {l.label}
             </Link>

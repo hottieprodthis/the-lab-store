@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabaseClient'; // <-- 1. Importamos Supabase
@@ -36,6 +36,25 @@ export default function CartFloating() {
     }
     getUser();
   }, []);
+
+  // El botón del carrito "salta" cuando se añade algo (no al quitar).
+  const [salto, setSalto] = useState(false);
+  const anterior = useRef(totalItems);
+  const montado = useRef(0);
+  useEffect(() => {
+    montado.current = Date.now();
+  }, []);
+  useEffect(() => {
+    // Al cargar la página el carrito guardado se recupera: eso no cuenta.
+    if (totalItems > anterior.current && Date.now() - montado.current > 1500) {
+      setSalto(false);
+      requestAnimationFrame(() => setSalto(true));
+      const t = setTimeout(() => setSalto(false), 700);
+      anterior.current = totalItems;
+      return () => clearTimeout(t);
+    }
+    anterior.current = totalItems;
+  }, [totalItems]);
 
   // Servicios y clases del carrito, para la comprobación previa del cupo
   // semanal con PayPal (isClass tiene prioridad sobre isService, igual que
@@ -164,7 +183,7 @@ export default function CartFloating() {
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Ver carrito"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] shadow-xl shadow-[#CCFF00]/30 transition-all duration-200 hover:scale-110 active:scale-95"
+        className={`fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] shadow-xl shadow-[#CCFF00]/30 transition-all duration-200 hover:scale-110 active:scale-95 ${salto ? 'carrito-salto' : ''}`}
       >
         <img 
           src={cartIconBlack} 

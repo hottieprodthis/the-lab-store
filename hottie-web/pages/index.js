@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BrandsBanner from '../components/BrandsBanner';
 import TextoDescifrado from '../components/TextoDescifrado';
+import { Contador, Aparecer } from '../components/Animaciones';
 
 export default function Home() {
   const [email, setEmail] = useState('');
@@ -109,19 +110,19 @@ export default function Home() {
           <div className="flex flex-wrap gap-4 pt-2">
             <Link
               href="/tienda"
-              className="rounded-sm bg-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110"
+              className="rounded-sm bg-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110 hover:shadow-[0_0_28px_rgba(204,255,0,0.55)]"
             >
               Ver tienda
             </Link>
             <Link
               href="/servicios"
-              className="rounded-sm border border-white/20 px-6 py-3 text-sm font-semibold uppercase tracking-widest text-paper transition hover:border-signal hover:text-signal"
+              className="rounded-sm border border-white/20 px-6 py-3 text-sm font-semibold uppercase tracking-widest text-paper transition hover:border-paper hover:shadow-[0_0_28px_rgba(242,240,234,0.35)]"
             >
               Ver servicios
             </Link>
             <Link
               href="/clases"
-              className="rounded-sm border border-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-volt transition hover:bg-volt hover:text-ink"
+              className="rounded-sm border border-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-volt transition hover:bg-volt hover:text-ink hover:shadow-[0_0_28px_rgba(204,255,0,0.55)]"
             >
               Ver clases
             </Link>
@@ -130,6 +131,7 @@ export default function Home() {
       </section>
 
       {/* SECCIÓN SOBRE HOTTIE + NEWSLETTER */}
+      <Aparecer>
       <section className="mx-auto max-w-4xl px-5 py-20 text-center">
         <div className="mx-auto mb-8 h-36 w-36 overflow-hidden rounded-full border-2 border-volt/40 p-1 shadow-lg shadow-volt/10">
           <img
@@ -142,6 +144,22 @@ export default function Home() {
         <h2 className="font-display text-4xl tracking-wide text-paper mb-6 uppercase">
           Sobre Hottie
         </h2>
+
+        {/* Cifras destacadas: cuentan desde 0 al aparecer en pantalla */}
+        <div className="mx-auto mb-10 grid max-w-2xl grid-cols-3 gap-4">
+          {[
+            { hasta: 100, antes: '+', texto: 'Producciones' },
+            { hasta: 20, antes: '+', despues: 'M', texto: 'Visualizaciones' },
+            { hasta: new Date().getFullYear() - 2012, antes: '+', texto: 'Años produciendo' },
+          ].map((c) => (
+            <div key={c.texto}>
+              <p className="font-display text-5xl leading-none text-volt md:text-6xl">
+                <Contador hasta={c.hasta} antes={c.antes} despues={c.despues} />
+              </p>
+              <p className="mt-2 font-body text-[11px] uppercase tracking-widest text-muted md:text-xs">{c.texto}</p>
+            </div>
+          ))}
+        </div>
 
         <div className="mx-auto max-w-2xl space-y-4 font-body text-base text-muted leading-relaxed">
           <p>
@@ -228,9 +246,11 @@ export default function Home() {
           )}
         </div>
       </section>
+      </Aparecer>
 
       {/* SECCIÓN TRABAJOS DESTACADOS */}
       <section className="mx-auto max-w-6xl px-5 py-16 border-t border-white/10 space-y-16 font-body">
+        <Aparecer>
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
           <div className="space-y-4 text-left">
             <h3 className="font-display text-2xl font-bold tracking-wide text-paper md:text-3xl">
@@ -254,7 +274,9 @@ export default function Home() {
             ></iframe>
           </div>
         </div>
+        </Aparecer>
 
+        <Aparecer>
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
           <div className="order-2 md:order-1 relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
             <iframe
@@ -275,10 +297,13 @@ export default function Home() {
             </p>
           </div>
         </div>
+        </Aparecer>
       </section>
 
       {/* BANNER DE MARCAS (VERDE VOLT) */}
-      <BrandsBanner />
+      <Aparecer>
+        <BrandsBanner />
+      </Aparecer>
 
       <Footer />
     </>
