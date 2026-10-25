@@ -27,7 +27,26 @@ export default function Navbar() {
     checkSession();
   }, []);
 
+  // Con el menú del móvil abierto: no se desplaza la página de fondo, se
+  // cierra con Escape y se cierra solo si la ventana se hace ancha.
+  useEffect(() => {
+    if (!open) return;
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const conTecla = (e) => e.key === 'Escape' && setOpen(false);
+    const anchoPc = window.matchMedia('(min-width: 768px)');
+    const alCambiar = (e) => e.matches && setOpen(false);
+    window.addEventListener('keydown', conTecla);
+    anchoPc.addEventListener('change', alCambiar);
+    return () => {
+      document.body.style.overflow = anterior;
+      window.removeEventListener('keydown', conTecla);
+      anchoPc.removeEventListener('change', alCambiar);
+    };
+  }, [open]);
+
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-white/10 bg-ink/90 backdrop-blur">
       {/* Añadimos 'relative' aquí para que el icono absoluto se ancle respecto a este contenedor centrado */}
       <div className="relative mx-auto flex max-w-6xl items-center justify-between px-5 py-4 gap-4">
@@ -142,41 +161,50 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* BOTÓN MENÚ MÓVIL */}
+        {/* BOTÓN MENÚ MÓVIL (las tres rayitas se convierten en una X al abrir) */}
         <button
           className="text-paper md:hidden ml-auto"
           onClick={() => setOpen((v) => !v)}
-          aria-label="Abrir menú"
+          aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
           aria-expanded={open}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            {open ? (
+              <path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            ) : (
+              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            )}
           </svg>
         </button>
       </div>
-
-      {/* MENÚ MÓVIL DESPLEGABLE */}
-      {open && (
-        <nav className="flex flex-col gap-1 border-t border-white/10 px-5 py-3 md:hidden">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="py-2 font-body text-sm uppercase tracking-widest text-muted hover:text-signal"
-              onClick={() => setOpen(false)}
-            >
-              {l.label}
-            </Link>
-          ))}
-          <Link
-            href={userDestination}
-            className="py-2 font-body text-sm uppercase tracking-widest text-volt hover:brightness-110 border-t border-white/10 mt-2 pt-3"
-            onClick={() => setOpen(false)}
-          >
-            Área de Clientes / Perfil
-          </Link>
-        </nav>
-      )}
     </header>
+
+    {/* MENÚ MÓVIL A PANTALLA COMPLETA (solo cuando salen las tres rayitas).
+        Va fuera del <header> porque el desenfoque del header no deja que un
+        elemento "fixed" ocupe toda la pantalla. Las secciones entran una
+        detrás de otra (estilo "Staggered Menu" de React Bits). */}
+    <nav
+      className={`fixed inset-0 z-30 flex flex-col justify-center overflow-y-auto bg-ink px-8 pb-8 pt-24 transition-all duration-500 ease-out motion-reduce:transition-none md:hidden ${
+        open ? 'visible opacity-100' : 'invisible opacity-0 pointer-events-none'
+      }`}
+      aria-hidden={!open}
+    >
+      {[...links, { href: userDestination, label: 'Área de clientes', cliente: true }].map((l, i) => (
+        <Link
+          key={l.label}
+          href={l.href}
+          tabIndex={open ? 0 : -1}
+          onClick={() => setOpen(false)}
+          style={{ transitionDelay: open ? `${120 + i * 70}ms` : '0ms' }}
+          className={`group flex items-start gap-3 py-1 font-display uppercase leading-none tracking-wide transition-all duration-500 ease-out motion-reduce:transition-none ${
+            l.cliente ? 'mt-6 text-2xl text-volt' : 'text-5xl text-paper hover:text-volt min-[400px]:text-6xl'
+          } ${open ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}
+        >
+          {l.label}
+          {!l.cliente && <span className="font-body text-xs tracking-widest text-volt">0{i + 1}</span>}
+        </Link>
+      ))}
+    </nav>
+    </>
   );
 }
