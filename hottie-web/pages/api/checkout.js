@@ -685,9 +685,9 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       mode: checkoutMode,
-      // Apple Pay (y Google Pay si se activa en Stripe) van dentro de 'card'.
-      // Samsung Pay no se pone: en Stripe solo admite pagos en wones coreanos
-      // y con euros haría fallar el pago entero.
+      // Apple Pay y Google Pay van dentro de 'card'. Samsung Pay no se pone
+      // (y está desactivado en Stripe): solo admite pagos en wones coreanos y
+      // con euros haría fallar el pago entero.
       payment_method_types: isSubscription ? ['card'] : ['card', 'klarna', 'link', 'bizum', 'amazon_pay'],
       // Stripe no deja usar a la vez códigos promocionales y un cupón: con la
       // oferta de la suscripción va el cupón; sin ella, como siempre.

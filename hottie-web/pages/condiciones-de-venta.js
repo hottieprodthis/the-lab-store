@@ -40,7 +40,7 @@ export default function CondicionesDeVenta() {
           <Titulo>Precios y pagos</Titulo>
           <ul className="list-disc pl-5 space-y-2">
             <li>Los precios están en euros y el precio que ves al pagar es el precio final.</li>
-            <li>Puedes pagar con tarjeta de crédito/débito, Apple Pay, PayPal, Bizum, Klarna, Amazon Pay o Link (la suscripción, solo con tarjeta o PayPal). Los pagos los gestionan Stripe y PayPal.</li>
+            <li>Puedes pagar con tarjeta de crédito/débito, Apple Pay, Google Pay, PayPal, Bizum, Klarna, Amazon Pay o Link (la suscripción, solo con tarjeta o PayPal). Los pagos los gestionan Stripe y PayPal.</li>
             <li>
               Las <strong className="text-paper">ofertas</strong> se aplican solo durante las fechas indicadas en la web
               (verás el precio normal tachado y la fecha de fin). Después, el precio vuelve a ser el normal.
