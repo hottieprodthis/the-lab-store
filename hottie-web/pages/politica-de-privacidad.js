@@ -60,7 +60,7 @@ export default function PoliticaDePrivacidad() {
               <strong className="text-paper">Boletín:</strong> tu email, si te apuntas para recibir novedades.
             </li>
             <li>
-              <strong className="text-paper">Pagos:</strong> los datos de tu tarjeta, Bizum, Klarna o PayPal los recogen y
+              <strong className="text-paper">Pagos:</strong> los datos de tu tarjeta, Bizum, Klarna, Amazon Pay, Link o PayPal los recogen y
               guardan directamente Stripe o PayPal. Nosotros nunca vemos ni guardamos los datos de tu tarjeta.
             </li>
             <li>

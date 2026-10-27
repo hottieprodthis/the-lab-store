@@ -100,7 +100,7 @@ const faqCategories = [
     questions: [
       {
         q: "¿Qué métodos de pago puedo utilizar?",
-        a: "Aceptamos tarjeta de crédito/débito, Apple Pay, Bizum, Klarna y PayPal."
+        a: "Aceptamos tarjeta de crédito/débito, Apple Pay, PayPal, Bizum, Klarna, Amazon Pay y Link. La suscripción mensual solo se puede pagar con tarjeta (también Apple Pay) o PayPal, porque es un pago que se repite cada mes."
       },
       {
         q: "¿Qué debo hacer justo después de pagar un servicio?",
