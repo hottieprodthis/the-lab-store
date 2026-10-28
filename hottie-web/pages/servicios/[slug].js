@@ -233,6 +233,11 @@ export default function DetalleServicio({ service }) {
           <div>
             <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{service.name}</h1>
             <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{service.description}</p>
+            {service.plazo_entrega && (
+              <p className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-signal/30 bg-signal/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-signal">
+                <span aria-hidden="true">⏱</span> {service.plazo_entrega}
+              </p>
+            )}
           </div>
           {service.image_url && (
             <img

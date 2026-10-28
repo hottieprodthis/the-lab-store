@@ -60,6 +60,27 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   }, [table, supportsPlans]);
   const esClase = table === 'classes';
 
+  // PLAZO DE ENTREGA (solo Servicios y Clases): texto libre ("Entrega en
+  // 5–7 días", "4 sesiones de 3 h"…) que sale en la tarjeta y en la ficha.
+  // Vacío = no sale nada. Igual que el cupo: si la columna aún no existe, el
+  // campo se oculta y no se envía.
+  const [plazo, setPlazo] = useState(initial?.plazo_entrega || '');
+  const [plazoColumna, setPlazoColumna] = useState(false);
+  useEffect(() => {
+    if (!supportsPlans) return;
+    let activo = true;
+    supabase
+      .from(table)
+      .select('plazo_entrega')
+      .limit(1)
+      .then(({ error: probeError }) => {
+        if (activo) setPlazoColumna(!probeError);
+      });
+    return () => {
+      activo = false;
+    };
+  }, [table, supportsPlans]);
+
   // OFERTA POR TIEMPO LIMITADO (lib/ofertas.js): % de descuento o precio
   // nuevo entre dos fechas; fuera de ellas la web vuelve sola al precio
   // normal. Igual que con el cupo, si las columnas aún no existen en la base
@@ -177,6 +198,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
     if (supportsPlans) {
       payload.plans = formattedPlans;
       if (cupoColumna) payload.cupo = cupo || null;
+      if (plazoColumna) payload.plazo_entrega = plazo.trim() || null;
     }
 
     // Oferta: se comprueba que tenga sentido antes de guardar.
@@ -362,6 +384,26 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
           </select>
         </div>
       </div>
+
+      {/* PLAZO DE ENTREGA (Solo para Servicios y Clases) */}
+      {supportsPlans && plazoColumna && (
+        <div className="border-t border-white/15 pt-6">
+          <label className="mb-1 block text-xs uppercase tracking-widest text-muted">
+            {esClase ? 'Duración (opcional)' : 'Plazo de entrega (opcional)'}
+          </label>
+          <input
+            value={plazo}
+            onChange={(e) => setPlazo(e.target.value)}
+            maxLength={40}
+            placeholder={esClase ? 'Ej.: 4 sesiones de 3 h' : 'Ej.: Entrega en 5–7 días'}
+            className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
+          />
+          <p className="mt-1 text-[11px] text-muted">
+            Sale tal cual con un reloj delante (⏱) en la tarjeta y en la ficha. Si lo dejas vacío, no sale nada. Solo
+            hace falta cambiarlo si cambia tu forma de trabajar.
+          </p>
+        </div>
+      )}
 
       {/* CUPO SEMANAL (Solo para Servicios y Clases) */}
       {supportsPlans && cupoColumna && (
