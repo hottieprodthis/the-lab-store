@@ -41,5 +41,5 @@ export async function getServerSideProps({ res }) {
     .eq('active', true)
     .order('sort_order', { ascending: true });
 
-  return propsConObras(supabase, res, { services: aplicarOfertas(data || []) });
+  return propsConObras(supabase, res, { services: aplicarOfertas(data || []) }, { vacaciones: true });
 }

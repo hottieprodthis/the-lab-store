@@ -26,6 +26,8 @@ export function obtenerDisponibilidad() {
 // Devuelve { agotado, motivo }.
 export function bloqueoPara(disp, tipo, cupo) {
   const libre = { agotado: false, motivo: '' };
+  // De vacaciones (lib/obras.js): no se reserva nada, tenga el cupo que tenga.
+  if (disp?.vacaciones) return { agotado: true, motivo: disp.vacaciones };
   if (!disp || cupo === 'libre') return libre;
 
   let bloque = null;
@@ -143,6 +145,8 @@ function bloqueDe(disp, grupo) {
 // "regla" es la norma general ("Máximo 4 clases sueltas por semana.").
 export function limiteDeItem(item, cart, disp) {
   const sinTope = { max: Infinity, motivo: '', regla: '' };
+  // De vacaciones: ningún servicio ni clase, tenga el cupo que tenga.
+  if (disp?.vacaciones && (item?.isService || item?.isClass)) return { max: 0, motivo: disp.vacaciones, regla: '' };
   const grupo = grupoDeCupo(item);
   if (!grupo || !disp) return sinTope;
 

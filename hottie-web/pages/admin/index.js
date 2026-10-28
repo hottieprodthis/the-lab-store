@@ -5,7 +5,7 @@ import AdminGuard from '../../components/AdminGuard';
 import AdminHeader from '../../components/AdminHeader';
 import { supabaseAdmin as supabase } from '../../lib/supabaseAdminClient';
 import { aInputFecha, leerOfertaSuscripcion, precioOfertaValido } from '../../lib/ofertas';
-import { MENSAJE_OBRAS_POR_DEFECTO } from '../../lib/obras';
+import { MENSAJE_OBRAS_POR_DEFECTO, MENSAJE_VACACIONES_POR_DEFECTO, leerAjusteVacaciones } from '../../lib/obras';
 
 function Section({ title, items, kind, onDelete }) {
   const getAddUrl = () => {
@@ -104,6 +104,9 @@ export default function AdminDashboard() {
   // Interruptor "Web en obras" (lib/obras.js)
   const [obras, setObras] = useState({ activa: false, mensaje: '' });
   const [obrasMsg, setObrasMsg] = useState('');
+  // Interruptor "De vacaciones" (lib/obras.js)
+  const [vacaciones, setVacaciones] = useState({ activa: false, mensaje: '', vuelta: '' });
+  const [vacacionesMsg, setVacacionesMsg] = useState('');
   const [subscribersCount, setSubscribersCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -326,8 +329,48 @@ export default function AdminDashboard() {
     } catch (e) {}
     setObras({ activa: Boolean(ob.activa), mensaje: ob.mensaje || '' });
 
+    const { data: vacData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'vacation')
+      .maybeSingle();
+    let va = {};
+    try {
+      va = JSON.parse(vacData?.value || '{}');
+    } catch (e) {}
+    // Si la fecha de vuelta ya pasó, cuenta como desactivado (se abre solo).
+    setVacaciones({
+      activa: Boolean(leerAjusteVacaciones(vacData?.value)),
+      mensaje: va.mensaje || '',
+      vuelta: va.vuelta || '',
+    });
+
     setSubscribersCount(subCount || 0);
     setLoading(false);
+  }
+
+  async function guardarVacaciones(activa) {
+    setVacacionesMsg('');
+    const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    if (activa && vacaciones.vuelta && vacaciones.vuelta <= hoy) {
+      setVacacionesMsg('Error: la fecha de vuelta tiene que ser posterior a hoy (o déjala vacía).');
+      return;
+    }
+    if (activa && !vacaciones.activa && !confirm('Se mostrará el aviso de vacaciones en Servicios y Clases y no se podrán reservar. La tienda seguirá vendiendo. ¿Activar?')) {
+      return;
+    }
+    const nuevo = { activa, mensaje: vacaciones.mensaje.trim(), vuelta: vacaciones.vuelta };
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'vacation', value: JSON.stringify(nuevo) }, { onConflict: 'key' });
+    if (error) {
+      setVacacionesMsg(`Error: ${error.message}`);
+      return;
+    }
+    setVacaciones({ ...vacaciones, activa });
+    setVacacionesMsg(
+      activa ? '¡Buenas vacaciones! Aviso activado.' : vacaciones.activa ? 'De vuelta: ya se puede reservar.' : 'Datos guardados.'
+    );
   }
 
   async function guardarObras(activa) {
@@ -502,6 +545,61 @@ export default function AdminDashboard() {
                 Guardar mensaje
               </button>
               {obrasMsg && <p className="mt-3 text-xs text-volt">{obrasMsg}</p>}
+            </div>
+
+            {/* DE VACACIONES */}
+            <div
+              className={`mb-12 rounded-sm border p-6 ${vacaciones.activa ? 'border-volt bg-volt/10' : 'border-white/10 bg-surface'}`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-xl tracking-wide text-paper">De vacaciones</h2>
+                  <p className="mt-1 text-xs text-muted">
+                    {vacaciones.activa
+                      ? 'ACTIVADO: en Servicios y Clases sale el aviso y no se puede reservar. La tienda sigue vendiendo.'
+                      : 'Desactivado. Al activarlo, la tienda sigue vendiendo y solo se pausan las reservas de servicios y clases.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => guardarVacaciones(!vacaciones.activa)}
+                  className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-widest transition ${
+                    vacaciones.activa ? 'border border-white/20 text-paper hover:border-paper' : 'bg-volt text-ink hover:brightness-110'
+                  }`}
+                >
+                  {vacaciones.activa ? 'Ya he vuelto' : 'Irme de vacaciones'}
+                </button>
+              </div>
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-[180px_1fr]">
+                <div>
+                  <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Vuelvo el (opcional)</label>
+                  <input
+                    type="date"
+                    value={vacaciones.vuelta}
+                    onChange={(e) => setVacaciones({ ...vacaciones, vuelta: e.target.value })}
+                    className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:border-volt focus:outline-none"
+                  />
+                  <p className="mt-1 text-[11px] text-muted">Ese día se vuelven a abrir las reservas solas.</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Mensaje (opcional)</label>
+                  <textarea
+                    value={vacaciones.mensaje}
+                    onChange={(e) => setVacaciones({ ...vacaciones, mensaje: e.target.value })}
+                    rows={2}
+                    placeholder={MENSAJE_VACACIONES_POR_DEFECTO}
+                    className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:border-volt focus:outline-none"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => guardarVacaciones(vacaciones.activa)}
+                className="mt-2 text-xs text-muted underline hover:text-paper"
+              >
+                Guardar fecha y mensaje
+              </button>
+              {vacacionesMsg && <p className="mt-3 text-xs text-volt">{vacacionesMsg}</p>}
             </div>
 
             {/* CONTROL DE PRECIO DE SUSCRIPCIÓN */}

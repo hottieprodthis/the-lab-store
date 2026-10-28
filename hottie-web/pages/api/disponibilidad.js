@@ -5,7 +5,7 @@ import {
   resumirPedido,
   comprobarPedido,
 } from '../../lib/limiteSemanal';
-import { leerObras, MENSAJE_PAGO_EN_OBRAS } from '../../lib/obras';
+import { leerObras, MENSAJE_PAGO_EN_OBRAS, leerVacaciones, mensajeReservasVacaciones } from '../../lib/obras';
 
 // Service Role Key: hace falta para contar las compras de TODOS los
 // clientes (la tabla purchases solo deja leer sus propias filas a cada
@@ -46,6 +46,28 @@ export default async function handler(req, res) {
   // Con la web en obras no se deja abrir ningún cobro de PayPal.
   if (req.method === 'POST' && (await leerObras(supabase))) {
     return res.status(200).json({ ok: false, message: MENSAJE_PAGO_EN_OBRAS });
+  }
+
+  // De vacaciones: servicios y clases sin plazas (los botones se desactivan
+  // con este motivo) y PayPal no deja reservarlos. Los productos, normal.
+  const vac = await leerVacaciones(supabase);
+  if (vac) {
+    const motivo = mensajeReservasVacaciones(vac);
+    if (req.method === 'POST') {
+      const items = Array.isArray(req.body?.items) ? req.body.items : [];
+      if (items.some((i) => i && (i.tipo === 'servicio' || i.tipo === 'clase'))) {
+        return res.status(200).json({ ok: false, message: motivo });
+      }
+      return res.status(200).json({ ok: true, message: '' });
+    }
+    const cerrado = { disponible: false, motivo, remaining: 0, limit: 0 };
+    return res.status(200).json({
+      servicios: cerrado,
+      clases: { corta: cerrado, larga: cerrado },
+      seguimiento: cerrado,
+      renovacion: '',
+      vacaciones: motivo, // también bloquea los de cupo "libre" (bloqueoPara)
+    });
   }
 
   try {

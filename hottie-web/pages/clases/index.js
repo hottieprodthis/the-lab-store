@@ -50,5 +50,5 @@ export async function getServerSideProps({ res }) {
     .eq('active', true)
     .order('created_at', { ascending: false });
 
-  return propsConObras(supabase, res, { classes: aplicarOfertas(data || []) });
+  return propsConObras(supabase, res, { classes: aplicarOfertas(data || []) }, { vacaciones: true });
 }

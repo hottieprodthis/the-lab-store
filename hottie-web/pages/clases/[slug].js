@@ -423,5 +423,5 @@ export async function getServerSideProps({ params, res }) {
   // para que Google lo quite de sus resultados.
   if (!data) return { notFound: true };
 
-  return propsConObras(supabase, res, { clase: aplicarOferta(data) || null });
+  return propsConObras(supabase, res, { clase: aplicarOferta(data) || null }, { vacaciones: true });
 }

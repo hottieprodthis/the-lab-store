@@ -4,7 +4,7 @@ import { prepararCorreo } from '../../lib/correos';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
-import { leerObras, MENSAJE_PAGO_EN_OBRAS } from '../../lib/obras';
+import { leerObras, MENSAJE_PAGO_EN_OBRAS, leerVacaciones, mensajeReservasVacaciones } from '../../lib/obras';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -510,6 +510,12 @@ export default async function handler(req, res) {
 
     if (totalCents > 0 && totalCents < 50) {
       return res.status(400).json({ error: 'Stripe requiere un importe mínimo de 0.50€' });
+    }
+
+    // --- DE VACACIONES: no se reservan servicios ni clases (productos sí) ---
+    if (!isSubscription && itemsCupo.length > 0) {
+      const vac = await leerVacaciones(supabase);
+      if (vac) return res.status(409).json({ error: mensajeReservasVacaciones(vac), limitReached: true });
     }
 
     // --- LÍMITE SEMANAL DE SERVICIOS Y CLASES ---

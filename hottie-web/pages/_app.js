@@ -8,6 +8,7 @@ import { CartProvider } from '../context/CartContext';
 import CartFloating from '../components/CartFloating';
 import CookieBanner from '../components/CookieBanner';
 import AvisoObras from '../components/AvisoObras';
+import AvisoVacaciones from '../components/AvisoVacaciones';
 
 const display = Bebas_Neue({
   subsets: ['latin'],
@@ -73,7 +74,10 @@ export default function App({ Component, pageProps }) {
             <Component {...pageProps} />
           </AvisoObras>
         ) : (
-          <Component {...pageProps} />
+          <>
+            {pageProps?.vacaciones && <AvisoVacaciones vacaciones={pageProps.vacaciones} />}
+            <Component {...pageProps} />
+          </>
         )}
         <CartFloating />
         <CookieBanner />
