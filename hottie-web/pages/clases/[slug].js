@@ -237,7 +237,7 @@ export default function DetalleClase({ clase }) {
             <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{clase.name}</h1>
             <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{clase.description}</p>
             {clase.plazo_entrega && (
-              <p className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-[#29F1C3]/30 bg-[#29F1C3]/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#29F1C3]">
+              <p className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-signal/40 bg-signal/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-signal">
                 <span aria-hidden="true">⏱</span> {clase.plazo_entrega}
               </p>
             )}

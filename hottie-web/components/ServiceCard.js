@@ -145,7 +145,7 @@ export default function ServiceCard({ service }) {
         </div>
         <p className="mt-2 text-sm leading-relaxed text-muted">{service.description}</p>
         {service.plazo_entrega && (
-          <p className="mt-3 inline-flex items-center gap-1.5 rounded-sm border border-[#29F1C3]/30 bg-[#29F1C3]/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#29F1C3]">
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-sm border border-signal/40 bg-signal/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-widest text-signal">
             <span aria-hidden="true">⏱</span> {service.plazo_entrega}
           </p>
         )}
