@@ -13,7 +13,7 @@ module.exports = {
         muted: '#9B9BA5',
         paper: '#F2F0EA',
         volt: '#CCFF00',
-        signal: '#29F1C3',
+        signal: '#10B981',
       },
       fontFamily: {
         display: ['var(--font-display)'],

@@ -129,9 +129,9 @@ export default function ServiceCard({ service }) {
   };
 
   return (
-    <div {...foco.props} className="group relative flex h-full flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
-      {/* Brillo turquesa (el mismo color que el borde de servicios y clases) */}
-      <Foco color="41,241,195" />
+    <div {...foco.props} className="group relative flex h-full flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-[#10B981]/70">
+      {/* Brillo verde oscuro (el de abajo de la onda de la portada y el pie) */}
+      <Foco color="16,185,129" />
       <div>
         <div className="flex items-start justify-between gap-4">
           <h3 className="font-display text-2xl tracking-wide text-paper">{service.name}</h3>
@@ -145,7 +145,7 @@ export default function ServiceCard({ service }) {
         </div>
         <p className="mt-2 text-sm leading-relaxed text-muted">{service.description}</p>
         {service.plazo_entrega && (
-          <p className="mt-3 inline-flex items-center gap-1.5 rounded-sm border border-signal/30 bg-signal/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-widest text-signal">
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-sm border border-[#29F1C3]/30 bg-[#29F1C3]/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#29F1C3]">
             <span aria-hidden="true">⏱</span> {service.plazo_entrega}
           </p>
         )}

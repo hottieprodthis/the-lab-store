@@ -234,7 +234,7 @@ export default function DetalleServicio({ service }) {
             <h1 className="font-display text-4xl text-paper uppercase md:text-5xl">{service.name}</h1>
             <p className="mt-4 text-base leading-relaxed text-muted max-w-2xl">{service.description}</p>
             {service.plazo_entrega && (
-              <p className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-signal/30 bg-signal/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-signal">
+              <p className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-[#29F1C3]/30 bg-[#29F1C3]/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#29F1C3]">
                 <span aria-hidden="true">⏱</span> {service.plazo_entrega}
               </p>
             )}
