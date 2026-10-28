@@ -7,6 +7,7 @@ import { verificarTurnstile } from '../../lib/turnstile';
 //
 //   POST { email, web }            -> alta pendiente + correo con botón "Confirmar"
 //   POST { accion: 'confirmar', email, t } -> la confirma (desde pages/boletin/confirmar.js)
+//   POST { accion: 'estado', email, t }    -> { confirmado } (para no pedir confirmar dos veces)
 //
 // Solo reciben las novedades los emails confirmados (suscriptores.confirmado),
 // así nadie puede apuntar el email de otra persona.
@@ -31,6 +32,15 @@ export default async function handler(req, res) {
   const email = normalizarEmail(req.body?.email);
 
   try {
+    // --------------------------------------------- ¿ya está confirmado?
+    // Solo con el enlace firmado del correo (nadie puede preguntar por
+    // emails ajenos).
+    if (accion === 'estado') {
+      if (!firmaConfirmacionValida(email, t)) return res.status(400).json({ error: 'Enlace no válido.' });
+      const { data: fila } = await supabase.from('suscriptores').select('confirmado').eq('email', email).maybeSingle();
+      return res.status(200).json({ confirmado: Boolean(fila?.confirmado) });
+    }
+
     // ------------------------------------------------------------ confirmar
     if (accion === 'confirmar') {
       if (!firmaConfirmacionValida(email, t)) {

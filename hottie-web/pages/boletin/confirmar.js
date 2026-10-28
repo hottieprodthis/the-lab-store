@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Navbar from '../../components/Navbar';
@@ -12,6 +12,26 @@ export default function ConfirmarBoletin() {
   const { email, t } = router.query;
   const [estado, setEstado] = useState('inicio'); // inicio | enviando | hecho | error
   const [mensaje, setMensaje] = useState('');
+
+  // Si ese email ya estaba confirmado (p. ej. al recargar la página), se dice
+  // directamente en vez de volver a enseñar el botón.
+  useEffect(() => {
+    if (!router.isReady || !email || !t) return;
+    let vivo = true;
+    fetch('/api/boletin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion: 'estado', email, t }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (vivo && d?.confirmado) setEstado((e) => (e === 'inicio' ? 'hecho' : e));
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [router.isReady, email, t]);
 
   async function confirmar() {
     setEstado('enviando');
