@@ -6,6 +6,7 @@ import ServiceCard from '../../components/ServiceCard';
 import { supabase } from '../../lib/supabaseClient';
 import { aplicarOfertas } from '../../lib/ofertas';
 import { propsConObras } from '../../lib/obras';
+import { Aparecer } from '../../components/Animaciones';
 
 export default function Servicios({ services }) {
   return (
@@ -22,8 +23,10 @@ export default function Servicios({ services }) {
           <p className="mt-12 text-muted">Todavía no hay servicios publicados.</p>
         ) : (
           <div className="mt-10 grid gap-4 md:grid-cols-2">
-            {services.map((s) => (
-              <ServiceCard key={s.id} service={s} />
+            {services.map((s, i) => (
+              <Aparecer key={s.id} className="h-full" retraso={(i % 2) * 120}>
+                <ServiceCard service={s} />
+              </Aparecer>
             ))}
           </div>
         )}

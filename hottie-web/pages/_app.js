@@ -9,6 +9,7 @@ import CartFloating from '../components/CartFloating';
 import CookieBanner from '../components/CookieBanner';
 import AvisoObras from '../components/AvisoObras';
 import AvisoVacaciones from '../components/AvisoVacaciones';
+import { VolverArriba } from '../components/Animaciones';
 
 const display = Bebas_Neue({
   subsets: ['latin'],
@@ -79,6 +80,7 @@ export default function App({ Component, pageProps }) {
             <Component {...pageProps} />
           </>
         )}
+        <VolverArriba />
         <CartFloating />
         <CookieBanner />
       </main>

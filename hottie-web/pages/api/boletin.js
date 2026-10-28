@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { normalizarEmail, enlaceConfirmacion, firmaConfirmacionValida } from '../../lib/baja';
 import { enviarCorreosIndividuales } from '../../lib/correos';
+import { verificarTurnstile } from '../../lib/turnstile';
 
 // Boletín de novedades de la portada, con doble confirmación:
 //
@@ -51,6 +52,11 @@ export default async function handler(req, res) {
     }
     if (!EMAIL_VALIDO.test(email) || email.length > 254) {
       return res.status(400).json({ error: 'Escribe un email válido.' });
+    }
+    // Anti-bots de Cloudflare (solo si está configurado en Vercel).
+    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (!(await verificarTurnstile(req.body?.turnstile, ip))) {
+      return res.status(400).json({ error: 'No hemos podido comprobar que no eres un robot. Recarga la página e inténtalo de nuevo.' });
     }
 
     const { data: fila } = await supabase

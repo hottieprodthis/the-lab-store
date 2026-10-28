@@ -6,6 +6,7 @@ import ServiceCard from '../../components/ServiceCard';
 import { supabase } from '../../lib/supabaseClient';
 import { aplicarOfertas } from '../../lib/ofertas';
 import { propsConObras } from '../../lib/obras';
+import { Aparecer } from '../../components/Animaciones';
 
 export default function Clases({ classes }) {
   return (
@@ -24,15 +25,16 @@ export default function Clases({ classes }) {
           <p className="mt-12 text-muted">Próximamente habrá nuevas clases disponibles.</p>
         ) : (
           <div className="mt-10 grid gap-4 md:grid-cols-2">
-            {classes.map((c) => (
-              <ServiceCard 
-                key={c.id} 
-                service={{
-                  ...c,
-                  isClass: true,
-                  isService: false
-                }} 
-              />
+            {classes.map((c, i) => (
+              <Aparecer key={c.id} className="h-full" retraso={(i % 2) * 120}>
+                <ServiceCard
+                  service={{
+                    ...c,
+                    isClass: true,
+                    isService: false
+                  }}
+                />
+              </Aparecer>
             ))}
           </div>
         )}

@@ -6,6 +6,7 @@ import ProductCard from '../../components/ProductCard';
 import { supabase } from '../../lib/supabaseClient';
 import { aplicarOfertas } from '../../lib/ofertas';
 import { propsConObras } from '../../lib/obras';
+import { Aparecer } from '../../components/Animaciones';
 
 export default function Tienda({ products }) {
   return (
@@ -22,8 +23,10 @@ export default function Tienda({ products }) {
           <p className="mt-12 text-muted">Todavía no hay productos publicados. Vuelve pronto.</p>
         ) : (
           <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
+            {products.map((p, i) => (
+              <Aparecer key={p.id} className="h-full" retraso={(i % 3) * 100}>
+                <ProductCard product={p} />
+              </Aparecer>
             ))}
           </div>
         )}

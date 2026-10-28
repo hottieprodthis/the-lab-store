@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/aviso-paypal", "schedule": "0 9 * * *" }
+  ]
+}

@@ -6,13 +6,16 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BrandsBanner from '../components/BrandsBanner';
 import TextoDescifrado from '../components/TextoDescifrado';
-import { Contador, Aparecer } from '../components/Animaciones';
+import { Contador, Aparecer, FondoOndas } from '../components/Animaciones';
+import Turnstile from '../components/Turnstile';
 
 export default function Home() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   // Campo invisible anti-bots del boletín (las personas no lo ven).
   const [trampaBots, setTrampaBots] = useState('');
+  // Comprobación anti-bots de Cloudflare (components/Turnstile.js)
+  const [tokenTurnstile, setTokenTurnstile] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -52,7 +55,7 @@ export default function Home() {
       const res = await fetch('/api/boletin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, web: trampaBots }),
+        body: JSON.stringify({ email, web: trampaBots, turnstile: tokenTurnstile }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -90,7 +93,8 @@ export default function Home() {
       <Navbar />
 
       <section className="relative overflow-hidden border-b border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-5 py-24 md:py-32">
+        <FondoOndas />
+        <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-start gap-6 px-5 py-24 md:py-32">
           <div className="waveform" aria-hidden="true">
             {Array.from({ length: 8 }).map((_, i) => (
               <span key={i} />
@@ -231,6 +235,7 @@ export default function Home() {
             <p className="text-xs text-muted font-body text-left">
               Recibe información sobre nuevos productos o servicios directamente en tu bandeja de entrada
             </p>
+            <Turnstile onToken={setTokenTurnstile} />
           </form>
 
           {subscribed && (

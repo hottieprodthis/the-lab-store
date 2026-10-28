@@ -12,6 +12,7 @@ import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
 import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
 import { interpretarDemo } from '../../lib/demo';
+import OndaAudio from '../../components/OndaAudio';
 import { useCart } from '../../context/CartContext';
 
 // Muestra la demo según la web del enlace (ver lib/demo.js): reproductor de
@@ -53,15 +54,7 @@ function ProductDemoPlayer({ demoUrl, fallbackCover }) {
       )}
 
       {demo.tipo === 'audio' && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          {fallbackCover && (
-            <img src={fallbackCover} alt="Portada" className="h-16 w-16 rounded-sm object-cover" />
-          )}
-          <audio controls className="w-full">
-            <source src={demo.src} />
-            Tu navegador no soporta el reproductor de audio.
-          </audio>
-        </div>
+        <OndaAudio src={demo.src} portada={fallbackCover} />
       )}
 
       {demo.tipo === 'enlace' && (

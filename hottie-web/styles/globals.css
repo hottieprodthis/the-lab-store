@@ -79,6 +79,20 @@ select:focus-visible {
   .waveform span { animation: none; transform: scaleY(0.7); }
 }
 
+/* Ondas suaves del fondo de la portada (components/Animaciones.js) */
+.fondo-onda {
+  animation-name: fondo-onda;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes fondo-onda {
+  from { transform: translateX(0); }
+  to { transform: translateX(-1200px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fondo-onda { animation: none; }
+}
+
 /* El botón del carrito salta y brilla al añadir algo */
 .carrito-salto {
   animation: carrito-salto 0.65s ease-out;

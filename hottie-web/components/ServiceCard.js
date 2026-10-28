@@ -129,7 +129,7 @@ export default function ServiceCard({ service }) {
   };
 
   return (
-    <div {...foco.props} className="group relative flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
+    <div {...foco.props} className="group relative flex h-full flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
       {/* Brillo turquesa (el mismo color que el borde de servicios y clases) */}
       <Foco color="41,241,195" />
       <div>
