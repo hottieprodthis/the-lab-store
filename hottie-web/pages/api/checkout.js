@@ -4,6 +4,7 @@ import { prepararCorreo } from '../../lib/correos';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
+import { leerObras, MENSAJE_PAGO_EN_OBRAS } from '../../lib/obras';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -28,6 +29,11 @@ export default async function handler(req, res) {
   }
 
   const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId, userEmail, clientName } = req.body;
+
+  // Web en obras (interruptor del panel): no se vende nada salvo la suscripción.
+  if (!isSubscription && (await leerObras(supabase))) {
+    return res.status(503).json({ error: MENSAJE_PAGO_EN_OBRAS });
+  }
 
   try {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;

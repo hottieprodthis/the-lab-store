@@ -5,6 +5,7 @@ import Footer from '../../components/Footer';
 import ServiceCard from '../../components/ServiceCard';
 import { supabase } from '../../lib/supabaseClient';
 import { aplicarOfertas } from '../../lib/ofertas';
+import { propsConObras } from '../../lib/obras';
 
 export default function Clases({ classes }) {
   return (
@@ -42,12 +43,12 @@ export default function Clases({ classes }) {
   );
 }
 
-export async function getServerSideProps() {
+export async function getServerSideProps({ res }) {
   const { data } = await supabase
     .from('classes')
     .select('*')
     .eq('active', true)
     .order('created_at', { ascending: false });
 
-  return { props: { classes: aplicarOfertas(data || []) } };
+  return propsConObras(supabase, res, { classes: aplicarOfertas(data || []) });
 }

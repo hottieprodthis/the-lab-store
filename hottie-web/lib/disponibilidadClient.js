@@ -47,9 +47,8 @@ export async function permitirPago(items) {
   const relevantes = (Array.isArray(items) ? items : []).filter(
     (i) => i && (i.tipo === 'clase' || i.tipo === 'servicio')
   );
-  // Un pedido sin servicios ni clases (solo productos) no tiene límite.
-  if (relevantes.length === 0) return true;
-
+  // Un pedido sin servicios ni clases (solo productos) no tiene límite, pero
+  // se pregunta igual al servidor por si la web está en obras (lib/obras.js).
   try {
     const res = await fetch('/api/disponibilidad', {
       method: 'POST',

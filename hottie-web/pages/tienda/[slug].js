@@ -5,7 +5,9 @@ import { useRouter } from 'next/router';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PayPalButton from '../../components/PayPalButton';
+import { permitirPago } from '../../lib/disponibilidadClient';
 import { supabase } from '../../lib/supabaseClient';
+import { propsConObras } from '../../lib/obras';
 import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
 import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
@@ -288,6 +290,7 @@ export default function ProductoDetalle({ product }) {
                         currency={(product.currency || 'eur').toUpperCase()}
                         label={product.name}
                         onSuccess={handlePaypalSuccess}
+                        checkBeforePay={() => permitirPago([])}
                       />
                     </div>
                   </>
@@ -315,7 +318,7 @@ export default function ProductoDetalle({ product }) {
   );
 }
 
-export async function getServerSideProps({ params }) {
+export async function getServerSideProps({ params, res }) {
   const { data } = await supabase
     .from('products')
     .select('*')
@@ -327,5 +330,5 @@ export async function getServerSideProps({ params }) {
   // para que Google lo quite de sus resultados.
   if (!data) return { notFound: true };
 
-  return { props: { product: aplicarOferta(data) || null } };
+  return propsConObras(supabase, res, { product: aplicarOferta(data) || null });
 }

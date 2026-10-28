@@ -5,6 +5,7 @@ import Footer from '../../components/Footer';
 import ProductCard from '../../components/ProductCard';
 import { supabase } from '../../lib/supabaseClient';
 import { aplicarOfertas } from '../../lib/ofertas';
+import { propsConObras } from '../../lib/obras';
 
 export default function Tienda({ products }) {
   return (
@@ -33,12 +34,12 @@ export default function Tienda({ products }) {
   );
 }
 
-export async function getServerSideProps() {
+export async function getServerSideProps({ res }) {
   const { data } = await supabase
     .from('products')
     .select('*')
     .eq('active', true)
     .order('sort_order', { ascending: true });
 
-  return { props: { products: aplicarOfertas(data || []) } };
+  return propsConObras(supabase, res, { products: aplicarOfertas(data || []) });
 }

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { supabase } from '../../lib/supabaseClient';
+import { propsConObras } from '../../lib/obras';
 import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
 import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
@@ -410,7 +411,7 @@ export default function DetalleClase({ clase }) {
   );
 }
 
-export async function getServerSideProps({ params }) {
+export async function getServerSideProps({ params, res }) {
   const { data } = await supabase
     .from('classes')
     .select('*')
@@ -422,9 +423,5 @@ export async function getServerSideProps({ params }) {
   // para que Google lo quite de sus resultados.
   if (!data) return { notFound: true };
 
-  return {
-    props: {
-      clase: aplicarOferta(data) || null,
-    },
-  };
+  return propsConObras(supabase, res, { clase: aplicarOferta(data) || null });
 }

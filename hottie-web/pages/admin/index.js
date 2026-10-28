@@ -5,6 +5,7 @@ import AdminGuard from '../../components/AdminGuard';
 import AdminHeader from '../../components/AdminHeader';
 import { supabaseAdmin as supabase } from '../../lib/supabaseAdminClient';
 import { aInputFecha, leerOfertaSuscripcion, precioOfertaValido } from '../../lib/ofertas';
+import { MENSAJE_OBRAS_POR_DEFECTO } from '../../lib/obras';
 
 function Section({ title, items, kind, onDelete }) {
   const getAddUrl = () => {
@@ -100,6 +101,9 @@ export default function AdminDashboard() {
   // Oferta de la suscripción (settings "subscription_offer", ver lib/ofertas.js).
   const [subOferta, setSubOferta] = useState({ activa: false, tipo: 'porcentaje', valor: '', inicio: '', fin: '' });
   const [subOfertaMsg, setSubOfertaMsg] = useState('');
+  // Interruptor "Web en obras" (lib/obras.js)
+  const [obras, setObras] = useState({ activa: false, mensaje: '' });
+  const [obrasMsg, setObrasMsg] = useState('');
   const [subscribersCount, setSubscribersCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -311,8 +315,36 @@ export default function AdminDashboard() {
       fin: aInputFecha(o?.oferta_fin),
     });
 
+    const { data: obrasData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'maintenance')
+      .maybeSingle();
+    let ob = {};
+    try {
+      ob = JSON.parse(obrasData?.value || '{}');
+    } catch (e) {}
+    setObras({ activa: Boolean(ob.activa), mensaje: ob.mensaje || '' });
+
     setSubscribersCount(subCount || 0);
     setLoading(false);
+  }
+
+  async function guardarObras(activa) {
+    setObrasMsg('');
+    if (activa && !obras.activa && !confirm('Se mostrará el aviso de obras en Tienda, Servicios y Clases y nadie podrá comprar hasta que lo quites. ¿Activar?')) {
+      return;
+    }
+    const nuevo = { activa, mensaje: obras.mensaje.trim() };
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'maintenance', value: JSON.stringify(nuevo) }, { onConflict: 'key' });
+    if (error) {
+      setObrasMsg(`Error: ${error.message}`);
+      return;
+    }
+    setObras({ ...obras, activa });
+    setObrasMsg(activa ? 'Web en obras activada.' : obras.activa ? 'Web abierta de nuevo: ya se puede comprar.' : 'Mensaje guardado.');
   }
 
   useEffect(() => {
@@ -429,6 +461,49 @@ export default function AdminDashboard() {
           <p className="text-muted">Cargando…</p>
         ) : (
           <>
+            {/* WEB EN OBRAS */}
+            <div
+              className={`mb-12 rounded-sm border p-6 ${obras.activa ? 'border-volt bg-volt/10' : 'border-white/10 bg-surface'}`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-xl tracking-wide text-paper">Web en obras</h2>
+                  <p className="mt-1 text-xs text-muted">
+                    {obras.activa
+                      ? 'ACTIVADA: los clientes ven el aviso en Tienda, Servicios y Clases y no pueden comprar. Tú (con esta sesión) ves las páginas normales.'
+                      : 'Desactivada: la web funciona con normalidad.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => guardarObras(!obras.activa)}
+                  className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-widest transition ${
+                    obras.activa ? 'border border-white/20 text-paper hover:border-paper' : 'bg-volt text-ink hover:brightness-110'
+                  }`}
+                >
+                  {obras.activa ? 'Abrir la web' : 'Poner en obras'}
+                </button>
+              </div>
+              <label className="mt-5 mb-1 block text-xs uppercase tracking-widest text-muted">
+                Mensaje para los clientes (opcional)
+              </label>
+              <textarea
+                value={obras.mensaje}
+                onChange={(e) => setObras({ ...obras, mensaje: e.target.value })}
+                rows={2}
+                placeholder={MENSAJE_OBRAS_POR_DEFECTO}
+                className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:border-volt focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => guardarObras(obras.activa)}
+                className="mt-2 text-xs text-muted underline hover:text-paper"
+              >
+                Guardar mensaje
+              </button>
+              {obrasMsg && <p className="mt-3 text-xs text-volt">{obrasMsg}</p>}
+            </div>
+
             {/* CONTROL DE PRECIO DE SUSCRIPCIÓN */}
             <div className="mb-12 rounded-sm border border-white/10 bg-surface p-6">
               <h2 className="font-display text-xl tracking-wide text-paper mb-4">Precio de la Suscripción Mensual (Área Clientes)</h2>

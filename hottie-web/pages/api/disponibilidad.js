@@ -5,6 +5,7 @@ import {
   resumirPedido,
   comprobarPedido,
 } from '../../lib/limiteSemanal';
+import { leerObras, MENSAJE_PAGO_EN_OBRAS } from '../../lib/obras';
 
 // Service Role Key: hace falta para contar las compras de TODOS los
 // clientes (la tabla purchases solo deja leer sus propias filas a cada
@@ -40,6 +41,11 @@ export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Método no permitido' });
+  }
+
+  // Con la web en obras no se deja abrir ningún cobro de PayPal.
+  if (req.method === 'POST' && (await leerObras(supabase))) {
+    return res.status(200).json({ ok: false, message: MENSAJE_PAGO_EN_OBRAS });
   }
 
   try {
@@ -81,7 +87,10 @@ export default async function handler(req, res) {
       });
     }
 
-    const resumen = await resumirPedido(supabase, req.body?.items);
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    if (items.length === 0) return res.status(200).json({ ok: true, message: '' });
+
+    const resumen = await resumirPedido(supabase, items);
     return res.status(200).json(comprobarPedido(estado, resumen));
   } catch (err) {
     console.error('Error en /api/disponibilidad:', err);
