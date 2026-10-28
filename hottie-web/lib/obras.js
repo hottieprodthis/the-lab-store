@@ -5,7 +5,7 @@
 // ningún pedido (la suscripción sí sigue funcionando).
 
 export const MENSAJE_OBRAS_POR_DEFECTO =
-  'Estamos actualizando la tienda, los servicios y las clases para traerte novedades. Vuelve en unas horas.';
+  'Estamos actualizando la tienda, los servicios y las clases para traerte novedades. Volveremos a abrir lo antes posible.';
 
 export function leerAjusteObras(valor) {
   try {
@@ -41,4 +41,4 @@ export async function propsConObras(supabase, res, props) {
 }
 
 export const MENSAJE_PAGO_EN_OBRAS =
-  'Ahora mismo la web está en obras y no se pueden hacer compras. Vuelve en unas horas, ¡gracias por la paciencia!';
+  'Ahora mismo la web está en obras y no se pueden hacer compras. Volveremos a abrir lo antes posible, ¡gracias por la paciencia!';
