@@ -170,13 +170,13 @@ export function useFoco() {
   };
 }
 
-export function Foco({ color }) {
+export function Foco({ color, fuerza = 0.13 }) {
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
       style={{
-        background: `radial-gradient(280px circle at var(--foco-x, 50%) var(--foco-y, 50%), rgba(${color},0.13), transparent 70%)`,
+        background: `radial-gradient(280px circle at var(--foco-x, 50%) var(--foco-y, 50%), rgba(${color},${fuerza}), transparent 70%)`,
       }}
     />
   );

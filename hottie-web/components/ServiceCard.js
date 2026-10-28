@@ -129,9 +129,9 @@ export default function ServiceCard({ service }) {
   };
 
   return (
-    <div {...foco.props} className="group relative flex h-full flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-[#10B981]/70">
+    <div {...foco.props} className="group relative flex h-full flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal">
       {/* Brillo verde oscuro (el de abajo de la onda de la portada y el pie) */}
-      <Foco color="16,185,129" />
+      <Foco color="16,185,129" fuerza={0.28} />
       <div>
         <div className="flex items-start justify-between gap-4">
           <h3 className="font-display text-2xl tracking-wide text-paper">{service.name}</h3>

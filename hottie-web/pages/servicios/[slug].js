@@ -259,7 +259,7 @@ export default function DetalleServicio({ service }) {
             <h2 className="font-display text-xl text-volt uppercase tracking-wider">Planes disponibles</h2>
             <div className="grid gap-6 md:grid-cols-3">
               {service.plans.map((plan, i) => (
-                <div key={i} className="flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal/60">
+                <div key={i} className="flex flex-col justify-between rounded-sm border border-white/10 bg-surface p-6 transition hover:border-signal">
                   <div>
                     <h3 className="font-display text-2xl text-paper uppercase">{plan.name}</h3>
                     <p className="mt-4 text-2xl font-bold text-volt">
