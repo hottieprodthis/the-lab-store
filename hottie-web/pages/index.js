@@ -8,6 +8,7 @@ import BrandsBanner from '../components/BrandsBanner';
 import TextoDescifrado from '../components/TextoDescifrado';
 import { Contador, Aparecer, FondoOndas } from '../components/Animaciones';
 import Turnstile from '../components/Turnstile';
+import Opiniones from '../components/Opiniones';
 
 export default function Home() {
   const [email, setEmail] = useState('');
@@ -252,6 +253,9 @@ export default function Home() {
         </div>
       </section>
       </Aparecer>
+
+      {/* OPINIONES DE CLIENTES (solo si hay alguna aprobada) */}
+      <Opiniones />
 
       {/* SECCIÓN TRABAJOS DESTACADOS */}
       <section className="mx-auto max-w-6xl px-5 py-16 border-t border-white/10 space-y-16 font-body">

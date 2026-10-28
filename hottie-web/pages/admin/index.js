@@ -101,6 +101,7 @@ export default function AdminDashboard() {
   // Oferta de la suscripción (settings "subscription_offer", ver lib/ofertas.js).
   const [subOferta, setSubOferta] = useState({ activa: false, tipo: 'porcentaje', valor: '', inicio: '', fin: '' });
   const [subOfertaMsg, setSubOfertaMsg] = useState('');
+  const [opinionesPendientes, setOpinionesPendientes] = useState(0);
   // Interruptor "Web en obras" (lib/obras.js)
   const [obras, setObras] = useState({ activa: false, mensaje: '' });
   const [obrasMsg, setObrasMsg] = useState('');
@@ -344,6 +345,12 @@ export default function AdminDashboard() {
       mensaje: va.mensaje || '',
       vuelta: va.vuelta || '',
     });
+
+    const { count: opCount } = await supabase
+      .from('opiniones')
+      .select('id', { count: 'exact', head: true })
+      .eq('aprobada', false);
+    setOpinionesPendientes(opCount || 0);
 
     setSubscribersCount(subCount || 0);
     setLoading(false);
@@ -1058,6 +1065,22 @@ export default function AdminDashboard() {
               </div>
               <div className="rounded-sm border border-white/10 bg-surface p-4 text-sm text-muted">
                 Total suscriptores newsletter registrados: <span className="font-semibold text-paper">{subscribersCount}</span>
+              </div>
+            </div>
+
+            {/* OPINIONES DE CLIENTES */}
+            <div className="mb-12">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-2xl tracking-wide text-paper">Opiniones</h2>
+                <Link
+                  href="/admin/opiniones"
+                  className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                >
+                  Revisar
+                </Link>
+              </div>
+              <div className="rounded-sm border border-white/10 bg-surface p-4 text-sm text-muted">
+                Pendientes de aprobar: <span className="font-semibold text-paper">{opinionesPendientes}</span>
               </div>
             </div>
           </>

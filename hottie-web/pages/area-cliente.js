@@ -292,6 +292,24 @@ export default function AreaClientePage() {
   };
 
   // NUEVA FUNCIÓN: Eliminar compra del historial
+  // Botón "Opinar": pide al servidor el enlace personal de esa compra
+  // (pages/api/opinion.js) y lleva a la página para dejar la opinión.
+  const dejarOpinion = async (idCompra) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/opinion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ accion: 'enlace', compraId: idCompra }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d.url) window.location.href = d.url;
+      else alert(d.error || 'No se pudo abrir la página de opinión.');
+    } catch (e) {
+      alert('Error de conexión. Inténtalo de nuevo.');
+    }
+  };
+
   const eliminarCompra = async (idCompra) => {
     const confirmar = window.confirm("¿Seguro que quieres borrar este registro del historial? Esta acción no se puede deshacer.");
     if (!confirmar) return;
@@ -586,6 +604,15 @@ export default function AreaClientePage() {
                               <p className="text-sm font-semibold text-volt">
                                 {purchase.amount} €
                               </p>
+                              {!/suscrip/i.test(purchase.plan_name || "") && (
+                                <button
+                                  onClick={() => dejarOpinion(purchase.id)}
+                                  className="rounded-sm border border-volt/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-volt transition hover:bg-volt hover:text-ink"
+                                  title="Dejar mi opinión"
+                                >
+                                  ★ Opinar
+                                </button>
+                              )}
                               <button
                                 onClick={() => eliminarCompra(purchase.id)}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-400 p-1"
@@ -633,6 +660,15 @@ export default function AreaClientePage() {
                               <p className="text-sm font-semibold text-volt">
                                 {purchase.amount} €
                               </p>
+                              {!/suscrip/i.test(purchase.plan_name || "") && (
+                                <button
+                                  onClick={() => dejarOpinion(purchase.id)}
+                                  className="rounded-sm border border-volt/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-volt transition hover:bg-volt hover:text-ink"
+                                  title="Dejar mi opinión"
+                                >
+                                  ★ Opinar
+                                </button>
+                              )}
                               <button
                                 onClick={() => eliminarCompra(purchase.id)}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-400 p-1"
