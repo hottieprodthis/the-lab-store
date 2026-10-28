@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { supabaseAdmin as supabase } from '../lib/supabaseAdminClient';
 import { slugify } from '../lib/format';
 import { aInputFecha, precioOfertaValido } from '../lib/ofertas';
+import { interpretarDemo } from '../lib/demo';
 
 export default function ItemForm({ table, initial, hasFileUrl }) {
   const router = useRouter();
@@ -637,15 +638,62 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
 
           <div>
             <label className="mb-1 block text-xs uppercase tracking-widest text-volt font-bold">
-              URL de Preview / Demo (Spotify, YouTube, SoundCloud o enlace MP3)
+              URL de Preview / Demo (Spotify, YouTube, SoundCloud, Google Drive o Dropbox)
             </label>
             <input
               type="url"
               value={demoUrl}
               onChange={(e) => setDemoUrl(e.target.value)}
-              placeholder="Ej: https://open.spotify.com/track/... o https://..."
+              placeholder="Ej: https://drive.google.com/file/d/... o https://open.spotify.com/track/..."
               className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
             />
+
+            {/* Qué se verá en la ficha con el enlace pegado */}
+            {demoUrl.trim() && (() => {
+              const demo = interpretarDemo(demoUrl);
+              if (!demo) return <p className="mt-2 text-xs text-red-300">Este enlace no es válido. Revisa que empiece por https://</p>;
+              if (demo.tipo === 'enlace')
+                return (
+                  <p className="mt-2 text-xs text-muted">
+                    Este enlace no se puede reproducir en la ficha: saldrá un botón para abrirlo en {demo.nombre}.
+                  </p>
+                );
+              return (
+                <p className="mt-2 text-xs text-volt">
+                  ✓ En la ficha saldrá el reproductor {demo.tipo === 'audio' ? 'de audio de la web' : `de ${demo.nombre}`}.
+                </p>
+              );
+            })()}
+
+            {/* Instrucciones para subir una demo en MP3 sin ocupar espacio en la web */}
+            <details className="mt-3 rounded-sm border border-white/10 bg-white/5 px-3 py-2 text-xs text-muted">
+              <summary className="cursor-pointer font-semibold text-paper">¿Cómo pongo una demo en MP3?</summary>
+              <div className="mt-3 space-y-3 leading-relaxed">
+                <div>
+                  <p className="font-semibold text-paper">Con Google Drive (la más fácil)</p>
+                  <ol className="ml-4 list-decimal space-y-1">
+                    <li>Sube el MP3 a tu Google Drive.</li>
+                    <li>Clic derecho sobre el archivo → <b>Compartir</b> → <b>Compartir</b>.</li>
+                    <li>En «Acceso general» elige <b>«Cualquier persona con el enlace»</b> (como Lector).</li>
+                    <li>Pulsa <b>«Copiar enlace»</b> y pégalo aquí arriba.</li>
+                  </ol>
+                  <p className="mt-1">Saldrá el reproductor de Google Drive.</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-paper">Con Dropbox</p>
+                  <ol className="ml-4 list-decimal space-y-1">
+                    <li>Sube el MP3 a Dropbox.</li>
+                    <li>Pulsa <b>Compartir</b> → <b>«Copiar enlace»</b> (que puedan verlo todos los que tengan el enlace).</li>
+                    <li>Pégalo aquí arriba tal cual.</li>
+                  </ol>
+                  <p className="mt-1">Saldrá el reproductor de audio de la web, con su propio estilo.</p>
+                </div>
+                <p>
+                  También valen enlaces de <b>Spotify, YouTube, SoundCloud, Vimeo y Apple Music</b>. Debajo del campo verás en verde qué
+                  reproductor saldrá; si no sale en verde, ese enlace no se podrá escuchar en la ficha.
+                </p>
+              </div>
+            </details>
           </div>
         </div>
       )}
