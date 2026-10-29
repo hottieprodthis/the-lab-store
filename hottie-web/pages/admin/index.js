@@ -104,7 +104,7 @@ export default function AdminDashboard() {
   const [opinionesPendientes, setOpinionesPendientes] = useState(0);
   // Interruptores "Web en obras", "Solo portada y contacto" y "Compras
   // cerradas" (lib/obras.js): guardan el mismo ajuste con su modo.
-  const [obras, setObras] = useState({ activa: false, mensajes: {}, modo: 'obras' });
+  const [obras, setObras] = useState({ activa: false, mensajes: {}, modo: 'obras', apertura: '', anticipado: false });
   const [obrasMsg, setObrasMsg] = useState('');
   // Interruptor "De vacaciones" (lib/obras.js)
   const [vacaciones, setVacaciones] = useState({ activa: false, mensaje: '', vuelta: '' });
@@ -329,10 +329,14 @@ export default function AdminDashboard() {
     try {
       ob = JSON.parse(obrasData?.value || '{}');
     } catch (e) {}
+    // Si la apertura programada ya ha pasado, la web ya está abierta.
+    const yaAbrio = ob.apertura && new Date(ob.apertura) <= new Date();
     setObras({
-      activa: Boolean(ob.activa),
+      activa: Boolean(ob.activa) && !yaAbrio,
       mensajes: ob.mensajes && typeof ob.mensajes === 'object' ? ob.mensajes : {},
       modo: ['privada', 'compras'].includes(ob.modo) ? ob.modo : 'obras',
+      apertura: yaAbrio ? '' : aInputFecha(ob.apertura),
+      anticipado: Boolean(ob.anticipado),
     });
 
     const { data: vacData } = await supabase
@@ -400,7 +404,23 @@ export default function AdminDashboard() {
     for (const [m, texto] of Object.entries(obras.mensajes || {})) {
       if (String(texto || '').trim()) mensajes[m] = String(texto).trim();
     }
-    const nuevo = { activa, modo, mensajes };
+    const apertura = obras.apertura ? new Date(obras.apertura) : null;
+    if (apertura && Number.isNaN(apertura.getTime())) {
+      setObrasMsg('La fecha de apertura no es válida.');
+      return;
+    }
+    if (activa && apertura && apertura <= new Date()) {
+      setObrasMsg('La fecha de apertura ya ha pasado: cámbiala o bórrala.');
+      return;
+    }
+    // Al abrir la web a mano se borra la apertura programada.
+    const nuevo = {
+      activa,
+      modo,
+      mensajes,
+      apertura: activa && apertura ? apertura.toISOString() : '',
+      anticipado: Boolean(obras.anticipado),
+    };
     const { error } = await supabase
       .from('settings')
       .upsert({ key: 'maintenance', value: JSON.stringify(nuevo) }, { onConflict: 'key' });
@@ -408,7 +428,7 @@ export default function AdminDashboard() {
       setObrasMsg(`Error: ${error.message}`);
       return;
     }
-    setObras({ ...obras, activa, modo });
+    setObras({ ...obras, activa, modo, apertura: activa ? obras.apertura : '' });
     setObrasMsg(
       cambia
         ? {
@@ -599,9 +619,58 @@ export default function AdminDashboard() {
                     >
                       Guardar mensaje
                     </button>
+                    {m.modo === 'compras' && (
+                      <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-paper">
+                        <input
+                          type="checkbox"
+                          checked={obras.anticipado}
+                          onChange={(e) => setObras({ ...obras, anticipado: e.target.checked })}
+                          className="mt-1 h-4 w-4 accent-[#CCFF00]"
+                        />
+                        <span>
+                          Acceso anticipado para suscriptores
+                          <span className="mt-0.5 block text-xs text-muted">
+                            Los suscriptores con la suscripción en vigor ven la Tienda y pueden comprar productos (servicios y clases no). Los demás ven el aviso con un enlace para iniciar sesión. Pulsa «Guardar mensaje» para guardarlo.
+                          </span>
+                        </span>
+                      </label>
+                    )}
                   </div>
                 );
               })}
+              {/* Apertura programada: cuenta atrás en el aviso y la web se abre sola */}
+              <div className="mt-6 border-t border-white/10 pt-5">
+                <label className="mb-1 block text-xs uppercase tracking-widest text-muted">Abrir la web sola el (opcional)</label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="datetime-local"
+                    value={obras.apertura}
+                    onChange={(e) => setObras({ ...obras, apertura: e.target.value })}
+                    className="rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:border-volt focus:outline-none [color-scheme:dark]"
+                  />
+                  {obras.activa && (
+                    <button
+                      type="button"
+                      onClick={() => guardarObras(true)}
+                      className="rounded-sm border border-white/20 px-3 py-2 text-xs uppercase tracking-widest text-paper hover:border-paper"
+                    >
+                      Guardar fecha
+                    </button>
+                  )}
+                  {obras.apertura && (
+                    <button
+                      type="button"
+                      onClick={() => setObras({ ...obras, apertura: '' })}
+                      className="text-xs text-muted underline hover:text-paper"
+                    >
+                      Quitar fecha
+                    </button>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-muted">
+                  Sirve para cualquiera de los tres modos: en el aviso sale una cuenta atrás y, al llegar esa hora, la web se abre sola. Pon la fecha y luego activa el modo; si ya está activado, pulsa «Guardar fecha» (también después de «Quitar fecha»).
+                </p>
+              </div>
               {obrasMsg && <p className="mt-3 text-xs text-volt">{obrasMsg}</p>}
             </div>
 

@@ -33,9 +33,15 @@ export default async function handler(req, res) {
   // Web en obras / compras cerradas (interruptores del panel): no se vende
   // nada salvo al admin (y, con las compras cerradas, la renovación de quien
   // ya era cliente).
+  const soloProductos =
+    !isSubscription &&
+    (productId
+      ? !isService
+      : Array.isArray(items) && items.length > 0 && items.every((i) => i && !i.isService && !i.isClass));
   const cerrada = await bloqueoPagoObras(supabase, req, {
     esSuscripcion: Boolean(isSubscription),
     userId: bodyUserId || null,
+    soloProductos,
   });
   if (cerrada) {
     return res.status(503).json({ error: cerrada });

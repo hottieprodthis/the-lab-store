@@ -1,3 +1,5 @@
+import { suscripcionActiva } from './suscripcion';
+
 // "Web en obras": interruptores del panel de admin (ajuste "maintenance" de
 // la tabla settings, valor JSON { activa, mensaje, modo }). Tres modos; las
 // páginas tapadas muestran un aviso (pages/_app.js + components/AvisoObras.js):
@@ -10,6 +12,11 @@
 //    pagar nada, salvo que un cliente que ya lo era renueve la suscripción.
 // En todos, el admin (con la sesión del panel abierta) lo ve todo y puede
 // pagar para hacer pruebas, y el buscador no enseña resultados a los demás.
+// Opciones:
+//  - apertura (fecha ISO): el aviso enseña una cuenta atrás y, al llegar esa
+//    hora, la web se abre sola (el ajuste deja de contar como activo).
+//  - anticipado (solo 'compras'): los suscriptores con la suscripción en
+//    vigor ven la Tienda y pueden comprar productos (no servicios ni clases).
 const MODOS = ['obras', 'privada', 'compras'];
 
 // Mensaje del aviso de cada modo cuando no se ha escrito uno propio en el
@@ -26,10 +33,14 @@ export function leerAjusteObras(valor) {
     const v = typeof valor === 'string' ? JSON.parse(valor || '{}') : valor || {};
     if (!v.activa) return null;
     const modo = MODOS.includes(v.modo) ? v.modo : 'obras';
+    const apertura = v.apertura && !Number.isNaN(new Date(v.apertura).getTime()) ? new Date(v.apertura).toISOString() : '';
+    if (apertura && Date.now() >= new Date(apertura).getTime()) return null; // ya ha abierto
     return {
       activa: true,
       mensaje: String(v.mensajes?.[modo] || '').trim() || MENSAJES_OBRAS_POR_DEFECTO[modo],
       modo,
+      apertura,
+      anticipado: modo === 'compras' && Boolean(v.anticipado),
     };
   } catch (e) {
     return null;
@@ -102,8 +113,11 @@ export function mensajeReservasVacaciones(vac) {
 // luego") para que Google no guarde el aviso en lugar de la página. Con { vacaciones: true } (servicios
 // y clases) añade también el aviso de vacaciones; esas páginas siguen
 // respondiendo con normalidad (pueden ser semanas).
-export async function propsConObras(supabase, res, props, { vacaciones = false } = {}) {
-  const obras = await leerObras(supabase);
+// Con { tienda: true } (páginas de la Tienda) marca si los suscriptores
+// tienen acceso anticipado (components/AvisoObras.js les deja ver la página).
+export async function propsConObras(supabase, res, props, { vacaciones = false, tienda = false } = {}) {
+  let obras = await leerObras(supabase);
+  if (obras && tienda && obras.anticipado) obras = { ...obras, anticipadoAqui: true };
   if (obras && res) {
     res.statusCode = 503;
     res.setHeader('Retry-After', '3600');
@@ -167,14 +181,36 @@ async function yaEsCliente(supabase, userId) {
   }
 }
 
+// ¿La petición viene de un suscriptor con la suscripción en vigor? (token de
+// su sesión en la cabecera Authorization, ver lib/cabecerasPago.js).
+async function suscriptorActivoPeticion(supabase, req) {
+  const cabecera = req?.headers?.authorization || '';
+  if (!cabecera.startsWith('Bearer ')) return false;
+  try {
+    const { data } = await supabase.auth.getUser(cabecera.slice(7));
+    if (!data?.user) return false;
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('is_admin, is_subscribed, subscribed_until')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    return suscripcionActiva(perfil);
+  } catch (e) {
+    return false;
+  }
+}
+
 // Si la web está cerrada, devuelve el mensaje con el que se rechaza el pago
-// (o null si se puede pagar).
-export async function bloqueoPagoObras(supabase, req, { esSuscripcion = false, userId = null } = {}) {
+// (o null si se puede pagar). soloProductos: el pedido no lleva servicios,
+// clases ni suscripción (para el acceso anticipado de los suscriptores).
+export async function bloqueoPagoObras(supabase, req, { esSuscripcion = false, userId = null, soloProductos = false } = {}) {
   const obras = await leerObras(supabase);
   if (!obras) return null;
   if (await esAdminPeticion(supabase, req)) return null;
   if (obras.modo === 'compras') {
-    return esSuscripcion && (await yaEsCliente(supabase, userId)) ? null : MENSAJE_COMPRAS_CERRADAS;
+    if (esSuscripcion && (await yaEsCliente(supabase, userId))) return null;
+    if (soloProductos && obras.anticipado && (await suscriptorActivoPeticion(supabase, req))) return null;
+    return MENSAJE_COMPRAS_CERRADAS;
   }
   return MENSAJE_PAGO_EN_OBRAS;
 }

@@ -47,9 +47,12 @@ export default async function handler(req, res) {
   // de PayPal (salvo al admin, para hacer pruebas, y la renovación de la
   // suscripción de quien ya era cliente: { suscripcion: true, userId }).
   if (req.method === 'POST') {
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
     const cerrada = await bloqueoPagoObras(supabase, req, {
       esSuscripcion: req.body?.suscripcion === true,
       userId: req.body?.userId || null,
+      // permitirPago solo manda los servicios y clases: sin ellos, son productos
+      soloProductos: req.body?.suscripcion !== true && items.length === 0,
     });
     if (cerrada) return res.status(200).json({ ok: false, message: cerrada });
   }
