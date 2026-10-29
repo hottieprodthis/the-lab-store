@@ -59,7 +59,7 @@ export default function AvisoObras({ obras, children }) {
         </h1>
         <p className="mt-6 max-w-lg font-body text-base leading-relaxed text-muted">{obras.mensaje}</p>
         <p className="mt-3 max-w-lg font-body text-sm text-muted">
-          Mientras tanto no se pueden hacer compras. Si tienes cualquier duda o un pedido pendiente, escríbenos.
+          No se pueden hacer compras. Si tienes cualquier duda o un pedido pendiente, escríbenos.
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-4">
           <Link

@@ -12,17 +12,24 @@
 // pagar para hacer pruebas, y el buscador no enseña resultados a los demás.
 const MODOS = ['obras', 'privada', 'compras'];
 
-export const MENSAJE_OBRAS_POR_DEFECTO =
-  'Estamos actualizando la tienda, los servicios y las clases para traerte novedades. Volveremos a abrir lo antes posible.';
+// Mensaje del aviso de cada modo cuando no se ha escrito uno propio en el
+// panel (se guardan aparte en "mensajes": { obras, privada, compras }).
+export const MENSAJES_OBRAS_POR_DEFECTO = {
+  obras: 'Estamos actualizando la web para traerte novedades. Volveremos a abrir lo antes posible.',
+  privada: 'Muy pronto abrimos la tienda, los servicios y las clases. Mientras tanto, conócenos y escríbenos para cualquier duda.',
+  compras:
+    'Ahora mismo las compras están cerradas. Si ya eres cliente, puedes seguir entrando en tu área. Volveremos a abrir lo antes posible.',
+};
 
 export function leerAjusteObras(valor) {
   try {
     const v = typeof valor === 'string' ? JSON.parse(valor || '{}') : valor || {};
     if (!v.activa) return null;
+    const modo = MODOS.includes(v.modo) ? v.modo : 'obras';
     return {
       activa: true,
-      mensaje: String(v.mensaje || '').trim() || MENSAJE_OBRAS_POR_DEFECTO,
-      modo: MODOS.includes(v.modo) ? v.modo : 'obras',
+      mensaje: String(v.mensajes?.[modo] || '').trim() || MENSAJES_OBRAS_POR_DEFECTO[modo],
+      modo,
     };
   } catch (e) {
     return null;

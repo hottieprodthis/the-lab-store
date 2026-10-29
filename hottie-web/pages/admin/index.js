@@ -5,7 +5,7 @@ import AdminGuard from '../../components/AdminGuard';
 import AdminHeader from '../../components/AdminHeader';
 import { supabaseAdmin as supabase } from '../../lib/supabaseAdminClient';
 import { aInputFecha, leerOfertaSuscripcion, precioOfertaValido } from '../../lib/ofertas';
-import { MENSAJE_OBRAS_POR_DEFECTO, MENSAJE_VACACIONES_POR_DEFECTO, leerAjusteVacaciones } from '../../lib/obras';
+import { MENSAJES_OBRAS_POR_DEFECTO, MENSAJE_VACACIONES_POR_DEFECTO, leerAjusteVacaciones } from '../../lib/obras';
 
 function Section({ title, items, kind, onDelete }) {
   const getAddUrl = () => {
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
   const [opinionesPendientes, setOpinionesPendientes] = useState(0);
   // Interruptores "Web en obras", "Solo portada y contacto" y "Compras
   // cerradas" (lib/obras.js): guardan el mismo ajuste con su modo.
-  const [obras, setObras] = useState({ activa: false, mensaje: '', modo: 'obras' });
+  const [obras, setObras] = useState({ activa: false, mensajes: {}, modo: 'obras' });
   const [obrasMsg, setObrasMsg] = useState('');
   // Interruptor "De vacaciones" (lib/obras.js)
   const [vacaciones, setVacaciones] = useState({ activa: false, mensaje: '', vuelta: '' });
@@ -329,7 +329,11 @@ export default function AdminDashboard() {
     try {
       ob = JSON.parse(obrasData?.value || '{}');
     } catch (e) {}
-    setObras({ activa: Boolean(ob.activa), mensaje: ob.mensaje || '', modo: ['privada', 'compras'].includes(ob.modo) ? ob.modo : 'obras' });
+    setObras({
+      activa: Boolean(ob.activa),
+      mensajes: ob.mensajes && typeof ob.mensajes === 'object' ? ob.mensajes : {},
+      modo: ['privada', 'compras'].includes(ob.modo) ? ob.modo : 'obras',
+    });
 
     const { data: vacData } = await supabase
       .from('settings')
@@ -392,7 +396,11 @@ export default function AdminDashboard() {
     if (cambia && !confirm(aviso)) {
       return;
     }
-    const nuevo = { activa, mensaje: obras.mensaje.trim(), modo };
+    const mensajes = {};
+    for (const [m, texto] of Object.entries(obras.mensajes || {})) {
+      if (String(texto || '').trim()) mensajes[m] = String(texto).trim();
+    }
+    const nuevo = { activa, modo, mensajes };
     const { error } = await supabase
       .from('settings')
       .upsert({ key: 'maintenance', value: JSON.stringify(nuevo) }, { onConflict: 'key' });
@@ -557,40 +565,43 @@ export default function AdminDashboard() {
               ].map((m, i) => {
                 const encendido = obras.activa && obras.modo === m.modo;
                 return (
-                  <div key={m.modo} className={`flex flex-wrap items-center justify-between gap-4 ${i ? 'mt-5 border-t border-white/10 pt-5' : ''}`}>
-                    <div className="max-w-xl">
-                      <h2 className="font-display text-xl tracking-wide text-paper">{m.titulo}</h2>
-                      <p className="mt-1 text-xs text-muted">{encendido ? m.activo : m.apagado}</p>
+                  <div key={m.modo} className={i ? 'mt-5 border-t border-white/10 pt-5' : ''}>
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="max-w-xl">
+                        <h2 className="font-display text-xl tracking-wide text-paper">{m.titulo}</h2>
+                        <p className="mt-1 text-xs text-muted">{encendido ? m.activo : m.apagado}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => guardarObras(!encendido, m.modo)}
+                        className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-widest transition ${
+                          encendido ? 'border border-white/20 text-paper hover:border-paper' : 'bg-volt text-ink hover:brightness-110'
+                        }`}
+                      >
+                        {encendido ? 'Abrir la web' : m.boton}
+                      </button>
                     </div>
+                    {/* Mensaje propio de este modo (vacío = el de por defecto) */}
+                    <label className="mt-4 mb-1 block text-xs uppercase tracking-widest text-muted">
+                      Mensaje del aviso (opcional)
+                    </label>
+                    <textarea
+                      value={obras.mensajes?.[m.modo] || ''}
+                      onChange={(e) => setObras({ ...obras, mensajes: { ...obras.mensajes, [m.modo]: e.target.value } })}
+                      rows={2}
+                      placeholder={MENSAJES_OBRAS_POR_DEFECTO[m.modo]}
+                      className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:border-volt focus:outline-none"
+                    />
                     <button
                       type="button"
-                      onClick={() => guardarObras(!encendido, m.modo)}
-                      className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-widest transition ${
-                        encendido ? 'border border-white/20 text-paper hover:border-paper' : 'bg-volt text-ink hover:brightness-110'
-                      }`}
+                      onClick={() => guardarObras(obras.activa)}
+                      className="mt-2 text-xs text-muted underline hover:text-paper"
                     >
-                      {encendido ? 'Abrir la web' : m.boton}
+                      Guardar mensaje
                     </button>
                   </div>
                 );
               })}
-              <label className="mt-5 mb-1 block text-xs uppercase tracking-widest text-muted">
-                Mensaje para los clientes (opcional)
-              </label>
-              <textarea
-                value={obras.mensaje}
-                onChange={(e) => setObras({ ...obras, mensaje: e.target.value })}
-                rows={2}
-                placeholder={MENSAJE_OBRAS_POR_DEFECTO}
-                className="w-full rounded-sm border border-white/20 bg-surface2 px-3 py-2 text-sm text-paper focus:border-volt focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => guardarObras(obras.activa)}
-                className="mt-2 text-xs text-muted underline hover:text-paper"
-              >
-                Guardar mensaje
-              </button>
               {obrasMsg && <p className="mt-3 text-xs text-volt">{obrasMsg}</p>}
             </div>
 
