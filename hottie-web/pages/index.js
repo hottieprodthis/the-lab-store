@@ -127,7 +127,7 @@ export default function Home() {
             </Link>
             <Link
               href="/clases"
-              className="rounded-sm border border-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-volt transition hover:bg-volt hover:text-ink hover:shadow-[0_0_28px_rgba(204,255,0,0.55)]"
+              className="rounded-sm border border-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-volt transition hover:border-volt hover:shadow-[0_0_28px_rgba(204,255,0,0.35)]"
             >
               Ver clases
             </Link>
