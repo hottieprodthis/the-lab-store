@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import BrandsBanner from '../components/BrandsBanner';
 import TextoDescifrado from '../components/TextoDescifrado';
 import MasEscuchados from '../components/MasEscuchados';
+import ListaYoutube from '../components/ListaYoutube';
 import { Contador, Aparecer, FondoOndas } from '../components/Animaciones';
 import Turnstile from '../components/Turnstile';
 import Opiniones from '../components/Opiniones';
@@ -265,14 +266,7 @@ export default function Home() {
           </div>
 
           <div className="relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
-            <iframe
-              className="h-full w-full"
-              loading="lazy"
-              src="https://www.youtube.com/embed/videoseries?list=PLbaFqVI9n3hphDGXDfQ_0VhnZfal0pMhi"
-              title="Ahora by Escudero - Playlist"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            ></iframe>
+            <ListaYoutube lista="PLbaFqVI9n3hphDGXDfQ_0VhnZfal0pMhi" portada="1N-V0kJ-M9A" titulo="Ahora by Escudero - Playlist" />
           </div>
         </div>
         </Aparecer>
@@ -280,14 +274,7 @@ export default function Home() {
         <Aparecer>
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
           <div className="order-2 md:order-1 relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
-            <iframe
-              className="h-full w-full"
-              loading="lazy"
-              src="https://www.youtube.com/embed/videoseries?list=PL6xkZFhZM7tBz6lWQRm7AVv0_fycRYN0Y"
-              title="Conexiones by Karlitos - Playlist"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            ></iframe>
+            <ListaYoutube lista="PL6xkZFhZM7tBz6lWQRm7AVv0_fycRYN0Y" portada="IvUzFfTMSAA" titulo="Conexiones by Karlitos - Playlist" />
           </div>
 
           <div className="order-1 md:order-2 space-y-4 text-left">
