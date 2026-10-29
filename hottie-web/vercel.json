@@ -1,6 +1,15 @@
 {
+  "regions": [
+    "dub1"
+  ],
   "crons": [
-    { "path": "/api/cron/aviso-paypal", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/pedir-opinion", "schedule": "0 17 * * *" }
+    {
+      "path": "/api/cron/aviso-paypal",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/pedir-opinion",
+      "schedule": "0 17 * * *"
+    }
   ]
 }

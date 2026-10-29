@@ -267,6 +267,7 @@ export default function Home() {
           <div className="relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
             <iframe
               className="h-full w-full"
+              loading="lazy"
               src="https://www.youtube.com/embed/videoseries?list=PLbaFqVI9n3hphDGXDfQ_0VhnZfal0pMhi"
               title="Ahora by Escudero - Playlist"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -281,6 +282,7 @@ export default function Home() {
           <div className="order-2 md:order-1 relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
             <iframe
               className="h-full w-full"
+              loading="lazy"
               src="https://www.youtube.com/embed/videoseries?list=PL6xkZFhZM7tBz6lWQRm7AVv0_fycRYN0Y"
               title="Conexiones by Karlitos - Playlist"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
