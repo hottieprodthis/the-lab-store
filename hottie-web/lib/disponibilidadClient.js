@@ -69,6 +69,26 @@ export async function permitirPago(items) {
   }
 }
 
+// Igual que permitirPago, para la suscripción con PayPal del área de
+// clientes: con las compras cerradas solo puede renovar quien ya era cliente.
+export async function permitirSuscripcion(userId) {
+  try {
+    const res = await fetch('/api/disponibilidad', {
+      method: 'POST',
+      headers: await cabecerasPago(),
+      body: JSON.stringify({ items: [], suscripcion: true, userId: userId || null }),
+    });
+    const data = await res.json();
+    if (data && data.ok === false) {
+      alert(data.message || 'Ahora mismo no se puede pagar.');
+      return false;
+    }
+    return true;
+  } catch (err) {
+    return true;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Cupos dentro del CARRITO
 // ---------------------------------------------------------------------------

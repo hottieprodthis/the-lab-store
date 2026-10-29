@@ -1,13 +1,16 @@
-// "Web en obras": interruptor del panel de admin (ajuste "maintenance" de la
-// tabla settings, valor JSON { activa, mensaje, modo }). Hay dos modos:
-//  - 'obras': la tienda, los servicios, las clases y sus fichas muestran un
-//    aviso en vez del catálogo (pages/_app.js + components/AvisoObras.js) y
-//    no se puede pagar ningún pedido (la suscripción sí sigue funcionando).
-//  - 'privada' ("solo portada y contacto"): además se tapan la FAQ, el
-//    acceso y el área de clientes y no se puede pagar nada, ni la
-//    suscripción. El admin (con la sesión del panel abierta) lo ve todo y sí
-//    puede pagar, para hacer pruebas.
-// En los dos, el buscador no enseña resultados a los visitantes.
+// "Web en obras": interruptores del panel de admin (ajuste "maintenance" de
+// la tabla settings, valor JSON { activa, mensaje, modo }). Tres modos; las
+// páginas tapadas muestran un aviso (pages/_app.js + components/AvisoObras.js):
+//  - 'obras': se tapa toda la web (salvo las páginas legales y la de darse de
+//    baja del boletín) y no se puede pagar nada.
+//  - 'privada' ("solo portada y contacto"): se ven la portada y Contacto; no
+//    se puede pagar nada.
+//  - 'compras' ("compras cerradas"): se ven la portada, Contacto, la FAQ y el
+//    área de clientes; se tapan Tienda, Servicios y Clases y no se puede
+//    pagar nada, salvo que un cliente que ya lo era renueve la suscripción.
+// En todos, el admin (con la sesión del panel abierta) lo ve todo y puede
+// pagar para hacer pruebas, y el buscador no enseña resultados a los demás.
+const MODOS = ['obras', 'privada', 'compras'];
 
 export const MENSAJE_OBRAS_POR_DEFECTO =
   'Estamos actualizando la tienda, los servicios y las clases para traerte novedades. Volveremos a abrir lo antes posible.';
@@ -19,7 +22,7 @@ export function leerAjusteObras(valor) {
     return {
       activa: true,
       mensaje: String(v.mensaje || '').trim() || MENSAJE_OBRAS_POR_DEFECTO,
-      modo: v.modo === 'privada' ? 'privada' : 'obras',
+      modo: MODOS.includes(v.modo) ? v.modo : 'obras',
     };
   } catch (e) {
     return null;
@@ -87,9 +90,9 @@ export function mensajeReservasVacaciones(vac) {
   return `Estamos de vacaciones${vuelta ? ` hasta el ${vuelta}` : ''}: ahora mismo no se pueden reservar servicios ni clases. La tienda sigue abierta.`;
 }
 
-// Para getServerSideProps de las páginas de catálogo: añade "obras" a las
-// props y, si está activo, responde 503 ("vuelve luego") para que Google no
-// guarde el aviso en lugar de la página. Con { vacaciones: true } (servicios
+// Para getServerSideProps de las páginas de catálogo (se tapan en cualquier
+// modo): añade "obras" a las props y, si está activo, responde 503 ("vuelve
+// luego") para que Google no guarde el aviso en lugar de la página. Con { vacaciones: true } (servicios
 // y clases) añade también el aviso de vacaciones; esas páginas siguen
 // respondiendo con normalidad (pueden ser semanas).
 export async function propsConObras(supabase, res, props, { vacaciones = false } = {}) {
@@ -105,11 +108,19 @@ export async function propsConObras(supabase, res, props, { vacaciones = false }
 export const MENSAJE_PAGO_EN_OBRAS =
   'Ahora mismo la web está en obras y no se pueden hacer compras. Volveremos a abrir lo antes posible, ¡gracias por la paciencia!';
 
-// Para las páginas que solo se tapan en el modo "solo portada y contacto"
-// (FAQ, acceso, área de clientes, formularios tras pagar…).
-export async function propsSoloPrivada(supabase, res, props = {}) {
+export const MENSAJE_COMPRAS_CERRADAS =
+  'Ahora mismo las compras están cerradas. Si ya eres cliente, puedes seguir entrando en tu área. Volveremos a abrir lo antes posible.';
+
+// Qué modos tapan cada tipo de página (el catálogo usa propsConObras).
+const TAPAN = {
+  portada: ['obras'], // portada y Contacto
+  general: ['obras', 'privada'], // FAQ, acceso, área de clientes, formularios tras pagar…
+};
+
+// Para getServerSideProps de las páginas que no son de catálogo.
+export async function propsSegunObras(supabase, res, tipo, props = {}) {
   const ajuste = await leerObras(supabase);
-  const obras = ajuste?.modo === 'privada' ? ajuste : null;
+  const obras = ajuste && TAPAN[tipo]?.includes(ajuste.modo) ? ajuste : null;
   if (obras && res) {
     res.statusCode = 503;
     res.setHeader('Retry-After', '3600');
@@ -133,11 +144,30 @@ export async function esAdminPeticion(supabase, req) {
   }
 }
 
+// ¿Ese usuario ya es (o ha sido) suscriptor? Para dejarle renovar con las
+// compras cerradas.
+async function yaEsCliente(supabase, userId) {
+  if (!userId) return false;
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('is_subscribed, subscribed_until, stripe_subscription_id')
+      .eq('id', userId)
+      .maybeSingle();
+    return Boolean(data && (data.is_subscribed || data.subscribed_until || data.stripe_subscription_id));
+  } catch (e) {
+    return false;
+  }
+}
+
 // Si la web está cerrada, devuelve el mensaje con el que se rechaza el pago
 // (o null si se puede pagar).
-export async function bloqueoPagoObras(supabase, req, { esSuscripcion = false } = {}) {
+export async function bloqueoPagoObras(supabase, req, { esSuscripcion = false, userId = null } = {}) {
   const obras = await leerObras(supabase);
   if (!obras) return null;
-  if (obras.modo === 'privada') return (await esAdminPeticion(supabase, req)) ? null : MENSAJE_PAGO_EN_OBRAS;
-  return esSuscripcion ? null : MENSAJE_PAGO_EN_OBRAS;
+  if (await esAdminPeticion(supabase, req)) return null;
+  if (obras.modo === 'compras') {
+    return esSuscripcion && (await yaEsCliente(supabase, userId)) ? null : MENSAJE_COMPRAS_CERRADAS;
+  }
+  return MENSAJE_PAGO_EN_OBRAS;
 }

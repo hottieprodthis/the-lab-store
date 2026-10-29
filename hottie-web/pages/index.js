@@ -309,3 +309,10 @@ export default function Home() {
     </>
   );
 }
+
+// Con la web en obras (panel) esta página se tapa con el aviso (lib/obras.js).
+export async function getServerSideProps({ res }) {
+  const { supabase } = await import('../lib/supabaseClient');
+  const { propsSegunObras } = await import('../lib/obras');
+  return propsSegunObras(supabase, res, 'portada');
+}

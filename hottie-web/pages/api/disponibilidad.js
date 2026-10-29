@@ -43,10 +43,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  // Con la web en obras no se deja abrir ningún cobro de PayPal (en el modo
-  // "solo portada y contacto", salvo al admin, para hacer pruebas).
+  // Con la web en obras o las compras cerradas no se deja abrir ningún cobro
+  // de PayPal (salvo al admin, para hacer pruebas, y la renovación de la
+  // suscripción de quien ya era cliente: { suscripcion: true, userId }).
   if (req.method === 'POST') {
-    const cerrada = await bloqueoPagoObras(supabase, req);
+    const cerrada = await bloqueoPagoObras(supabase, req, {
+      esSuscripcion: req.body?.suscripcion === true,
+      userId: req.body?.userId || null,
+    });
     if (cerrada) return res.status(200).json({ ok: false, message: cerrada });
   }
 

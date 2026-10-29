@@ -8,6 +8,7 @@ import { AvisoOferta } from '../components/PrecioOferta';
 import { leerOfertaSuscripcion, precioSuscripcion } from '../lib/ofertas';
 import { suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../lib/suscripcion';
 import { cabecerasPago } from '../lib/cabecerasPago';
+import { permitirSuscripcion } from '../lib/disponibilidadClient';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -765,6 +766,7 @@ export default function AreaClientePage() {
                     currency="EUR"
                     label="Suscripción Área de Clientes (1 mes)"
                     onSuccess={handleSubscriptionPaypalSuccess}
+                    checkBeforePay={() => permitirSuscripcion(user?.id)}
                   />
                 )}
               </div>
@@ -779,10 +781,10 @@ export default function AreaClientePage() {
   );
 }
 
-// Con la web en modo "solo portada y contacto" (panel → Web en obras) esta
-// página se tapa con el aviso de obras (lib/obras.js).
+// Con la web en obras o en "solo portada y contacto" (panel) esta página se
+// tapa con el aviso de obras (lib/obras.js).
 export async function getServerSideProps({ res }) {
   const { supabase } = await import('../lib/supabaseClient');
-  const { propsSoloPrivada } = await import('../lib/obras');
-  return propsSoloPrivada(supabase, res);
+  const { propsSegunObras } = await import('../lib/obras');
+  return propsSegunObras(supabase, res, 'general');
 }

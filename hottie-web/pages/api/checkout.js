@@ -30,9 +30,13 @@ export default async function handler(req, res) {
 
   const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId, userEmail, clientName } = req.body;
 
-  // Web en obras (interruptor del panel): no se vende nada salvo la
-  // suscripción; en el modo "solo portada y contacto", nada salvo al admin.
-  const cerrada = await bloqueoPagoObras(supabase, req, { esSuscripcion: Boolean(isSubscription) });
+  // Web en obras / compras cerradas (interruptores del panel): no se vende
+  // nada salvo al admin (y, con las compras cerradas, la renovación de quien
+  // ya era cliente).
+  const cerrada = await bloqueoPagoObras(supabase, req, {
+    esSuscripcion: Boolean(isSubscription),
+    userId: bodyUserId || null,
+  });
   if (cerrada) {
     return res.status(503).json({ error: cerrada });
   }

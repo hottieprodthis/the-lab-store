@@ -102,8 +102,8 @@ export default function AdminDashboard() {
   const [subOferta, setSubOferta] = useState({ activa: false, tipo: 'porcentaje', valor: '', inicio: '', fin: '' });
   const [subOfertaMsg, setSubOfertaMsg] = useState('');
   const [opinionesPendientes, setOpinionesPendientes] = useState(0);
-  // Interruptores "Web en obras" y "Solo portada y contacto" (lib/obras.js):
-  // los dos guardan el mismo ajuste, con modo 'obras' o 'privada'.
+  // Interruptores "Web en obras", "Solo portada y contacto" y "Compras
+  // cerradas" (lib/obras.js): guardan el mismo ajuste con su modo.
   const [obras, setObras] = useState({ activa: false, mensaje: '', modo: 'obras' });
   const [obrasMsg, setObrasMsg] = useState('');
   // Interruptor "De vacaciones" (lib/obras.js)
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
     try {
       ob = JSON.parse(obrasData?.value || '{}');
     } catch (e) {}
-    setObras({ activa: Boolean(ob.activa), mensaje: ob.mensaje || '', modo: ob.modo === 'privada' ? 'privada' : 'obras' });
+    setObras({ activa: Boolean(ob.activa), mensaje: ob.mensaje || '', modo: ['privada', 'compras'].includes(ob.modo) ? ob.modo : 'obras' });
 
     const { data: vacData } = await supabase
       .from('settings')
@@ -384,10 +384,11 @@ export default function AdminDashboard() {
   async function guardarObras(activa, modo = obras.modo) {
     setObrasMsg('');
     const cambia = activa && (!obras.activa || modo !== obras.modo);
-    const aviso =
-      modo === 'privada'
-        ? 'Solo se verán la portada y Contacto (y las páginas legales). Tienda, Servicios, Clases, FAQ, el acceso y el área de clientes mostrarán el aviso de obras y nadie podrá pagar nada, ni la suscripción. Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?'
-        : 'Se mostrará el aviso de obras en Tienda, Servicios y Clases y nadie podrá comprar hasta que lo quites (la suscripción sí). ¿Activar?';
+    const aviso = {
+      obras: 'Toda la web mostrará el aviso de obras (salvo las páginas legales) y nadie podrá pagar nada. Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?',
+      privada: 'Solo se verán la portada y Contacto (y las páginas legales). Todo lo demás mostrará el aviso de obras y nadie podrá pagar nada, ni la suscripción. Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?',
+      compras: 'Se verán la portada, Contacto, la FAQ y el área de clientes. Tienda, Servicios y Clases mostrarán el aviso y nadie podrá pagar nada (solo renovar la suscripción quien ya era cliente). Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?',
+    }[modo];
     if (cambia && !confirm(aviso)) {
       return;
     }
@@ -402,9 +403,11 @@ export default function AdminDashboard() {
     setObras({ ...obras, activa, modo });
     setObrasMsg(
       cambia
-        ? modo === 'privada'
-          ? 'Activado: solo se ven la portada y Contacto.'
-          : 'Web en obras activada.'
+        ? {
+            obras: 'Web en obras activada: toda la web muestra el aviso.',
+            privada: 'Activado: solo se ven la portada y Contacto.',
+            compras: 'Compras cerradas activadas.',
+          }[modo]
         : !activa && obras.activa
           ? 'Web abierta de nuevo: ya se puede comprar.'
           : 'Mensaje guardado.'
@@ -533,8 +536,8 @@ export default function AdminDashboard() {
                 {
                   modo: 'obras',
                   titulo: 'Web en obras',
-                  activo: 'ACTIVADA: los clientes ven el aviso en Tienda, Servicios y Clases y no pueden comprar (la suscripción sí). Tú (con esta sesión) ves las páginas normales.',
-                  apagado: 'Tapa Tienda, Servicios y Clases. Se ven la portada, FAQ, Contacto y el área de clientes, y se puede pagar la suscripción.',
+                  activo: 'ACTIVADA: toda la web muestra el aviso (salvo las páginas legales) y nadie puede pagar nada. Tú (con esta sesión) lo ves todo y puedes pagar para probar.',
+                  apagado: 'Tapa toda la web con el aviso de obras (salvo las páginas legales). Nadie puede pagar nada.',
                   boton: 'Poner en obras',
                 },
                 {
@@ -542,6 +545,13 @@ export default function AdminDashboard() {
                   titulo: 'Solo portada y contacto',
                   activo: 'ACTIVADO: los visitantes solo ven la portada y Contacto (y las páginas legales). Nadie puede pagar nada, ni la suscripción. Tú (con esta sesión) lo ves todo y puedes pagar para probar.',
                   apagado: 'Para enseñar la web (por ejemplo, en Instagram) sin abrir todavía: solo se ven la portada y Contacto, y solo tú puedes pagar para hacer pruebas.',
+                  boton: 'Activar',
+                },
+                {
+                  modo: 'compras',
+                  titulo: 'Compras cerradas',
+                  activo: 'ACTIVADO: se ven la portada, Contacto, la FAQ y el área de clientes. Tienda, Servicios y Clases muestran el aviso y nadie puede pagar nada (solo renovar la suscripción quien ya era cliente). Tú (con esta sesión) lo ves todo y puedes pagar para probar.',
+                  apagado: 'Se ven la portada, Contacto, la FAQ y el área de clientes. Se tapan Tienda, Servicios y Clases y nadie puede comprar ni suscribirse por primera vez.',
                   boton: 'Activar',
                 },
               ].map((m, i) => {
