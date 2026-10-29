@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import BrandsBanner from '../components/BrandsBanner';
 import TextoDescifrado from '../components/TextoDescifrado';
+import MasEscuchados from '../components/MasEscuchados';
 import { Contador, Aparecer, FondoOndas } from '../components/Animaciones';
 import Turnstile from '../components/Turnstile';
 import Opiniones from '../components/Opiniones';
@@ -245,6 +246,10 @@ export default function Home() {
 
       {/* SECCIÓN TRABAJOS DESTACADOS */}
       <section className="mx-auto max-w-6xl px-5 py-16 border-t border-white/10 space-y-16 font-body">
+        <Aparecer>
+          <MasEscuchados />
+        </Aparecer>
+
         <Aparecer>
         <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
           <div className="space-y-4 text-left">

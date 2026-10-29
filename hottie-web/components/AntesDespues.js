@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { interpretarDemo } from '../lib/demo';
 
-// Reproductor "antes y después" de los servicios: la misma canción sin mezclar
-// y mezclada. Las dos suenan a la vez y sincronizadas, pero solo se oye una:
+// Reproductor "antes y después" de los servicios: la misma canción tal como
+// llegó (maqueta, sin mezclar o sin masterizar) y terminada en The Lab. Las dos suenan a la vez y sincronizadas, pero solo se oye una:
 // el botón ANTES | DESPUÉS cambia cuál se oye sin cortar ni volver al
 // principio. Necesita enlaces de audio directos (MP3 de Dropbox o similar,
 // ver lib/demo.js); si alguno no lo es, no se muestra.
@@ -179,8 +179,8 @@ export default function AntesDespues({ antes, despues, compacto = false }) {
         {error
           ? 'No se ha podido cargar el audio. Inténtalo de nuevo más tarde.'
           : cual === 'antes'
-            ? 'Estás escuchando la canción tal como llegó, sin mezclar.'
-            : 'Estás escuchando la canción mezclada y masterizada en The Lab.'}
+            ? 'Estás escuchando la canción tal como llegó a The Lab.'
+            : 'Estás escuchando la canción terminada en The Lab.'}
       </p>
     </div>
   );

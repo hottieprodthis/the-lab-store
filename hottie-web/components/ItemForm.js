@@ -435,8 +435,8 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
         <div className="border-t border-white/15 pt-6 space-y-3">
           <label className="block text-xs uppercase tracking-widest text-muted">Antes y después (opcional)</label>
           {[
-            ['Antes: la canción sin mezclar', antesUrl, setAntesUrl],
-            ['Después: la canción mezclada', despuesUrl, setDespuesUrl],
+            ['Antes: la canción tal como llegó (maqueta, sin mezclar o sin masterizar)', antesUrl, setAntesUrl],
+            ['Después: la canción terminada en The Lab', despuesUrl, setDespuesUrl],
           ].map(([texto, valor, cambiar]) => {
             const demo = valor.trim() ? interpretarDemo(valor) : null;
             return (
