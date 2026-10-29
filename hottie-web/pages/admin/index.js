@@ -385,7 +385,7 @@ export default function AdminDashboard() {
     setObrasMsg('');
     const cambia = activa && (!obras.activa || modo !== obras.modo);
     const aviso = {
-      obras: 'Toda la web mostrará el aviso de obras (salvo las páginas legales) y nadie podrá pagar nada. Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?',
+      obras: 'Toda la web mostrará el aviso de obras (salvo Contacto y las páginas legales) y nadie podrá pagar nada. Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?',
       privada: 'Solo se verán la portada y Contacto (y las páginas legales). Todo lo demás mostrará el aviso de obras y nadie podrá pagar nada, ni la suscripción. Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?',
       compras: 'Se verán la portada, Contacto, la FAQ y el área de clientes. Tienda, Servicios y Clases mostrarán el aviso y nadie podrá pagar nada (solo renovar la suscripción quien ya era cliente). Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?',
     }[modo];
@@ -536,8 +536,8 @@ export default function AdminDashboard() {
                 {
                   modo: 'obras',
                   titulo: 'Web en obras',
-                  activo: 'ACTIVADA: toda la web muestra el aviso (salvo las páginas legales) y nadie puede pagar nada. Tú (con esta sesión) lo ves todo y puedes pagar para probar.',
-                  apagado: 'Tapa toda la web con el aviso de obras (salvo las páginas legales). Nadie puede pagar nada.',
+                  activo: 'ACTIVADA: toda la web muestra el aviso (salvo Contacto y las páginas legales) y nadie puede pagar nada. Tú (con esta sesión) lo ves todo y puedes pagar para probar.',
+                  apagado: 'Tapa toda la web con el aviso de obras (salvo Contacto y las páginas legales). Nadie puede pagar nada.',
                   boton: 'Poner en obras',
                 },
                 {

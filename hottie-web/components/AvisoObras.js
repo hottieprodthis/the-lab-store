@@ -63,7 +63,7 @@ export default function AvisoObras({ obras, children }) {
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-4">
           <Link
-            href={obras.modo === 'obras' ? 'mailto:hottieprodthis@gmail.com' : '/contacto'}
+            href="/contacto"
             className="rounded-sm bg-volt px-6 py-3 text-sm font-semibold uppercase tracking-widest text-ink transition hover:brightness-110 hover:shadow-[0_0_28px_rgba(204,255,0,0.55)]"
           >
             Contactar

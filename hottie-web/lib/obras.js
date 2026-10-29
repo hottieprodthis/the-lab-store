@@ -1,8 +1,8 @@
 // "Web en obras": interruptores del panel de admin (ajuste "maintenance" de
 // la tabla settings, valor JSON { activa, mensaje, modo }). Tres modos; las
 // páginas tapadas muestran un aviso (pages/_app.js + components/AvisoObras.js):
-//  - 'obras': se tapa toda la web (salvo las páginas legales y la de darse de
-//    baja del boletín) y no se puede pagar nada.
+//  - 'obras': se tapa toda la web (salvo Contacto, las páginas legales y la de
+//    darse de baja del boletín) y no se puede pagar nada.
 //  - 'privada' ("solo portada y contacto"): se ven la portada y Contacto; no
 //    se puede pagar nada.
 //  - 'compras' ("compras cerradas"): se ven la portada, Contacto, la FAQ y el
@@ -113,7 +113,7 @@ export const MENSAJE_COMPRAS_CERRADAS =
 
 // Qué modos tapan cada tipo de página (el catálogo usa propsConObras).
 const TAPAN = {
-  portada: ['obras'], // portada y Contacto
+  portada: ['obras'],
   general: ['obras', 'privada'], // FAQ, acceso, área de clientes, formularios tras pagar…
 };
 
