@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // "Los más escuchados" de la portada: carrusel de vídeos de YouTube que solo
 // se cargan al pulsarlos (hasta entonces es la miniatura), para que la portada
-// no vaya más lenta ni cargue cosas de YouTube a quien no los ve.
+// no vaya más lenta ni cargue cosas de YouTube a quien no los ve. Solo hay un
+// vídeo abierto a la vez: al abrir otro, al pasar con las flechas o cuando el
+// vídeo termina, vuelve a salir su portada con el botón de play.
 const TRABAJOS = [
   { id: '3Zv90KozeWQ', titulo: 'Ellos Dicen', artista: 'El Jincho', rol: 'Producción, mezcla y master' },
   { id: 'CSwVFEqkh7M', titulo: 'El Ascensor #2', artista: 'Kristina', rol: 'Producción, mezcla y master' },
@@ -14,15 +16,43 @@ const TRABAJOS = [
   { id: 'JuV_x0fpadk', titulo: 'Rueda Rueda (Remix)', artista: 'Hottie', rol: 'Producción, mezcla y master' },
 ];
 
-function Video({ trabajo }) {
-  const [abierto, setAbierto] = useState(false);
+function Video({ trabajo, abierto, abrir, cerrar }) {
+  const marco = useRef(null);
+
+  // Avisa cuando el vídeo termina (mensajes del reproductor de YouTube con
+  // enablejsapi=1; estado 0 = terminado) para volver a la portada.
+  useEffect(() => {
+    if (!abierto) return;
+    const alMensaje = (e) => {
+      if (e.source !== marco.current?.contentWindow) return;
+      if (!/^https:\/\/www\.youtube(-nocookie)?\.com$/.test(e.origin)) return;
+      let datos;
+      try {
+        datos = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+      } catch {
+        return;
+      }
+      if (datos?.event === 'onStateChange' && datos.info === 0) cerrar();
+      if (datos?.event === 'infoDelivery' && datos.info?.playerState === 0) cerrar();
+    };
+    window.addEventListener('message', alMensaje);
+    return () => window.removeEventListener('message', alMensaje);
+  }, [abierto, cerrar]);
+
+  // Pide al reproductor que mande esos avisos.
+  const alCargar = () => {
+    marco.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: trabajo.id }), '*');
+  };
+
   return (
     <figure className="group w-[85%] shrink-0 snap-start sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]">
       <div className="relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-xl">
         {abierto ? (
           <iframe
+            ref={marco}
+            onLoad={alCargar}
             className="h-full w-full"
-            src={`https://www.youtube-nocookie.com/embed/${trabajo.id}?autoplay=1`}
+            src={`https://www.youtube-nocookie.com/embed/${trabajo.id}?autoplay=1&enablejsapi=1&rel=0`}
             title={`${trabajo.titulo} – ${trabajo.artista}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
@@ -30,7 +60,7 @@ function Video({ trabajo }) {
         ) : (
           <button
             type="button"
-            onClick={() => setAbierto(true)}
+            onClick={abrir}
             aria-label={`Ver ${trabajo.titulo} de ${trabajo.artista}`}
             className="absolute inset-0 h-full w-full"
           >
@@ -60,9 +90,39 @@ function Video({ trabajo }) {
   );
 }
 
+// Última tarjeta del carrusel: deja claro que hay muchos más trabajos y
+// lleva a los créditos completos en Muso.ai.
+function YMuchosMas() {
+  return (
+    <a
+      href="https://muso.ai/profile/6f3664ee-3a33-4b81-aeda-d228ac88b0e7"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group w-[85%] shrink-0 snap-start sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
+    >
+      <div className="relative flex aspect-video flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-white/20 bg-surface px-6 text-center transition duration-300 group-hover:border-volt group-hover:shadow-[0_0_28px_rgba(204,255,0,0.25)]">
+        <div className="waveform mb-4" aria-hidden="true">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <span key={i} />
+          ))}
+        </div>
+        <p className="font-display text-3xl tracking-wide text-paper md:text-4xl">Y MUCHOS MÁS…</p>
+        <p className="mt-2 font-body text-xs text-muted">+100 producciones y +20M de visualizaciones</p>
+      </div>
+      <div className="mt-3">
+        <p className="font-display text-xl tracking-wide text-paper transition group-hover:text-volt">Ver todos los créditos ↗</p>
+        <p className="text-xs text-muted">En Muso.ai</p>
+      </div>
+    </a>
+  );
+}
+
 export default function MasEscuchados() {
   const pista = useRef(null);
+  const [abierto, setAbierto] = useState(null); // id del vídeo que suena
+  const cerrar = useRef(() => setAbierto(null)).current;
   const mover = (dir) => {
+    setAbierto(null);
     const el = pista.current;
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: 'smooth' });
   };
@@ -87,8 +147,9 @@ export default function MasEscuchados() {
       </div>
       <div ref={pista} className="-mx-5 mt-8 flex snap-x snap-mandatory gap-6 overflow-x-auto px-5 pb-4 [scrollbar-width:none]">
         {TRABAJOS.map((t) => (
-          <Video key={t.id} trabajo={t} />
+          <Video key={t.id} trabajo={t} abierto={abierto === t.id} abrir={() => setAbierto(t.id)} cerrar={cerrar} />
         ))}
+        <YMuchosMas />
       </div>
     </div>
   );
