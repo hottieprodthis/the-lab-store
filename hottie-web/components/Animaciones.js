@@ -29,7 +29,7 @@ function useAlVerse(ref, alVerse) {
 }
 
 // Número que cuenta desde 0 hasta "hasta" cuando aparece en pantalla.
-export function Contador({ hasta, antes = '', despues = '', duracion = 1600 }) {
+export function Contador({ hasta, antes = '', despues = '', duracion = 2000 }) {
   const ref = useRef(null);
   const [valor, setValor] = useState(hasta);
   const [visto, setVisto] = useState(false);
