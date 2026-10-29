@@ -10,6 +10,8 @@ import CookieBanner from '../components/CookieBanner';
 import AvisoObras from '../components/AvisoObras';
 import AvisoVacaciones from '../components/AvisoVacaciones';
 import { VolverArriba } from '../components/Animaciones';
+import BotonAtras, { hayBotonAtras } from '../components/BotonAtras';
+import { useRouter } from 'next/router';
 
 const display = Bebas_Neue({
   subsets: ['latin'],
@@ -27,6 +29,7 @@ const body = Inter({
 const GA_MEASUREMENT_ID = 'G-BL30X192XS';
 
 export default function App({ Component, pageProps }) {
+  const router = useRouter();
   useEffect(() => {
     // Desactiva la restauración automática del scroll del navegador
     if ('scrollRestoration' in window.history) {
@@ -80,7 +83,9 @@ export default function App({ Component, pageProps }) {
             <Component {...pageProps} />
           </>
         )}
-        <VolverArriba />
+        <BotonAtras />
+        {/* Si está el botón de volver atrás, el de subir va justo encima */}
+        <VolverArriba encima={hayBotonAtras(router.pathname)} />
         <CartFloating />
         <CookieBanner />
       </main>

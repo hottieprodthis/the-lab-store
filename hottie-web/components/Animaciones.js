@@ -130,7 +130,7 @@ export function FondoOndas() {
 
 // Botón redondo para volver arriba; aparece al bajar bastante. Va abajo a la
 // izquierda para no chocar con el carrito.
-export function VolverArriba() {
+export function VolverArriba({ encima = false }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const alBajar = () => setVisible(window.scrollY > 900);
@@ -144,7 +144,7 @@ export function VolverArriba() {
       onClick={() => window.scrollTo({ top: 0, behavior: reducirMovimiento() ? 'auto' : 'smooth' })}
       aria-label="Volver arriba"
       tabIndex={visible ? 0 : -1}
-      className={`fixed bottom-6 left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-ink/80 text-paper backdrop-blur transition-all duration-300 hover:border-volt hover:text-volt ${
+      className={`fixed ${encima ? 'bottom-20' : 'bottom-6'} left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-ink/80 text-paper backdrop-blur transition-all duration-300 hover:border-volt hover:text-volt ${
         visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
       }`}
     >
