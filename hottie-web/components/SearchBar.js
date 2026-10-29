@@ -119,18 +119,11 @@ export default function SearchBar() {
         isOpen ? 'border-[#CCFF00] shadow-[0_0_20px_rgba(204,255,0,0.25)]' : 'border-neutral-800 hover:border-neutral-700'
       }`}>
         
-        {/* Lupa verde #CCFF00 + Ecualizador animado */}
+        {/* Lupa verde #CCFF00 (sin ecualizador: la onda animada ya está en la portada) */}
         <div className="pl-4 text-[#CCFF00] flex items-center gap-2.5 pointer-events-none shrink-0">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          
-          <div className="flex items-end gap-[3px] h-3.5 pr-2 border-r border-neutral-800">
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_100ms] h-full"></span>
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_300ms] h-2/3"></span>
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_200ms] h-5/6"></span>
-            <span className="w-[2px] bg-[#CCFF00] rounded-full animate-[bounce_1s_infinite_400ms] h-1/2"></span>
-          </div>
         </div>
 
         {/* Input */}
