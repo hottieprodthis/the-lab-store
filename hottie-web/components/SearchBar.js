@@ -124,7 +124,7 @@ export default function SearchBar() {
   });
 
   return (
-    <div ref={searchRef} className="relative flex-1 max-w-md lg:max-w-lg mx-2">
+    <div ref={searchRef} className="relative min-w-0 flex-1 max-w-md lg:max-w-lg mx-2">
       <div className={`relative flex items-center bg-[#111111] rounded-full border transition-all duration-300 ${
         isOpen ? 'border-[#CCFF00] shadow-[0_0_20px_rgba(204,255,0,0.25)]' : 'border-neutral-800 hover:border-neutral-700'
       }`}>
