@@ -33,7 +33,7 @@ export default function Home() {
       "name": "The Lab by Hottie",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://www.hottieprodthis.com/favicon.png"
+        "url": "https://www.hottieprodthis.com/favicon-2026.png"
       },
       "sameAs": [
         "https://www.instagram.com/hottieprodthis/",
