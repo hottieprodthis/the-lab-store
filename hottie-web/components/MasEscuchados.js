@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 // "Los más escuchados" de la portada: carrusel de vídeos de YouTube que solo
 // se cargan al pulsarlos (hasta entonces es la miniatura), para que la portada
 // no vaya más lenta ni cargue cosas de YouTube a quien no los ve. Solo hay un
-// vídeo abierto a la vez: al abrir otro, al pasar con las flechas o cuando el
-// vídeo termina, vuelve a salir su portada con el botón de play.
+// vídeo abierto a la vez: al abrir otro o cuando el vídeo termina, vuelve a
+// salir su portada con el botón de play (pasar con las flechas no lo para).
 const TRABAJOS = [
   { id: '3Zv90KozeWQ', titulo: 'Ellos Dicen', artista: 'El Jincho', rol: 'Producción, mezcla y master' },
   { id: 'CSwVFEqkh7M', titulo: 'El Ascensor #2', artista: 'Kristina', rol: 'Producción, mezcla y master' },
@@ -122,7 +122,6 @@ export default function MasEscuchados() {
   const [abierto, setAbierto] = useState(null); // id del vídeo que suena
   const cerrar = useRef(() => setAbierto(null)).current;
   const mover = (dir) => {
-    setAbierto(null);
     const el = pista.current;
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: 'smooth' });
   };
