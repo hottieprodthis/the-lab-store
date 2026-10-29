@@ -102,8 +102,9 @@ export default function AdminDashboard() {
   const [subOferta, setSubOferta] = useState({ activa: false, tipo: 'porcentaje', valor: '', inicio: '', fin: '' });
   const [subOfertaMsg, setSubOfertaMsg] = useState('');
   const [opinionesPendientes, setOpinionesPendientes] = useState(0);
-  // Interruptor "Web en obras" (lib/obras.js)
-  const [obras, setObras] = useState({ activa: false, mensaje: '' });
+  // Interruptores "Web en obras" y "Solo portada y contacto" (lib/obras.js):
+  // los dos guardan el mismo ajuste, con modo 'obras' o 'privada'.
+  const [obras, setObras] = useState({ activa: false, mensaje: '', modo: 'obras' });
   const [obrasMsg, setObrasMsg] = useState('');
   // Interruptor "De vacaciones" (lib/obras.js)
   const [vacaciones, setVacaciones] = useState({ activa: false, mensaje: '', vuelta: '' });
@@ -328,7 +329,7 @@ export default function AdminDashboard() {
     try {
       ob = JSON.parse(obrasData?.value || '{}');
     } catch (e) {}
-    setObras({ activa: Boolean(ob.activa), mensaje: ob.mensaje || '' });
+    setObras({ activa: Boolean(ob.activa), mensaje: ob.mensaje || '', modo: ob.modo === 'privada' ? 'privada' : 'obras' });
 
     const { data: vacData } = await supabase
       .from('settings')
@@ -380,12 +381,17 @@ export default function AdminDashboard() {
     );
   }
 
-  async function guardarObras(activa) {
+  async function guardarObras(activa, modo = obras.modo) {
     setObrasMsg('');
-    if (activa && !obras.activa && !confirm('Se mostrará el aviso de obras en Tienda, Servicios y Clases y nadie podrá comprar hasta que lo quites. ¿Activar?')) {
+    const cambia = activa && (!obras.activa || modo !== obras.modo);
+    const aviso =
+      modo === 'privada'
+        ? 'Solo se verán la portada y Contacto (y las páginas legales). Tienda, Servicios, Clases, FAQ, el acceso y el área de clientes mostrarán el aviso de obras y nadie podrá pagar nada, ni la suscripción. Tú, con esta sesión, lo ves todo y puedes pagar para probar. ¿Activar?'
+        : 'Se mostrará el aviso de obras en Tienda, Servicios y Clases y nadie podrá comprar hasta que lo quites (la suscripción sí). ¿Activar?';
+    if (cambia && !confirm(aviso)) {
       return;
     }
-    const nuevo = { activa, mensaje: obras.mensaje.trim() };
+    const nuevo = { activa, mensaje: obras.mensaje.trim(), modo };
     const { error } = await supabase
       .from('settings')
       .upsert({ key: 'maintenance', value: JSON.stringify(nuevo) }, { onConflict: 'key' });
@@ -393,8 +399,16 @@ export default function AdminDashboard() {
       setObrasMsg(`Error: ${error.message}`);
       return;
     }
-    setObras({ ...obras, activa });
-    setObrasMsg(activa ? 'Web en obras activada.' : obras.activa ? 'Web abierta de nuevo: ya se puede comprar.' : 'Mensaje guardado.');
+    setObras({ ...obras, activa, modo });
+    setObrasMsg(
+      cambia
+        ? modo === 'privada'
+          ? 'Activado: solo se ven la portada y Contacto.'
+          : 'Web en obras activada.'
+        : !activa && obras.activa
+          ? 'Web abierta de nuevo: ya se puede comprar.'
+          : 'Mensaje guardado.'
+    );
   }
 
   useEffect(() => {
@@ -515,25 +529,41 @@ export default function AdminDashboard() {
             <div
               className={`mb-12 rounded-sm border p-6 ${obras.activa ? 'border-volt bg-volt/10' : 'border-white/10 bg-surface'}`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="font-display text-xl tracking-wide text-paper">Web en obras</h2>
-                  <p className="mt-1 text-xs text-muted">
-                    {obras.activa
-                      ? 'ACTIVADA: los clientes ven el aviso en Tienda, Servicios y Clases y no pueden comprar. Tú (con esta sesión) ves las páginas normales.'
-                      : 'Desactivada: la web funciona con normalidad.'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => guardarObras(!obras.activa)}
-                  className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-widest transition ${
-                    obras.activa ? 'border border-white/20 text-paper hover:border-paper' : 'bg-volt text-ink hover:brightness-110'
-                  }`}
-                >
-                  {obras.activa ? 'Abrir la web' : 'Poner en obras'}
-                </button>
-              </div>
+              {[
+                {
+                  modo: 'obras',
+                  titulo: 'Web en obras',
+                  activo: 'ACTIVADA: los clientes ven el aviso en Tienda, Servicios y Clases y no pueden comprar (la suscripción sí). Tú (con esta sesión) ves las páginas normales.',
+                  apagado: 'Tapa Tienda, Servicios y Clases. Se ven la portada, FAQ, Contacto y el área de clientes, y se puede pagar la suscripción.',
+                  boton: 'Poner en obras',
+                },
+                {
+                  modo: 'privada',
+                  titulo: 'Solo portada y contacto',
+                  activo: 'ACTIVADO: los visitantes solo ven la portada y Contacto (y las páginas legales). Nadie puede pagar nada, ni la suscripción. Tú (con esta sesión) lo ves todo y puedes pagar para probar.',
+                  apagado: 'Para enseñar la web (por ejemplo, en Instagram) sin abrir todavía: solo se ven la portada y Contacto, y solo tú puedes pagar para hacer pruebas.',
+                  boton: 'Activar',
+                },
+              ].map((m, i) => {
+                const encendido = obras.activa && obras.modo === m.modo;
+                return (
+                  <div key={m.modo} className={`flex flex-wrap items-center justify-between gap-4 ${i ? 'mt-5 border-t border-white/10 pt-5' : ''}`}>
+                    <div className="max-w-xl">
+                      <h2 className="font-display text-xl tracking-wide text-paper">{m.titulo}</h2>
+                      <p className="mt-1 text-xs text-muted">{encendido ? m.activo : m.apagado}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => guardarObras(!encendido, m.modo)}
+                      className={`rounded-sm px-4 py-2 text-xs font-semibold uppercase tracking-widest transition ${
+                        encendido ? 'border border-white/20 text-paper hover:border-paper' : 'bg-volt text-ink hover:brightness-110'
+                      }`}
+                    >
+                      {encendido ? 'Abrir la web' : m.boton}
+                    </button>
+                  </div>
+                );
+              })}
               <label className="mt-5 mb-1 block text-xs uppercase tracking-widest text-muted">
                 Mensaje para los clientes (opcional)
               </label>

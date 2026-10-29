@@ -5,7 +5,7 @@ import {
   resumirPedido,
   comprobarPedido,
 } from '../../lib/limiteSemanal';
-import { leerObras, MENSAJE_PAGO_EN_OBRAS, leerVacaciones, mensajeReservasVacaciones } from '../../lib/obras';
+import { bloqueoPagoObras, leerVacaciones, mensajeReservasVacaciones } from '../../lib/obras';
 
 // Service Role Key: hace falta para contar las compras de TODOS los
 // clientes (la tabla purchases solo deja leer sus propias filas a cada
@@ -43,9 +43,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  // Con la web en obras no se deja abrir ningún cobro de PayPal.
-  if (req.method === 'POST' && (await leerObras(supabase))) {
-    return res.status(200).json({ ok: false, message: MENSAJE_PAGO_EN_OBRAS });
+  // Con la web en obras no se deja abrir ningún cobro de PayPal (en el modo
+  // "solo portada y contacto", salvo al admin, para hacer pruebas).
+  if (req.method === 'POST') {
+    const cerrada = await bloqueoPagoObras(supabase, req);
+    if (cerrada) return res.status(200).json({ ok: false, message: cerrada });
   }
 
   // De vacaciones: servicios y clases sin plazas (los botones se desactivan

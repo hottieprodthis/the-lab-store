@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { aplicarOferta } from '../lib/ofertas';
+import { leerAjusteObras } from '../lib/obras';
+import { esAdminEnNavegador } from '../lib/adminNavegador';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -49,6 +51,14 @@ export default function SearchBar() {
       setLoading(true);
       try {
         let allItems = [];
+
+        // Con la web en obras (cualquiera de los dos modos) el buscador no
+        // enseña el catálogo a los visitantes; el admin lo ve normal.
+        const { data: ajuste } = await supabase.from('settings').select('value').eq('key', 'maintenance').maybeSingle();
+        if (leerAjusteObras(ajuste?.value) && !(await esAdminEnNavegador())) {
+          setItems([]);
+          return;
+        }
 
         // Las únicas tablas reales del catálogo son products, services y
         // classes. Antes esta consulta también intentaba leer de "items",

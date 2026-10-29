@@ -8,6 +8,7 @@ import PayPalButton from './PayPalButton';
 import { PrecioTachado, AvisoOferta } from './PrecioOferta';
 import { useFoco, Foco } from './Animaciones';
 import AntesDespues, { enlacesAntesDespues } from './AntesDespues';
+import { cabecerasPago } from '../lib/cabecerasPago';
 
 export default function ServiceCard({ service }) {
   const [loading, setLoading] = useState(false);
@@ -66,7 +67,7 @@ export default function ServiceCard({ service }) {
 
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           productId: service.id,
           isService: true,

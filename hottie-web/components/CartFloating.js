@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabaseClient'; // <-- 1. Importamos Supabase
 import { permitirPago } from '../lib/disponibilidadClient';
 import PayPalButton from './PayPalButton';
+import { cabecerasPago } from '../lib/cabecerasPago';
 
 export default function CartFloating() {
   const router = useRouter();
@@ -74,9 +75,7 @@ export default function CartFloating() {
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           items: cart,
           userId: userId, // <-- 4. Enviamos el ID del usuario directamente a Stripe

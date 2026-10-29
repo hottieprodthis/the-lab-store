@@ -182,3 +182,11 @@ export default function FAQ() {
     </>
   );
 }
+
+// Con la web en modo "solo portada y contacto" (panel → Web en obras) esta
+// página se tapa con el aviso de obras (lib/obras.js).
+export async function getServerSideProps({ res }) {
+  const { supabase } = await import('../lib/supabaseClient');
+  const { propsSoloPrivada } = await import('../lib/obras');
+  return propsSoloPrivada(supabase, res);
+}

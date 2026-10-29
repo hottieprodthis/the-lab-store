@@ -1,3 +1,4 @@
+import { cabecerasPago } from './cabecerasPago';
 // Ayudas del NAVEGADOR para el cupo semanal de servicios y clases (la lógica
 // real está en lib/limiteSemanal.js y se aplica en el servidor).
 
@@ -54,7 +55,7 @@ export async function permitirPago(items) {
   try {
     const res = await fetch('/api/disponibilidad', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await cabecerasPago(),
       body: JSON.stringify({ items: relevantes }),
     });
     const data = await res.json();

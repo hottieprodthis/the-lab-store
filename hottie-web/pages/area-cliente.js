@@ -7,6 +7,7 @@ import PayPalButton from '../components/PayPalButton';
 import { AvisoOferta } from '../components/PrecioOferta';
 import { leerOfertaSuscripcion, precioSuscripcion } from '../lib/ofertas';
 import { suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../lib/suscripcion';
+import { cabecerasPago } from '../lib/cabecerasPago';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -144,9 +145,7 @@ export default function AreaClientePage() {
 
       const response = await fetch('/api/checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           isSubscription: true,
           customPriceCents: priceInCents,
@@ -778,4 +777,12 @@ export default function AreaClientePage() {
       )}
     </div>
   );
+}
+
+// Con la web en modo "solo portada y contacto" (panel → Web en obras) esta
+// página se tapa con el aviso de obras (lib/obras.js).
+export async function getServerSideProps({ res }) {
+  const { supabase } = await import('../lib/supabaseClient');
+  const { propsSoloPrivada } = await import('../lib/obras');
+  return propsSoloPrivada(supabase, res);
 }

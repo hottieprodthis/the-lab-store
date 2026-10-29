@@ -13,6 +13,7 @@ import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
 import { useCart } from '../../context/CartContext';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../../lib/disponibilidadClient';
 import PayPalButton from '../../components/PayPalButton';
+import { cabecerasPago } from '../../lib/cabecerasPago';
 
 export default function DetalleServicio({ service }) {
   const [loadingPlan, setLoadingPlan] = useState(null);
@@ -63,7 +64,7 @@ export default function DetalleServicio({ service }) {
 
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           productId: service.id,
           isService: true,
@@ -160,7 +161,7 @@ export default function DetalleServicio({ service }) {
 
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           productId: service.id,
           isService: true,

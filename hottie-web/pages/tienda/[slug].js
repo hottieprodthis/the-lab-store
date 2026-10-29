@@ -14,6 +14,7 @@ import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
 import { interpretarDemo } from '../../lib/demo';
 import OndaAudio from '../../components/OndaAudio';
 import { useCart } from '../../context/CartContext';
+import { cabecerasPago } from '../../lib/cabecerasPago';
 
 // Muestra la demo según la web del enlace (ver lib/demo.js): reproductor de
 // YouTube, Spotify, SoundCloud, Vimeo, Apple Music o Google Drive; el
@@ -144,7 +145,7 @@ export default function ProductoDetalle({ product }) {
 
       const res = await fetch('/api/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           productId: product.id,
           returnUrl: window.location.href,
