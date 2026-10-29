@@ -60,6 +60,27 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   }, [table, supportsPlans]);
   const esClase = table === 'classes';
 
+  // ANTES Y DESPUÉS (solo Servicios): dos MP3 de la misma canción, sin mezclar
+  // y mezclada (components/AntesDespues.js). Igual que el cupo: si las
+  // columnas aún no existen, el apartado se oculta y no se envía.
+  const [antesUrl, setAntesUrl] = useState(initial?.antes_url || '');
+  const [despuesUrl, setDespuesUrl] = useState(initial?.despues_url || '');
+  const [antesColumna, setAntesColumna] = useState(false);
+  useEffect(() => {
+    if (table !== 'services') return;
+    let activo = true;
+    supabase
+      .from(table)
+      .select('antes_url')
+      .limit(1)
+      .then(({ error: probeError }) => {
+        if (activo) setAntesColumna(!probeError);
+      });
+    return () => {
+      activo = false;
+    };
+  }, [table]);
+
   // PLAZO DE ENTREGA (solo Servicios y Clases): texto libre ("Entrega en
   // 5–7 días", "4 sesiones de 3 h"…) que sale en la tarjeta y en la ficha.
   // Vacío = no sale nada. Igual que el cupo: si la columna aún no existe, el
@@ -199,6 +220,10 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
       payload.plans = formattedPlans;
       if (cupoColumna) payload.cupo = cupo || null;
       if (plazoColumna) payload.plazo_entrega = plazo.trim() || null;
+      if (antesColumna) {
+        payload.antes_url = antesUrl.trim() || null;
+        payload.despues_url = despuesUrl.trim() || null;
+      }
     }
 
     // Oferta: se comprueba que tenga sentido antes de guardar.
@@ -401,6 +426,42 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
           <p className="mt-1 text-[11px] text-muted">
             Sale tal cual con un reloj delante (⏱) en la tarjeta y en la ficha. Si lo dejas vacío, no sale nada. Solo
             hace falta cambiarlo si cambia tu forma de trabajar.
+          </p>
+        </div>
+      )}
+
+      {/* ANTES Y DESPUÉS (Solo para Servicios) */}
+      {table === 'services' && antesColumna && (
+        <div className="border-t border-white/15 pt-6 space-y-3">
+          <label className="block text-xs uppercase tracking-widest text-muted">Antes y después (opcional)</label>
+          {[
+            ['Antes: la canción sin mezclar', antesUrl, setAntesUrl],
+            ['Después: la canción mezclada', despuesUrl, setDespuesUrl],
+          ].map(([texto, valor, cambiar]) => {
+            const demo = valor.trim() ? interpretarDemo(valor) : null;
+            return (
+              <div key={texto}>
+                <p className="mb-1 text-xs text-paper">{texto}</p>
+                <input
+                  value={valor}
+                  onChange={(e) => cambiar(e.target.value)}
+                  placeholder="Enlace del MP3 en Dropbox"
+                  className="w-full rounded-sm border border-white/15 bg-ink px-3 py-2 text-paper outline-none focus:border-signal"
+                />
+                {valor.trim() && (
+                  <p className={`mt-1 text-xs ${demo?.tipo === 'audio' ? 'text-volt' : 'text-red-300'}`}>
+                    {demo?.tipo === 'audio'
+                      ? '✓ Enlace de audio correcto.'
+                      : 'Tiene que ser un enlace directo a un MP3 (por ejemplo, de Dropbox). Google Drive no sirve aquí.'}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-muted">
+            Pon los dos para que salga el reproductor «Antes | Después» en la tarjeta y en la ficha del servicio. Mejor el
+            mismo trozo de canción en los dos (unos 30–60 segundos), empezando en el mismo punto. Se suben igual que las
+            demos MP3 de la tienda (Dropbox).
           </p>
         </div>
       )}

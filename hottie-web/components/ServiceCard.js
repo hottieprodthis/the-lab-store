@@ -7,6 +7,7 @@ import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../lib/disponi
 import PayPalButton from './PayPalButton';
 import { PrecioTachado, AvisoOferta } from './PrecioOferta';
 import { useFoco, Foco } from './Animaciones';
+import AntesDespues, { enlacesAntesDespues } from './AntesDespues';
 
 export default function ServiceCard({ service }) {
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,8 @@ export default function ServiceCard({ service }) {
   const [paypalDone, setPaypalDone] = useState(false);
   const { addToCart } = useCart();
   const foco = useFoco();
+  const comparar = enlacesAntesDespues(service);
+  const [verComparar, setVerComparar] = useState(false);
 
   const hasPlans = Array.isArray(service.plans) && service.plans.length > 0;
   // Determina la ruta según si es una clase o un servicio
@@ -148,6 +151,22 @@ export default function ServiceCard({ service }) {
           <p className="mt-3 inline-flex items-center gap-1.5 rounded-sm border border-signal/40 bg-signal/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-widest text-signal">
             <span aria-hidden="true">⏱</span> {service.plazo_entrega}
           </p>
+        )}
+        {comparar && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setVerComparar(!verComparar)}
+              className="text-xs font-semibold uppercase tracking-widest text-paper transition hover:text-volt"
+            >
+              {verComparar ? '✕ Cerrar' : '🎧 Escuchar antes y después'}
+            </button>
+            {verComparar && (
+              <div className="mt-3">
+                <AntesDespues antes={comparar.antes} despues={comparar.despues} compacto />
+              </div>
+            )}
+          </div>
         )}
       </div>
 

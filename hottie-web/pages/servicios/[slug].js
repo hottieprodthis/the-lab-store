@@ -1,3 +1,4 @@
+import AntesDespues, { enlacesAntesDespues } from '../../components/AntesDespues';
 import Head from 'next/head';
 import Seo from '../../components/Seo';
 import Link from 'next/link';
@@ -237,6 +238,11 @@ export default function DetalleServicio({ service }) {
               <p className="mt-4 inline-flex items-center gap-1.5 rounded-sm border border-signal/40 bg-signal/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-signal">
                 <span aria-hidden="true">⏱</span> {service.plazo_entrega}
               </p>
+            )}
+            {enlacesAntesDespues(service) && (
+              <div className="mt-8 max-w-2xl">
+                <AntesDespues {...enlacesAntesDespues(service)} />
+              </div>
             )}
           </div>
           {service.image_url && (
