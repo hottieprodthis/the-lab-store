@@ -41,7 +41,7 @@ export default function Footer() {
             ))}
           </div>
           <p className="text-xs uppercase tracking-widest text-muted">
-            ©️ {new Date().getFullYear()} The Lab — Hottie · Salamanca, España
+            ©️ {new Date().getFullYear()} The Lab by Hottie · Salamanca, España
           </p>
           {/* Secciones principales (también ayudan a Google a ver qué páginas importan) */}
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-semibold uppercase tracking-widest text-paper">

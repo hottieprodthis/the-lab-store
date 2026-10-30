@@ -67,7 +67,7 @@ export default function Contacto() {
             HABLEMOS
           </h1>
           <p className="mt-4 text-muted text-sm sm:text-base">
-            ¿Quieres reservar un servicio, consultar por un pack o tienes alguna pregunta? Escríbeme directamente por cualquier canal.
+            ¿Quieres reservar un servicio, consultar por un pack o tienes alguna pregunta? Escríbenos directamente por cualquier canal.
           </p>
         </section>
 

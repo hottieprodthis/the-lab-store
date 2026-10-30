@@ -73,7 +73,7 @@ export default function DejarOpinion() {
   return (
     <>
       <Head>
-        <title>Tu opinión | The Lab – Hottie</title>
+        <title>Tu opinión | The Lab by Hottie</title>
         <meta name="robots" content="noindex" />
       </Head>
       <Navbar />

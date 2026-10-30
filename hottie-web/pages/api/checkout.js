@@ -4,7 +4,7 @@ import { prepararCorreo } from '../../lib/correos';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
-import { bloqueoPagoObras, leerVacaciones, mensajeReservasVacaciones } from '../../lib/obras';
+import { bloqueoPagoObras, leerVacaciones, mensajeReservasVacaciones, AVISO_SIN_DEVOLUCIONES } from '../../lib/obras';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -726,6 +726,8 @@ export default async function handler(req, res) {
       // mismo usuario, incluso si en el formulario de Stripe se teclea un
       // correo distinto al de la cuenta.
       customer_email: userEmail || undefined,
+      // Aviso de que no hay devoluciones, encima del botón de pagar de Stripe.
+      custom_text: { submit: { message: AVISO_SIN_DEVOLUCIONES } },
     });
 
     return res.status(200).json({ url: session.url });

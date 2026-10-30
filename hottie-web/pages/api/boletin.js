@@ -100,7 +100,7 @@ export default async function handler(req, res) {
         // "confirma" muy escuetos se parecen a los de estafas y van a spam.
         html: `
           <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px; text-align:center;">
-            <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px;">THE LAB — HOTTIE</p>
+            <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px;">THE LAB BY HOTTIE</p>
             <h2 style="color:#ffffff;">¡Hola! Gracias por apuntarte</h2>
             <p style="color:#dddddd;">Alguien (seguramente tú) ha escrito este email en el formulario de novedades de <a href="https://hottieprodthis.com" style="color:#CCFF00;">hottieprodthis.com</a>, la web de producción musical de Hottie.</p>
             <p style="color:#dddddd;">Para empezar a recibir los avisos de nuevos kits, servicios, clases y cambios de precio, confirma tu email:</p>

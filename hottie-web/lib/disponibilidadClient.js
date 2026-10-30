@@ -1,4 +1,11 @@
 import { cabecerasPago } from './cabecerasPago';
+import { AVISO_SIN_DEVOLUCIONES } from './obras';
+
+// Antes de abrir el pago de PayPal, el cliente tiene que aceptar que no hay
+// devoluciones (con tarjeta, el mismo aviso sale en la pantalla de Stripe).
+function aceptaSinDevoluciones() {
+  return window.confirm(`${AVISO_SIN_DEVOLUCIONES}\n\n¿Quieres continuar con el pago?`);
+}
 // Ayudas del NAVEGADOR para el cupo semanal de servicios y clases (la lógica
 // real está en lib/limiteSemanal.js y se aplica en el servidor).
 
@@ -47,6 +54,7 @@ export function bloqueoPara(disp, tipo, cupo) {
 // red deja pasar (nunca bloquea una venta por un fallo de comprobación).
 //   items: [{ tipo: 'clase'|'servicio'|'producto', id, name, quantity }]
 export async function permitirPago(items) {
+  if (!aceptaSinDevoluciones()) return false;
   const relevantes = (Array.isArray(items) ? items : []).filter(
     (i) => i && (i.tipo === 'clase' || i.tipo === 'servicio')
   );
@@ -72,6 +80,7 @@ export async function permitirPago(items) {
 // Igual que permitirPago, para la suscripción con PayPal del área de
 // clientes: con las compras cerradas solo puede renovar quien ya era cliente.
 export async function permitirSuscripcion(userId) {
+  if (!aceptaSinDevoluciones()) return false;
   try {
     const res = await fetch('/api/disponibilidad', {
       method: 'POST',

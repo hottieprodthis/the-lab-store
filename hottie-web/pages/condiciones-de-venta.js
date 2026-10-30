@@ -17,7 +17,7 @@ export default function CondicionesDeVenta() {
   return (
     <>
       <Seo
-        title="Condiciones de Venta | The Lab – Hottie"
+        title="Condiciones de Venta | The Lab by Hottie"
         description="Condiciones de compra de productos digitales, servicios, clases y suscripción en The Lab by Hottie."
         path="/condiciones-de-venta"
       />
@@ -32,7 +32,7 @@ export default function CondicionesDeVenta() {
         <div className="space-y-6 text-sm leading-relaxed text-muted">
           <p>
             Estas condiciones se aplican a todas las compras hechas en <strong className="text-paper">hottieprodthis.com</strong>{' '}
-            (The Lab – Hottie): productos digitales, servicios, clases y la suscripción al área de clientes. Al comprar,
+            (The Lab by Hottie): productos digitales, servicios, clases y la suscripción al área de clientes. Al comprar,
             aceptas estas condiciones. Para cualquier duda, escríbenos a{' '}
             <a href={`mailto:${EMAIL}`} className="text-volt underline">{EMAIL}</a>.
           </p>
@@ -91,7 +91,7 @@ export default function CondicionesDeVenta() {
               Las clases sueltas (1 hora, 2 horas…) se imparten en una sesión. La clase de 12 horas son 4 sesiones de 3
               horas dentro de una misma semana, de lunes a viernes.
             </li>
-            <li>Horario habitual: de lunes a viernes de 16:00 a 21:00 y sábados de 19:00 a 20:00 (hora de España peninsular).</li>
+            <li>Horario habitual: de lunes a viernes de 16:00 a 21:00 (hora de España peninsular).</li>
             <li>
               Hay un margen de cortesía de 15 minutos. Pasado ese tiempo sin aviso, la clase se da por impartida, sin
               posibilidad de recuperarla.

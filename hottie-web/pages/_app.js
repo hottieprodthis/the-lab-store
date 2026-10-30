@@ -52,7 +52,7 @@ export default function App({ Component, pageProps }) {
   return (
     <CartProvider>
       <Head>
-        <title>The Lab – Hottie</title>
+        <title>The Lab by Hottie</title>
         <meta name="google-site-verification" content="Uw-H1BijekkxCzXY17ahyEABFKkhdHYhGaK9ujlPaVo" />
       </Head>
 

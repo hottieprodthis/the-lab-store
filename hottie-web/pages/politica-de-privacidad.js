@@ -16,7 +16,7 @@ export default function PoliticaDePrivacidad() {
   return (
     <>
       <Seo
-        title="Política de Privacidad | The Lab – Hottie"
+        title="Política de Privacidad | The Lab by Hottie"
         description="Qué datos recoge The Lab by Hottie, para qué los usa, con quién los comparte y cómo ejercer tus derechos."
         path="/politica-de-privacidad"
       />
@@ -30,13 +30,13 @@ export default function PoliticaDePrivacidad() {
 
         <div className="space-y-6 text-sm leading-relaxed text-muted">
           <p>
-            En <strong className="text-paper">The Lab – Hottie</strong> (hottieprodthis.com) cuidamos tus datos. Aquí te
+            En <strong className="text-paper">The Lab by Hottie</strong> (hottieprodthis.com) cuidamos tus datos. Aquí te
             explicamos qué datos recogemos, para qué los usamos, con quién los compartimos y qué derechos tienes.
           </p>
 
           <Titulo>Quién trata tus datos</Titulo>
           <p>
-            The Lab – Hottie, a través de la web hottieprodthis.com. Para cualquier cuestión sobre tus datos puedes
+            The Lab by Hottie, a través de la web hottieprodthis.com. Para cualquier cuestión sobre tus datos puedes
             escribirnos a{' '}
             <a href={`mailto:${EMAIL}`} className="text-volt underline">{EMAIL}</a>.
           </p>
@@ -58,6 +58,11 @@ export default function PoliticaDePrivacidad() {
             </li>
             <li>
               <strong className="text-paper">Boletín:</strong> tu email, si te apuntas para recibir novedades.
+            </li>
+            <li>
+              <strong className="text-paper">Opiniones:</strong> si dejas una opinión sobre una compra, guardamos el
+              nombre que escribas, las estrellas y el texto. Si la aprobamos, se publican en la web el nombre, las
+              estrellas y el texto (nunca tu email). Puedes pedirnos que la quitemos cuando quieras.
             </li>
             <li>
               <strong className="text-paper">Pagos:</strong> los datos de tu tarjeta, Bizum, Klarna, Amazon Pay, Link o PayPal los recogen y
@@ -100,7 +105,8 @@ export default function PoliticaDePrivacidad() {
             <li><strong className="text-paper">Vercel</strong> — alojamiento de la web.</li>
             <li><strong className="text-paper">Stripe</strong> y <strong className="text-paper">PayPal</strong> — cobro de los pagos.</li>
             <li><strong className="text-paper">Resend</strong> — envío de los correos de la web.</li>
-            <li><strong className="text-paper">Cloudflare</strong> — almacenamiento de los archivos descargables.</li>
+            <li><strong className="text-paper">Cloudflare</strong> — almacenamiento de los archivos descargables y comprobación antibots del boletín (Turnstile), que analiza datos técnicos de tu navegador para saber que no eres un robot.</li>
+            <li><strong className="text-paper">YouTube</strong> (Google) — los vídeos de la portada. No se carga nada de YouTube hasta que pulsas el botón de play de un vídeo.</li>
             <li><strong className="text-paper">Google Analytics</strong> — estadísticas de visitas, solo si las aceptas.</li>
           </ul>
           <p>

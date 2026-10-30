@@ -12,11 +12,11 @@ const faqCategories = [
     questions: [
       {
         q: "¿Qué DAW o nivel necesito para tomar las clases?",
-        a: "Utilizamos FL Studio. Las clases están adaptadas a todos los niveles, desde principiantes hasta avanzados/profesionales. Si necesitas algún plugin específico para la clase, te lo facilitaré previamente."
+        a: "Utilizamos FL Studio. Las clases están adaptadas a todos los niveles, desde principiantes hasta avanzados/profesionales. Si necesitas algún plugin específico para la clase, te lo facilitaremos previamente."
       },
       {
         q: "¿En qué horario y franja horaria se imparten las clases?",
-        a: "El horario habitual de atención y clases es de Lunes a Viernes de 16:00 a 21:00 y Sábados de 19:00 a 20:00 (Hora de España peninsular / CET). Tenlo en cuenta para coordinar tu cita si te conectas desde fuera de España."
+        a: "El horario habitual de atención y clases es de Lunes a Viernes de 16:00 a 21:00 (Hora de España peninsular / CET). Tenlo en cuenta para coordinar tu cita si te conectas desde fuera de España."
       },
       {
         q: "¿Cómo se reparten las horas de las clases?",
@@ -28,7 +28,7 @@ const faqCategories = [
       },
       {
         q: "¿Se graban las clases?",
-        a: "Yo no grabo las sesiones, pero tienes total libertad para grabar tu pantalla (donde se verá reflejada la mía) para repasarla cuando quieras."
+        a: "No grabamos las sesiones, pero tienes total libertad para grabar tu pantalla (donde se verá reflejada la de Hottie) para repasarla cuando quieras."
       },
       {
         q: "¿Qué pasa si te retrasas o no te presentas a una clase?",

@@ -79,7 +79,7 @@ export default function Home() {
     <>
       <Seo
         title="The Lab by Hottie | Estudio Profesional"
-        description="The Lab es el estudio de producción musical, mezcla y mastering de Hottie (Hottieprod) en Salamanca. Especializado en tech house, electrónica, latina y urbana."
+        description="The Lab es el estudio de producción musical, mezcla y mastering de Hottie (Hottieprod) en Salamanca. Especializado en música electrónica, latina y tribal."
         path="/"
       />
       <Head>

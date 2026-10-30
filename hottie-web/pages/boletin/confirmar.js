@@ -57,7 +57,7 @@ export default function ConfirmarBoletin() {
   return (
     <>
       <Head>
-        <title>Confirmar suscripción | The Lab – Hottie</title>
+        <title>Confirmar suscripción | The Lab by Hottie</title>
         <meta name="robots" content="noindex" />
       </Head>
 

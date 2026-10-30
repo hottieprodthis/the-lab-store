@@ -63,7 +63,7 @@ export default async function handler(req, res) {
     subject: '¿Qué tal tu experiencia con The Lab?',
     html: `
       <div style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:30px;">
-        <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px;">THE LAB — HOTTIE</p>
+        <p style="color:#CCFF00; font-weight:bold; letter-spacing:2px; font-size:12px;">THE LAB BY HOTTIE</p>
         <h2 style="color:#ffffff;">¿Qué tal fue?</h2>
         <p style="color:#dddddd;">Hace unos días compraste <strong>${escapar(articuloDeCompra(c))}</strong>. Nos encantaría saber qué te pareció: tu opinión ayuda a otros artistas a decidirse y a nosotros a mejorar.</p>
         <p style="color:#dddddd;">Solo te llevará un minuto.</p>

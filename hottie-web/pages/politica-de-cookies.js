@@ -7,7 +7,7 @@ export default function PoliticaDeCookies() {
   return (
     <>
       <Seo
-        title="Política de Cookies | The Lab – Hottie"
+        title="Política de Cookies | The Lab by Hottie"
         description="Qué cookies usa The Lab by Hottie y cómo aceptarlas o rechazarlas."
         path="/politica-de-cookies"
       />
@@ -35,6 +35,15 @@ export default function PoliticaDeCookies() {
           <ul className="list-disc pl-5 space-y-2">
             <li>
               <strong className="text-paper">Google Analytics:</strong> Almacena cookies para poder elaborar estadísticas sobre el tráfico y volumen de visitas de esta web. Solo se activan si pulsas &laquo;Aceptar&raquo; en el aviso de cookies; si pulsas &laquo;Rechazar&raquo;, no se guardan. Para cambiar tu decisión, borra las cookies y los datos de esta web en tu navegador y vuelve a entrar: el aviso aparecerá de nuevo.
+            </li>
+            <li>
+              <strong className="text-paper">YouTube:</strong> Los vídeos de la portada son de YouTube. Hasta que pulsas el
+              botón de play de un vídeo no se carga nada de YouTube; al pulsarlo, se usa su versión de privacidad mejorada
+              (youtube-nocookie.com), que puede guardar datos en tu navegador para reproducir el vídeo.
+            </li>
+            <li>
+              <strong className="text-paper">Cloudflare Turnstile:</strong> La comprobación antibots del boletín puede
+              guardar datos técnicos en tu navegador solo para comprobar que no eres un robot. No se usa para publicidad.
             </li>
             <li>
               <strong className="text-paper">Redes sociales:</strong> Cada red social utiliza sus propias cookies para que tu puedas pinchar en botones del tipo Me gusta o Compartir.

@@ -36,7 +36,7 @@ export default function Baja() {
   return (
     <>
       <Head>
-        <title>Darme de baja | The Lab – Hottie</title>
+        <title>Darme de baja | The Lab by Hottie</title>
         <meta name="robots" content="noindex" />
       </Head>
 
