@@ -24,15 +24,22 @@ async function main() {
   for (const id of idsDeVideos()) {
     const destino = path.join(carpeta, `${id}.jpg`);
     if (fs.existsSync(destino)) continue;
-    try {
-      const res = await fetch(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      fs.writeFileSync(destino, Buffer.from(await res.arrayBuffer()));
-      console.log(`portadas: descargada ${id}`);
-    } catch (e) {
-      // No se para el build por una portada: el vídeo sale con fondo oscuro.
-      console.warn(`portadas: no se pudo descargar ${id} (${e.message})`);
+    // La mejor calidad que tenga el vídeo: 1280×720, si no 640×480, si no 480×360.
+    let guardada = false;
+    for (const calidad of ['maxresdefault', 'sddefault', 'hqdefault']) {
+      try {
+        const res = await fetch(`https://i.ytimg.com/vi/${id}/${calidad}.jpg`);
+        if (!res.ok) continue;
+        fs.writeFileSync(destino, Buffer.from(await res.arrayBuffer()));
+        console.log(`portadas: descargada ${id} (${calidad})`);
+        guardada = true;
+        break;
+      } catch (e) {
+        // se prueba la siguiente calidad
+      }
     }
+    // No se para el build por una portada: el vídeo sale con fondo oscuro.
+    if (!guardada) console.warn(`portadas: no se pudo descargar ${id}`);
   }
 }
 

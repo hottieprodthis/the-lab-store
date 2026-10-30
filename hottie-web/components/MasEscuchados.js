@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 
 // "Los más escuchados" de la portada: carrusel de vídeos de YouTube que solo
 // se cargan al pulsarlos (hasta entonces es la miniatura), para que la portada
@@ -64,11 +65,14 @@ function Video({ trabajo, abierto, abrir, cerrar }) {
             aria-label={`Ver ${trabajo.titulo} de ${trabajo.artista}`}
             className="absolute inset-0 h-full w-full"
           >
-            <img
+            {/* Portada en alta calidad (scripts/portadas.js); Next la sirve al tamaño de cada pantalla */}
+            <Image
               src={`/portadas/${trabajo.id}.jpg`}
               alt=""
-              loading="lazy"
-              className="h-full w-full object-cover opacity-80 transition duration-300 group-hover:scale-105 group-hover:opacity-100"
+              fill
+              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 85vw"
+              quality={85}
+              className="object-cover opacity-80 transition duration-300 group-hover:scale-105 group-hover:opacity-100"
             />
             <span className="absolute inset-0 flex items-center justify-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-volt text-ink shadow-[0_0_28px_rgba(204,255,0,0.45)] transition group-hover:scale-110">
@@ -144,7 +148,7 @@ export default function MasEscuchados() {
           </button>
         </div>
       </div>
-      <div ref={pista} className="-mx-5 mt-8 flex snap-x snap-mandatory gap-6 overflow-x-auto px-5 pb-4 [scrollbar-width:none]">
+      <div ref={pista} className="-mx-5 mt-8 flex snap-x snap-mandatory scroll-px-5 gap-6 overflow-x-auto px-5 pb-4 [scrollbar-width:none]">
         {TRABAJOS.map((t) => (
           <Video key={t.id} trabajo={t} abierto={abierto === t.id} abrir={() => setAbierto(t.id)} cerrar={cerrar} />
         ))}

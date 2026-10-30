@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Image from 'next/image';
 
 // Lista de reproducción de YouTube que solo se carga al pulsar el play
 // (hasta entonces es la portada), para que la portada de la web cargue
@@ -21,11 +22,13 @@ export default function ListaYoutube({ lista, portada, titulo }) {
 
   return (
     <button type="button" onClick={() => setAbierta(true)} aria-label={`Ver ${titulo}`} className="group absolute inset-0 h-full w-full">
-      <img
+      <Image
         src={`/portadas/${portada}.jpg`}
         alt=""
-        loading="lazy"
-        className="h-full w-full object-cover opacity-80 transition duration-300 group-hover:scale-105 group-hover:opacity-100"
+        fill
+        sizes="(min-width: 768px) 50vw, 100vw"
+        quality={85}
+        className="object-cover opacity-80 transition duration-300 group-hover:scale-105 group-hover:opacity-100"
       />
       <span className="absolute inset-0 flex items-center justify-center">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-volt text-ink shadow-[0_0_28px_rgba(204,255,0,0.45)] transition group-hover:scale-110">

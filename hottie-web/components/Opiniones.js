@@ -72,7 +72,7 @@ export default function Opiniones({ ejemplo }) {
         )}
       </div>
 
-      <div ref={pista} className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 [scrollbar-width:none]">
+      <div ref={pista} className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-4 [scrollbar-width:none]">
         {lista.map((o) => (
           <figure
             key={o.id}
