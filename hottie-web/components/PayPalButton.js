@@ -56,5 +56,18 @@ export default function PayPalButton({ amount, currency = 'EUR', label, onSucces
     document.body.appendChild(script);
   }, [amount, currency, label, onSuccess]);
 
-  return <div ref={ref} className="w-full relative z-10" />;
+  // Debajo de los botones de pago (tarjeta y PayPal) va siempre el aviso de
+  // que no hay devoluciones, para que se vea antes de pagar.
+  return (
+    <>
+      <div ref={ref} className="w-full relative z-10" />
+      <p className="mt-3 text-center font-body text-[11px] leading-relaxed text-muted">
+        Al pagar aceptas las{' '}
+        <a href="/condiciones-de-venta" target="_blank" rel="noopener noreferrer" className="text-paper underline hover:text-volt">
+          condiciones de venta
+        </a>
+        : no se hacen devoluciones una vez realizado el pago.
+      </p>
+    </>
+  );
 }
