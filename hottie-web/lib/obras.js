@@ -130,7 +130,7 @@ export async function propsConObras(supabase, res, props, { vacaciones = false, 
 // Stripe y confirmación antes de abrir PayPal). Repite lo que dicen las
 // condiciones de venta.
 export const AVISO_SIN_DEVOLUCIONES =
-  'Al pagar aceptas las condiciones de venta de The Lab by Hottie (hottieprodthis.com/condiciones-de-venta): no se hacen devoluciones una vez realizado el pago, salvo casos excepcionales y justificados de ausencia total de Hottie. En los productos digitales, la descarga está disponible al momento, por lo que pierdes el derecho de desistimiento.';
+  'Al pagar aceptas las condiciones de venta de The Lab by Hottie (hottieprodthis.com/condiciones-de-venta): no se hacen devoluciones una vez realizado el pago. En servicios y clases, salvo casos excepcionales y justificados de ausencia total de Hottie. Los productos de la tienda se entregan al momento y la suscripción da acceso inmediato a todo su contenido, por lo que en esos casos no hay devolución ni derecho de desistimiento.';
 
 export const MENSAJE_PAGO_EN_OBRAS =
   'Ahora mismo la web está en obras y no se pueden hacer compras. Volveremos a abrir lo antes posible, ¡gracias por la paciencia!';

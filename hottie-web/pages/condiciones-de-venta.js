@@ -123,9 +123,12 @@ export default function CondicionesDeVenta() {
 
           <Titulo>Devoluciones</Titulo>
           <p>
-            No se realizan reembolsos una vez abonado el servicio, salvo casos excepcionales y justificados de ausencia
-            total de Hottie. Todo ello sin perjuicio de los derechos que la legislación de consumo te reconozca en cada
-            caso.
+            No se realizan reembolsos una vez realizado el pago. En los servicios y las clases, solo se devuelve el
+            dinero en casos excepcionales y justificados de ausencia total de Hottie. Los productos de la tienda y la
+            suscripción al área de clientes no tienen devolución en ningún caso: el producto se entrega al momento de
+            pagar y la suscripción da acceso desde ese momento a todo su contenido durante el mes pagado, por lo que
+            al comprarlos aceptas perder el derecho de desistimiento. Todo ello sin perjuicio de los derechos que la
+            legislación de consumo te reconozca en cada caso.
           </p>
 
           <Titulo>Contacto y reclamaciones</Titulo>

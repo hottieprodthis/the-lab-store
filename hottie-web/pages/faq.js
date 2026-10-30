@@ -108,7 +108,7 @@ const faqCategories = [
       },
       {
         q: "¿Cuál es la política de devoluciones?",
-        a: "No se realizan reembolsos una vez abonado el servicio, salvo casos excepcionales y justificados de ausencia total de Hottie."
+        a: "No se realizan reembolsos una vez realizado el pago.\n• Servicios y clases: solo se devuelve el dinero en casos excepcionales y justificados de ausencia total de Hottie.\n• Productos de la tienda y suscripción al área de clientes: no tienen devolución en ningún caso, porque el producto se entrega al momento de pagar y la suscripción da acceso desde ese momento a todo su contenido durante el mes pagado."
       }
     ]
   }
