@@ -2,7 +2,8 @@ import { useState } from 'react';
 
 // Lista de reproducción de YouTube que solo se carga al pulsar el play
 // (hasta entonces es la portada), para que la portada de la web cargue
-// rápido: el reproductor de YouTube pesa más de 1 MB.
+// rápido: el reproductor de YouTube pesa más de 1 MB. Los subtítulos salen
+// apagados (cc_load_policy=0) y la calidad la ajusta YouTube sola a la conexión.
 export default function ListaYoutube({ lista, portada, titulo }) {
   const [abierta, setAbierta] = useState(false);
 
@@ -10,7 +11,7 @@ export default function ListaYoutube({ lista, portada, titulo }) {
     return (
       <iframe
         className="h-full w-full"
-        src={`https://www.youtube-nocookie.com/embed/videoseries?list=${lista}&autoplay=1&rel=0`}
+        src={`https://www.youtube-nocookie.com/embed/videoseries?list=${lista}&autoplay=1&rel=0&cc_load_policy=0`}
         title={titulo}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen

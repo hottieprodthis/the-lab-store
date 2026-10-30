@@ -52,7 +52,7 @@ function Video({ trabajo, abierto, abrir, cerrar }) {
             ref={marco}
             onLoad={alCargar}
             className="h-full w-full"
-            src={`https://www.youtube-nocookie.com/embed/${trabajo.id}?autoplay=1&enablejsapi=1&rel=0`}
+            src={`https://www.youtube-nocookie.com/embed/${trabajo.id}?autoplay=1&enablejsapi=1&rel=0&cc_load_policy=0`}
             title={`${trabajo.titulo} – ${trabajo.artista}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
