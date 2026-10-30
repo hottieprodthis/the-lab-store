@@ -132,6 +132,11 @@ export async function propsConObras(supabase, res, props, { vacaciones = false, 
 export const AVISO_SIN_DEVOLUCIONES =
   'Al pagar aceptas las condiciones de venta de The Lab by Hottie (hottieprodthis.com/condiciones-de-venta): no se hacen devoluciones una vez realizado el pago. En servicios y clases, salvo casos excepcionales y justificados de ausencia total de Hottie. Los productos de la tienda se entregan al momento y la suscripción da acceso inmediato a todo su contenido, por lo que en esos casos no hay devolución ni derecho de desistimiento.';
 
+// Texto de la casilla obligatoria de la pantalla de pago de Stripe (necesita
+// el enlace de las condiciones en Stripe → Datos públicos de la empresa).
+export const CASILLA_CONDICIONES =
+  'Acepto las [condiciones de venta](https://www.hottieprodthis.com/condiciones-de-venta), incluida la política de devoluciones: no hay devoluciones una vez realizado el pago (en servicios y clases, salvo ausencia total de Hottie; en productos de la tienda y suscripción, en ningún caso, por su entrega inmediata).';
+
 export const MENSAJE_PAGO_EN_OBRAS =
   'Ahora mismo la web está en obras y no se pueden hacer compras. Volveremos a abrir lo antes posible, ¡gracias por la paciencia!';
 
