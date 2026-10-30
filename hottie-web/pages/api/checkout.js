@@ -5,6 +5,7 @@ import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../.
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
 import { bloqueoPagoObras, leerVacaciones, mensajeReservasVacaciones, CASILLA_CONDICIONES } from '../../lib/obras';
+import { enlaceDescargaProducto } from '../../lib/descargas';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -201,7 +202,8 @@ export default async function handler(req, res) {
 
       const enrichedCart = await Promise.all(
         items.map(async (item) => {
-          let downloadUrl = item.file_url || item.drive_url || item.driveUrl || item.link || '';
+          // El enlace de descarga nunca se toma del navegador: sale de product_files.
+          let downloadUrl = '';
           let nameResolved = item.name || item.title || item.nombre || '';
           const cleanId = extractRealId(item.id);
           const { planSlug } = partirIdCarrito(item.id);
@@ -226,8 +228,8 @@ export default async function handler(req, res) {
 
             if (dbItem) {
               filaDb = dbItem;
-              if (!downloadUrl && isProductItem) {
-                downloadUrl = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
+              if (isProductItem) {
+                downloadUrl = await enlaceDescargaProducto(supabase, cleanId);
               }
               if (!nameResolved) {
                 nameResolved = dbItem.name || dbItem.title || dbItem.nombre || '';
@@ -439,7 +441,7 @@ export default async function handler(req, res) {
         });
       }
 
-      driveLink = item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '';
+      driveLink = hasProduct ? await enlaceDescargaProducto(supabase, item.id) : '';
 
       let nameResolved = item.name || item.title || item.nombre || 'Producto Digital';
       if (planName) nameResolved = `${nameResolved} (${planName})`;

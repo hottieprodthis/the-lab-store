@@ -133,8 +133,8 @@ export default function BriefingClasesPage() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#ccc' }}>
-              Detalles adicionales u objetivos para la clase
-            </label>
+              Detalles adicionales u objetivos para la clase <span style={{ color: '#71717a', fontWeight: 'normal' }}>(opcional)</span>
+                  </label>
             <textarea 
               rows="4"
               placeholder="Escribe aquí cualquier nota sobre los puntos o temas específicos que te gustaría aprender o mejorar..."

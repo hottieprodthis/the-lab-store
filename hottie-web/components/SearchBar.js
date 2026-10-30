@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { aplicarOferta } from '../lib/ofertas';
 import { leerAjusteObras } from '../lib/obras';
 import { esAdminEnNavegador } from '../lib/adminNavegador';
+import { EsqueletoResultados } from './Esqueleto';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -163,9 +164,7 @@ export default function SearchBar() {
         <div className="absolute left-0 right-0 top-full mt-3 bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto divide-y divide-neutral-900/60 p-2">
             {loading ? (
-              <div className="p-4 text-center text-xs text-neutral-500 font-mono animate-pulse">
-                Cargando catálogo...
-              </div>
+              <EsqueletoResultados />
             ) : filtered.length === 0 ? (
               <div className="p-6 text-center text-xs text-neutral-400">
                 No se encontraron resultados para "<span className="text-[#CCFF00]">{query}</span>"

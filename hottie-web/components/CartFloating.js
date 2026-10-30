@@ -57,6 +57,28 @@ export default function CartFloating() {
     anterior.current = totalItems;
   }, [totalItems]);
 
+  // Recordatorio de carrito: si alguien vuelve otro día y tiene cosas en el
+  // carrito (se guarda en el navegador), se le avisa una vez por visita con un
+  // bocadillo junto al botón. Sustituye a los correos de "carrito abandonado",
+  // que en España no se pueden mandar sin consentimiento.
+  const [recordar, setRecordar] = useState(false);
+  useEffect(() => {
+    let yaAvisado = true;
+    try {
+      yaAvisado = sessionStorage.getItem('thelab-aviso-carrito') === '1';
+      sessionStorage.setItem('thelab-aviso-carrito', '1');
+    } catch {}
+    if (yaAvisado) return;
+    // Se espera un poco a que se recupere el carrito guardado.
+    const t = setTimeout(() => setRecordar(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    if (!recordar) return;
+    const t = setTimeout(() => setRecordar(false), 9000);
+    return () => clearTimeout(t);
+  }, [recordar]);
+
   // Servicios y clases del carrito, para la comprobación previa del cupo
   // semanal con PayPal (isClass tiene prioridad sobre isService, igual que
   // en checkout.js; el servidor decide qué cupo ocupa cada uno).
@@ -197,6 +219,32 @@ export default function CartFloating() {
           </span>
         )}
       </button>
+
+      {recordar && totalItems > 0 && !isOpen && (
+        <div className="fixed bottom-24 right-6 z-40 max-w-[15rem] rounded-sm border border-volt/40 bg-surface px-4 py-3 shadow-xl">
+          <button
+            type="button"
+            onClick={() => setRecordar(false)}
+            aria-label="Cerrar aviso"
+            className="absolute right-2 top-1 text-xs text-muted hover:text-paper"
+          >
+            ✕
+          </button>
+          <p className="pr-4 font-body text-sm text-paper">
+            Te dejaste {totalItems === 1 ? 'algo' : `${totalItems} cosas`} en el carrito.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setRecordar(false);
+              setIsOpen(true);
+            }}
+            className="mt-2 font-body text-xs font-bold uppercase tracking-widest text-volt hover:brightness-110"
+          >
+            Ver carrito →
+          </button>
+        </div>
+      )}
 
       {/* 2. FONDO OSCURO AL ABRIR */}
       {isOpen && (

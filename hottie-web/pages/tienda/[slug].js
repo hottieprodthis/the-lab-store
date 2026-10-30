@@ -292,12 +292,7 @@ export default function ProductoDetalle({ product }) {
               </>
             ) : (
               <p className="rounded-sm border border-signal/40 bg-signal/10 p-4 text-sm text-signal">
-                ¡Pago completado! {stripeSuccess ? 'Revisa tu correo para el recibo.' : 'Revisa tu correo de PayPal para el recibo.'}
-                {product.file_url && (
-                  <a href={product.file_url} className="underline ml-2">
-                    Descargar ahora
-                  </a>
-                )}
+                ¡Pago completado! Te hemos enviado por correo el enlace de descarga (mira también en spam).
               </p>
             )}
           </div>

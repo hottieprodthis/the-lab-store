@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../../components/SeguimientoForm';
+import { EsqueletoFormulario } from '../../components/Esqueleto';
 
 export default function BriefingPage() {
   const router = useRouter();
@@ -66,11 +67,7 @@ export default function BriefingPage() {
   // Esperamos a que el router conozca la URL para no enseñar un instante el
   // formulario equivocado.
   if (!router.isReady) {
-    return (
-      <div style={{ maxWidth: '650px', margin: '60px auto', padding: '30px 20px', color: '#ffffff' }}>
-        <p style={{ color: '#a1a1aa' }}>Cargando…</p>
-      </div>
-    );
+    return <EsqueletoFormulario />;
   }
 
   return (
@@ -171,8 +168,8 @@ export default function BriefingPage() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#ccc' }}>
-              Enlace a la Demo / Maqueta
-            </label>
+              Enlace a la Demo / Maqueta <span style={{ color: '#71717a', fontWeight: 'normal' }}>(opcional)</span>
+                  </label>
             <input 
               type="url" 
               placeholder="Google Drive, Dropbox, WeTransfer, SoundCloud..."
@@ -205,8 +202,8 @@ export default function BriefingPage() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#ccc' }}>
-              Detalles adicionales, gustos, preferencias o referencias
-            </label>
+              Detalles adicionales, gustos, preferencias o referencias <span style={{ color: '#71717a', fontWeight: 'normal' }}>(opcional)</span>
+                  </label>
             <textarea 
               rows="4"
               placeholder="Escribe aquí cualquier nota importante sobre la mezcla, estructura, referencias de otros artistas..."

@@ -4,6 +4,7 @@ import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../l
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { paypalConfigurado, verificarPedidoPaypal } from '../../lib/paypal';
 import { finTrasMesPaypal, suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../../lib/suscripcion';
+import { enlaceDescargaProducto } from '../../lib/descargas';
 
 // Igual que en checkout.js / enviar-pedido.js: usamos la Service Role Key
 // en el servidor para poder escribir en "purchases" sin que las políticas
@@ -170,9 +171,7 @@ export default async function handler(req, res) {
     }
     const moneda = item.currency || item.moneda || 'eur';
     const imagen = item.image_url || item.imagen_url || null;
-    const enlaceDescarga = tipoNormalizado === 'producto'
-      ? (item.file_url || item.drive_url || item.driveUrl || item.download_url || item.link || '')
-      : '';
+    const enlaceDescarga = tipoNormalizado === 'producto' ? await enlaceDescargaProducto(supabase, item.id) : '';
 
     // 2. Resolvemos el usuario: primero lo que ya nos manda el cliente
     // (sesión activa), y si no lo tenemos, lo buscamos por email igual que
@@ -355,7 +354,8 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
 
         let nombreResuelto = item.title || item.name || item.nombre || '';
         let imagen = item.image_url || item.imagen_url || null;
-        let enlaceDescarga = item.file_url || item.drive_url || item.driveUrl || item.link || '';
+        // El enlace de descarga nunca se toma del navegador: sale de product_files.
+        let enlaceDescarga = '';
         // Precio real según la base de datos (plan y oferta incluidos).
         let precioServidor = null;
 
@@ -369,8 +369,8 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
               nombreResuelto = nombreConPlan(dbItem, plan) || nombreResuelto;
             }
             if (!imagen) imagen = dbItem.image_url || dbItem.imagen_url || null;
-            if (isProductItem && !enlaceDescarga) {
-              enlaceDescarga = dbItem.file_url || dbItem.drive_url || dbItem.driveUrl || dbItem.download_url || dbItem.link || '';
+            if (isProductItem) {
+              enlaceDescarga = await enlaceDescargaProducto(supabase, cleanId);
             }
           }
         }

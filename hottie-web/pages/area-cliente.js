@@ -9,6 +9,7 @@ import { leerOfertaSuscripcion, precioSuscripcion } from '../lib/ofertas';
 import { suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../lib/suscripcion';
 import { cabecerasPago } from '../lib/cabecerasPago';
 import { permitirSuscripcion } from '../lib/disponibilidadClient';
+import { EsqueletoAreaCliente } from '../components/Esqueleto';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -344,11 +345,7 @@ export default function AreaClientePage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-ink text-paper flex items-center justify-center font-body">
-        <p className="text-muted">Cargando área privada...</p>
-      </div>
-    );
+    return <EsqueletoAreaCliente />;
   }
 
   return (

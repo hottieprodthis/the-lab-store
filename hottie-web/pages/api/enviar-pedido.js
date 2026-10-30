@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { prepararCorreo } from '../../lib/correos';
 import { finSegunStripe, proximaRenovacionStripe, ajustarPrecioStripe, precioRenovacion, leerCambioPrecio, altaStripe } from '../../lib/suscripcion';
+import { enlaceDescargaProducto } from '../../lib/descargas';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -88,7 +89,7 @@ async function enriquecerArticuloCarrito(item) {
         title: item.title || data.name || data.title || data.nombre || '',
         image_url: item.image_url || data.image_url || data.imagen_url || '',
         file_url: item.type === 'producto'
-          ? (item.file_url || data.file_url || data.drive_url || data.driveUrl || data.download_url || data.link || '')
+          ? (item.file_url || (await enlaceDescargaProducto(supabase, item.id)))
           : item.file_url,
       };
     }

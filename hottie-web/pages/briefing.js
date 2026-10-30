@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../components/SeguimientoForm';
+import { EsqueletoFormulario } from '../components/Esqueleto';
 
 // Página de briefing COMBINADO: se usa cuando un mismo pedido mezcla
 // dos o más categorías (producto+servicio, producto+clase,
@@ -115,11 +116,7 @@ export default function BriefingUnificadoPage() {
   };
 
   if (!ready) {
-    return (
-      <div style={{ maxWidth: '650px', margin: '60px auto', padding: '30px 20px', color: '#ffffff' }}>
-        <p style={{ color: '#a1a1aa' }}>Cargando…</p>
-      </div>
-    );
+    return <EsqueletoFormulario />;
   }
 
   return (
@@ -225,7 +222,7 @@ export default function BriefingUnificadoPage() {
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#ccc' }}>
-                    Detalles adicionales u objetivos para la clase
+                    Detalles adicionales u objetivos para la clase <span style={{ color: '#71717a', fontWeight: 'normal' }}>(opcional)</span>
                   </label>
                   <textarea
                     rows="3"
@@ -325,7 +322,7 @@ export default function BriefingUnificadoPage() {
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#ccc' }}>
-                    Enlace a la Demo / Maqueta
+                    Enlace a la Demo / Maqueta <span style={{ color: '#71717a', fontWeight: 'normal' }}>(opcional)</span>
                   </label>
                   <input
                     type="url"
@@ -359,7 +356,7 @@ export default function BriefingUnificadoPage() {
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#ccc' }}>
-                    Detalles adicionales, gustos, preferencias o referencias
+                    Detalles adicionales, gustos, preferencias o referencias <span style={{ color: '#71717a', fontWeight: 'normal' }}>(opcional)</span>
                   </label>
                   <textarea
                     rows="3"

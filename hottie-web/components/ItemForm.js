@@ -25,7 +25,18 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
   );
   const [currency, setCurrency] = useState(initial?.currency || 'eur');
   const [imageUrl, setImageUrl] = useState(initial?.image_url || '');
-  const [fileUrl, setFileUrl] = useState(initial?.file_url || '');
+  // Enlace de descarga (solo productos): va en la tabla product_files, que
+  // solo ve el admin (lib/descargas.js).
+  const [fileUrl, setFileUrl] = useState('');
+  useEffect(() => {
+    if (!hasFileUrl || !initial?.id) return;
+    supabase
+      .from('product_files')
+      .select('file_url')
+      .eq('product_id', initial.id)
+      .maybeSingle()
+      .then(({ data }) => setFileUrl(data?.file_url || ''));
+  }, [hasFileUrl, initial?.id]);
   const [demoUrl, setDemoUrl] = useState(initial?.demo_url || '');
   const [active, setActive] = useState(initial?.active ?? true);
   const [uploading, setUploading] = useState(false);
@@ -212,7 +223,7 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
     };
 
     if (hasFileUrl) {
-      payload.file_url = fileUrl || null;
+
       payload.demo_url = demoUrl || null;
     }
     
@@ -279,10 +290,23 @@ export default function ItemForm({ table, initial, hasFileUrl }) {
 
     setSaving(true);
     const query = isEdit
-      ? supabase.from(table).update(payload).eq('id', initial.id)
-      : supabase.from(table).insert(payload);
+      ? supabase.from(table).update(payload).eq('id', initial.id).select('id').single()
+      : supabase.from(table).insert(payload).select('id').single();
 
-    const { error: saveError } = await query;
+    const { data: guardado, error: saveError } = await query;
+
+    // Enlace de descarga del producto, aparte (product_files).
+    if (!saveError && hasFileUrl && guardado?.id) {
+      const enlace = fileUrl.trim();
+      const { error: fileError } = enlace
+        ? await supabase.from('product_files').upsert({ product_id: guardado.id, file_url: enlace }, { onConflict: 'product_id' })
+        : await supabase.from('product_files').delete().eq('product_id', guardado.id);
+      if (fileError) {
+        setSaving(false);
+        setError('El producto se ha guardado, pero no el enlace de descarga: ' + fileError.message);
+        return;
+      }
+    }
     setSaving(false);
 
     if (saveError) {
