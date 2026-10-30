@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import { Bebas_Neue, Inter } from 'next/font/google';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GoogleAnalytics } from '@next/third-parties/google';
 import Script from 'next/script';
 import '../styles/globals.css';
@@ -30,6 +30,18 @@ const GA_MEASUREMENT_ID = 'G-BL30X192XS';
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
+  // Google Analytics solo se descarga si el visitante ha aceptado las cookies
+  // (antes se cargaba siempre, aunque sin cookies, y ya enviaba la IP a
+  // Google). CookieBanner avisa con el evento "cookies-aceptadas".
+  const [analiticas, setAnaliticas] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('cookie_consent_accepted') === 'true') setAnaliticas(true);
+    } catch {}
+    const alAceptar = () => setAnaliticas(true);
+    window.addEventListener('cookies-aceptadas', alAceptar);
+    return () => window.removeEventListener('cookies-aceptadas', alAceptar);
+  }, []);
   useEffect(() => {
     // Desactiva la restauración automática del scroll del navegador
     if ('scrollRestoration' in window.history) {
@@ -91,7 +103,7 @@ export default function App({ Component, pageProps }) {
       </main>
 
       {/* Script oficial de Google Analytics */}
-      <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
+      {analiticas && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}
     </CartProvider>
   );
 }

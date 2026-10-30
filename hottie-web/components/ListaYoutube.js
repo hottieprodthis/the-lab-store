@@ -21,7 +21,7 @@ export default function ListaYoutube({ lista, portada, titulo }) {
   return (
     <button type="button" onClick={() => setAbierta(true)} aria-label={`Ver ${titulo}`} className="group absolute inset-0 h-full w-full">
       <img
-        src={`https://i.ytimg.com/vi/${portada}/hqdefault.jpg`}
+        src={`/portadas/${portada}.jpg`}
         alt=""
         loading="lazy"
         className="h-full w-full object-cover opacity-80 transition duration-300 group-hover:scale-105 group-hover:opacity-100"

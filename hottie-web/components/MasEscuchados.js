@@ -65,7 +65,7 @@ function Video({ trabajo, abierto, abrir, cerrar }) {
             className="absolute inset-0 h-full w-full"
           >
             <img
-              src={`https://i.ytimg.com/vi/${trabajo.id}/hqdefault.jpg`}
+              src={`/portadas/${trabajo.id}.jpg`}
               alt=""
               loading="lazy"
               className="h-full w-full object-cover opacity-80 transition duration-300 group-hover:scale-105 group-hover:opacity-100"

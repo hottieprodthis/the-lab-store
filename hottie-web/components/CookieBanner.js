@@ -23,7 +23,10 @@ export default function CookieBanner() {
       });
     }
 
-    // 3. Ocultar el banner
+    // 3. Que pages/_app.js cargue ya Google Analytics
+    window.dispatchEvent(new Event('cookies-aceptadas'));
+
+    // 4. Ocultar el banner
     setMostrar(false);
   };
 
