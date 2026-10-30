@@ -5,6 +5,10 @@ export default function BrandsBanner() {
     { name: 'Yamaha', logo: '/brands/yamaha.png' },
     { name: 'American Audio', logo: '/brands/american-audio.png' },
     { name: 'Midas', logo: '/brands/midas.png' },
+    { name: 'Arturia', logo: '/brands/arturia.png' },
+    { name: 'FL Studio', logo: '/brands/fl-studio.png' },
+    { name: 'Moises', logo: '/brands/moises.png' },
+    { name: 'Native Instruments', logo: '/brands/native-instruments.png' },
   ];
 
   return (
@@ -21,7 +25,7 @@ export default function BrandsBanner() {
         >
           Equipamiento y marcas con las que trabajamos
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
+        <div className="mx-auto flex max-w-[920px] flex-wrap items-center justify-center gap-x-8 gap-y-6 md:gap-x-16 md:gap-y-8">
           {brands.map((brand) => (
             <div key={brand.name} className="flex items-center justify-center">
               <img
