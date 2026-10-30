@@ -121,7 +121,7 @@ export default function DetalleServicio({ service }) {
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           tipo: 'servicio',
           itemId: service.id,
@@ -196,7 +196,7 @@ export default function DetalleServicio({ service }) {
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           tipo: 'servicio',
           itemId: service.id,

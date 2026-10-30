@@ -11,6 +11,7 @@ import AvisoObras from '../components/AvisoObras';
 import AvisoVacaciones from '../components/AvisoVacaciones';
 import { VolverArriba } from '../components/Animaciones';
 import BotonAtras, { hayBotonAtras } from '../components/BotonAtras';
+import AvisoCompras from '../components/AvisoCompras';
 import { useRouter } from 'next/router';
 
 const display = Bebas_Neue({
@@ -95,6 +96,7 @@ export default function App({ Component, pageProps }) {
             <Component {...pageProps} />
           </>
         )}
+        <AvisoCompras />
         <BotonAtras />
         {/* Si está el botón de volver atrás, el de subir va justo encima */}
         <VolverArriba encima={hayBotonAtras(router.pathname)} />

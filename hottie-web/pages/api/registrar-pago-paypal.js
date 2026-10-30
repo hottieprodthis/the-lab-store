@@ -5,6 +5,7 @@ import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../.
 import { paypalConfigurado, verificarPedidoPaypal } from '../../lib/paypal';
 import { finTrasMesPaypal, suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../../lib/suscripcion';
 import { enlaceDescargaProducto } from '../../lib/descargas';
+import { aceptaMostrarNombre, datosAviso } from '../../lib/avisoCompras';
 
 // Igual que en checkout.js / enviar-pedido.js: usamos la Service Role Key
 // en el servidor para poder escribir en "purchases" sin que las políticas
@@ -25,10 +26,12 @@ const TABLE_BY_TIPO = {
 // registrado ya. Devuelve true si se puede seguir; si no, ya ha respondido al
 // navegador y ha avisado al admin. Si la clave de PayPal aún no está puesta
 // en Vercel, se sigue como antes (sin comprobar) y se deja aviso en el log.
+// Devuelve los datos del pagador (para los avisos de compras) si el pago es
+// correcto, o false si no lo es (y ya ha respondido al navegador).
 async function pagoComprobado(res, paypalOrderId, esperadoCents, resumen) {
   if (!paypalConfigurado()) {
     console.warn('registrar-pago-paypal: falta PAYPAL_CLIENT_SECRET en Vercel; el pago NO se ha comprobado con PayPal.');
-    return true;
+    return {};
   }
 
   const { data: yaRegistrado } = await supabase
@@ -44,7 +47,7 @@ async function pagoComprobado(res, paypalOrderId, esperadoCents, resumen) {
   const r = typeof esperadoCents === 'number'
     ? await verificarPedidoPaypal(paypalOrderId, esperadoCents)
     : { ok: false, motivo: 'Algún artículo o plan ya no existe en la tienda, no se puede calcular su precio.' };
-  if (r.ok) return true;
+  if (r.ok) return r.pagador || {};
 
   console.error('registrar-pago-paypal: pago NO verificado:', r.motivo, resumen);
   const resendApiKey = process.env.RESEND_API_KEY;
@@ -166,7 +169,8 @@ export default async function handler(req, res) {
     const precioServidor = planElegido === undefined ? null : precioCentimos(itemConOferta, planElegido);
     const precioCents = precioServidor ?? (typeof amountCents === 'number' ? amountCents : null);
 
-    if (!(await pagoComprobado(res, paypalOrderId, precioServidor, `${nombreItem} · pedido PayPal ${paypalOrderId || '—'} · ${userEmail || payerEmail || 'sin email'}`))) {
+    const pagador = await pagoComprobado(res, paypalOrderId, precioServidor, `${nombreItem} · pedido PayPal ${paypalOrderId || '—'} · ${userEmail || payerEmail || 'sin email'}`);
+    if (!pagador) {
       return;
     }
     const moneda = item.currency || item.moneda || 'eur';
@@ -201,6 +205,7 @@ export default async function handler(req, res) {
           user_id: resolvedUserId,
           ...(resolvedUserId ? {} : { email: String(emailParaBuscar).trim() }),
           ...campoPedidoPaypal(paypalOrderId),
+          aviso: datosAviso({ acepta: aceptaMostrarNombre(req), nombreCompleto: pagador.nombreCompleto, pais: pagador.pais }),
           amount,
           plan_name: nombreItem,
           items: [
@@ -402,7 +407,8 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
     const esperadoCents = enrichedCart.some((i) => i.precioServidor === null)
       ? null
       : enrichedCart.reduce((acc, i) => acc + i.precioServidor * i.quantity, 0);
-    if (!(await pagoComprobado(res, paypalOrderId, esperadoCents, `${nombrePedido} · pedido PayPal ${paypalOrderId || '—'} · ${userEmail || payerEmail || 'sin email'}`))) {
+    const pagador = await pagoComprobado(res, paypalOrderId, esperadoCents, `${nombrePedido} · pedido PayPal ${paypalOrderId || '—'} · ${userEmail || payerEmail || 'sin email'}`);
+    if (!pagador) {
       return;
     }
 
@@ -427,6 +433,7 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
           user_id: resolvedUserId,
           ...(resolvedUserId ? {} : { email: String(emailParaBuscar).trim() }),
           ...campoPedidoPaypal(paypalOrderId),
+          aviso: datosAviso({ acepta: aceptaMostrarNombre(req), nombreCompleto: pagador.nombreCompleto, pais: pagador.pais }),
           amount,
           plan_name: nombrePedido,
           items: enrichedCart.map((i) => ({

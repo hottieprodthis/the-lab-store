@@ -6,6 +6,7 @@ import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../l
 import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios } from '../../lib/limiteSemanal';
 import { bloqueoPagoObras, leerVacaciones, mensajeReservasVacaciones, CASILLA_CONDICIONES } from '../../lib/obras';
 import { enlaceDescargaProducto } from '../../lib/descargas';
+import { aceptaMostrarNombre } from '../../lib/avisoCompras';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -105,6 +106,8 @@ export default async function handler(req, res) {
     let driveLink = '';
     let metadataPayload = {
       user_id: resolvedUserId || '',
+      // Casilla "mostrar mi nombre en los avisos de compras" (lib/avisoCompras.js)
+      mostrar_nombre: aceptaMostrarNombre(req) ? '1' : '0',
     };
     let checkoutMode = 'payment';
     let cuponSuscripcion = null; // cupón de Stripe de la oferta de la suscripción

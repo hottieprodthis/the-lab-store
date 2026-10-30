@@ -1,4 +1,40 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+// Casilla (sin marcar) para salir con el nombre en los avisos de compras de la
+// web (components/AvisoCompras.js). Se recuerda durante la visita y viaja al
+// servidor en la cabecera x-mostrar-nombre (lib/cabecerasPago.js).
+function CasillaMostrarNombre() {
+  const [marcada, setMarcada] = useState(false);
+  useEffect(() => {
+    try {
+      setMarcada(sessionStorage.getItem('thelab-mostrar-nombre') === '1');
+    } catch {}
+  }, []);
+  const cambiar = (valor) => {
+    setMarcada(valor);
+    try {
+      sessionStorage.setItem('thelab-mostrar-nombre', valor ? '1' : '0');
+    } catch {}
+  };
+  return (
+    <label className="mt-3 flex cursor-pointer items-start gap-2 text-left font-body text-[11px] leading-relaxed text-muted">
+      <input
+        type="checkbox"
+        checked={marcada}
+        onChange={(e) => cambiar(e.target.checked)}
+        className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[#CCFF00]"
+      />
+      <span>
+        Mostrar mi nombre (solo el nombre de pila) y mi país en los avisos de compras de la web. Si no lo marcas, saldrá como
+        «Alguien». Nunca se muestran apellidos, correo ni ubicación exacta, y no vendemos tus datos.{' '}
+        <a href="/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="underline hover:text-paper">
+          Más información
+        </a>
+        .
+      </span>
+    </label>
+  );
+}
 
 // checkBeforePay (opcional): función async que devuelve true/false. Si se
 // pasa, se ejecuta al pulsar el botón de PayPal y, si devuelve false, NO se
@@ -68,6 +104,7 @@ export default function PayPalButton({ amount, currency = 'EUR', label, onSucces
         </a>
         : no se hacen devoluciones una vez realizado el pago.
       </p>
+      {!label?.toLowerCase().includes('suscripci') && <CasillaMostrarNombre />}
     </>
   );
 }

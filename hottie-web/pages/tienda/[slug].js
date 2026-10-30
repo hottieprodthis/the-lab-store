@@ -180,7 +180,7 @@ export default function ProductoDetalle({ product }) {
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           tipo: 'producto',
           itemId: product.id,

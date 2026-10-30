@@ -64,7 +64,12 @@ export async function verificarPedidoPaypal(orderId, esperadoCents, moneda = 'EU
         motivo: `En el pedido ${orderId} se pagaron ${(pagadoCents / 100).toFixed(2)} € y debía costar ${(esperadoCents / 100).toFixed(2)} €.`,
       };
     }
-    return { ok: true, pagadoCents };
+    // Nombre y país del pagador, para los avisos de compras (lib/avisoCompras.js).
+    const pagador = {
+      nombreCompleto: pedido.payer?.name?.given_name || '',
+      pais: pedido.payer?.address?.country_code || pedido.purchase_units?.[0]?.shipping?.address?.country_code || '',
+    };
+    return { ok: true, pagadoCents, pagador };
   } catch (e) {
     return { ok: false, motivo: `No se pudo comprobar el pedido ${orderId} con PayPal: ${e.message}` };
   }

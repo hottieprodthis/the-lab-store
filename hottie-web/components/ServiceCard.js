@@ -106,7 +106,7 @@ export default function ServiceCard({ service }) {
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           tipo: service.isClass ? 'clase' : 'servicio',
           itemId: service.id,

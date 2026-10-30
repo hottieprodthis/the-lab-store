@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { prepararCorreo } from '../../lib/correos';
 import { finSegunStripe, proximaRenovacionStripe, ajustarPrecioStripe, precioRenovacion, leerCambioPrecio, altaStripe } from '../../lib/suscripcion';
 import { enlaceDescargaProducto } from '../../lib/descargas';
+import { datosAviso } from '../../lib/avisoCompras';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -177,6 +178,12 @@ export default async function handler(req, res) {
     const emailCliente = session.customer_details?.email || session.customer_email || session.metadata?.customer_email;
     const nombreCliente = session.customer_details?.name || 'Cliente';
     const metadata = session.metadata || {};
+    // Para los avisos de compras: nombre de pila solo si marcó la casilla, y país.
+    const aviso = datosAviso({
+      acepta: metadata.mostrar_nombre === '1',
+      nombreCompleto: session.customer_details?.name,
+      pais: session.customer_details?.address?.country,
+    });
 
     console.log('--- WEBHOOK STRIPE RECIBIDO ---');
     console.log('Email cliente:', emailCliente);
@@ -348,6 +355,7 @@ export default async function handler(req, res) {
           .insert([
             {
               user_id: userId,
+              aviso,
               amount: totalAmount,
               plan_name: planNameToSave,
               items: itemsForHistory.length > 0 ? itemsForHistory : null,
@@ -373,6 +381,7 @@ export default async function handler(req, res) {
             {
               user_id: null,
               email: emailCliente.trim(),
+              aviso,
               amount: totalAmount,
               plan_name: planNameToSave,
               items: itemsForHistory.length > 0 ? itemsForHistory : null,

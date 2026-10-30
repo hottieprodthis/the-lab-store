@@ -15,6 +15,10 @@ export async function cabecerasPago() {
   } catch (e) {
     // sin sesión de admin: cabeceras normales
   }
+  // Casilla "mostrar mi nombre y país en los avisos de compras" (PayPalButton).
+  try {
+    if (sessionStorage.getItem('thelab-mostrar-nombre') === '1') cabeceras['x-mostrar-nombre'] = '1';
+  } catch (e) {}
   try {
     const { data } = await supabase.auth.getSession();
     if (data?.session?.access_token) cabeceras.Authorization = `Bearer ${data.session.access_token}`;

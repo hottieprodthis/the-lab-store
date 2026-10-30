@@ -60,6 +60,13 @@ export default function PoliticaDePrivacidad() {
               <strong className="text-paper">Boletín:</strong> tu email, si te apuntas para recibir novedades.
             </li>
             <li>
+              <strong className="text-paper">Avisos de compras:</strong> cuando alguien compra, la web puede mostrar a otros
+              visitantes un aviso como «Antonio compró Kit X · desde España · Verificado». Solo sale tu{' '}
+              <strong className="text-paper">nombre de pila</strong> si marcas la casilla al pagar; si no, sale como «Alguien».
+              El país lo obtenemos del medio de pago (Stripe o PayPal) y nunca usamos tu ubicación exacta. No se muestran
+              apellidos, correo, importes ni fechas, y no vendemos ni cedemos estos datos. Solo se usan compras del último año.
+            </li>
+            <li>
               <strong className="text-paper">Opiniones:</strong> si dejas una opinión sobre una compra, guardamos el
               nombre que escribas, las estrellas y el texto. Si la aprobamos, se publican en la web el nombre, las
               estrellas y el texto (nunca tu email). Puedes pedirnos que la quitemos cuando quieras.

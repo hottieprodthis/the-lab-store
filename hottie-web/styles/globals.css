@@ -115,3 +115,9 @@ select:focus-visible {
   color-scheme: only light !important;
   filter: none !important;
 }
+
+/* Avisos de compras (components/AvisoCompras.js) */
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

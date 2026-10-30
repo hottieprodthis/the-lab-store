@@ -129,7 +129,7 @@ export default function DetalleClase({ clase }) {
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           tipo: 'clase',
           itemId: clase.id,
@@ -201,7 +201,7 @@ export default function DetalleClase({ clase }) {
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           tipo: 'clase',
           itemId: clase.id,

@@ -143,7 +143,7 @@ export default function CartFloating() {
 
       await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await cabecerasPago(),
         body: JSON.stringify({
           items: cart,
           userId: session?.user?.id || userId || null,
