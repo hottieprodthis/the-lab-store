@@ -8,6 +8,7 @@ import BrandsBanner from '../components/BrandsBanner';
 import TextoDescifrado from '../components/TextoDescifrado';
 import MasEscuchados from '../components/MasEscuchados';
 import ListaYoutube from '../components/ListaYoutube';
+import FotosSobreMi from '../components/FotosSobreMi';
 import { Contador, Aparecer, FondoOndas } from '../components/Animaciones';
 import Turnstile from '../components/Turnstile';
 import Opiniones from '../components/Opiniones';
@@ -139,59 +140,76 @@ export default function Home() {
 
       {/* SECCIÓN SOBRE HOTTIE + NEWSLETTER */}
       <Aparecer>
-      <section className="mx-auto max-w-4xl px-5 py-20 text-center">
-        <div className="mx-auto mb-8 h-36 w-36 overflow-hidden rounded-full border-2 border-volt/40 p-1 shadow-lg shadow-volt/10">
-          <img
-            src="/sobre-mi-imagen.jpeg"
-            alt="Hottieprod - Productor Musical"
-            className="h-full w-full rounded-full object-cover"
-          />
-        </div>
-
-        <h2 className="font-display text-4xl tracking-wide text-paper mb-6 uppercase">
-          Sobre Hottie
-        </h2>
-
-        {/* Cifras destacadas: cuentan desde 0 al aparecer en pantalla */}
-        <div className="mx-auto mb-10 grid max-w-2xl grid-cols-3 gap-4">
-          {[
-            { hasta: 100, antes: '+', texto: 'Producciones' },
-            { hasta: 20, antes: '+', despues: 'M', texto: 'Visualizaciones' },
-            { hasta: new Date().getFullYear() - 2012, antes: '+', texto: 'Años produciendo' },
-          ].map((c) => (
-            <div key={c.texto}>
-              <p className="font-display text-5xl leading-none text-volt md:text-6xl">
-                <Contador hasta={c.hasta} antes={c.antes} despues={c.despues} />
-              </p>
-              <p className="mt-2 font-body text-[11px] uppercase tracking-widest text-muted md:text-xs">{c.texto}</p>
+      <section className="mx-auto max-w-6xl px-5 py-20">
+        <div className="grid items-center gap-10 md:grid-cols-[2fr_3fr] md:gap-14">
+          {/* Foto: tarjeta grande con brillo verde (antes, círculo pequeño) */}
+          <div className="relative mx-auto w-full max-w-sm md:max-w-none">
+            <div aria-hidden="true" className="absolute -inset-3 rounded-[28px] bg-volt/10 blur-2xl" />
+            <div className="relative overflow-hidden rounded-2xl border border-volt/30 shadow-2xl">
+              <FotosSobreMi />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/90 to-transparent p-4">
+                <p className="font-body text-[11px] uppercase tracking-[0.25em] text-volt">Salamanca · desde 2012</p>
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div className="mx-auto max-w-2xl space-y-4 font-body text-base text-muted leading-relaxed">
-          <p>
-            Hottie es un Productor, Ingeniero y Dj de origen Español con residencia en Salamanca especializado en música electrónica, latina y tribal.
-          </p>
-          <p>
-            Hottie comenzó a producir a principios de 2012 hasta que en 2018 decidió crear su marca personal, llevando consigo la música electro/latina a su terreno en otro nivel.
-          </p>
-          <p>
-            A lo largo de su carrera acumula más de <strong className="text-paper font-semibold">100 producciones</strong> de más de <strong className="text-paper font-semibold">20M de visualizaciones</strong> trabajando con diferentes artistas como <span className="text-paper font-medium">El Jincho, Saiko, Lucho SSJ, Denyerkin, Kristina, Yeieme, Ritnes, Young Class, Escudero y Karlitos</span> entre muchos más...
-          </p>
-        </div>
+          <div className="text-center md:text-left">
+            <p className="font-body text-xs uppercase tracking-[0.3em] text-volt">Sobre Hottie</p>
+            <h2 className="mt-2 font-display text-4xl uppercase tracking-wide text-paper md:text-5xl">Detrás del laboratorio</h2>
 
-        {/* BOTÓN PERFIL MUSO.AI */}
-        <div className="mt-10 flex justify-center">
-          <a
-            href="https://muso.ai/profile/6f3664ee-3a33-4b81-aeda-d228ac88b0e7"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Ver créditos en Muso.ai"
-            className="inline-block font-body text-sm font-bold uppercase tracking-wider text-paper transition duration-200 hover:scale-125 hover:text-volt"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            VER CRÉDITOS
-          </a>
+            <div className="mt-6 space-y-4 font-body text-base leading-relaxed text-muted">
+              <p>
+                <strong className="font-semibold text-paper">Hottie</strong> creció entre altavoces: con 10 años ya acompañaba a su
+                padre, cantante de toda la vida, como DJ en discotecas móviles y técnico de sonido en escenarios por numerosos lugares
+                de España. Empezó a producir porque quería cantar y no había beats, así que se los hizo él mismo, en una época sin tutoriales, a base de libros, oído y
+                muchas horas.
+              </p>
+              <p>
+                Desde 2012 es productor, ingeniero de mezcla y mastering y DJ, con base en Salamanca. En 2018 creó su marca para llevar
+                a su terreno un sonido entre lo <span className="text-paper">electrónico, lo latino y lo tribal</span>. Ya suma{' '}
+                <strong className="font-semibold text-paper">más de 100 producciones</strong> y{' '}
+                <strong className="font-semibold text-paper">más de 20 millones de visualizaciones</strong> con artistas como{' '}
+                <span className="font-medium text-paper">
+                  El Jincho, Kristina, Saiko, Lucho SSJ, Denyerkin, Yeieme, Ritnes, Young Class, Escudero y Karlitos
+                </span>
+                , entre más de 80 artistas.
+              </p>
+              <p>
+                Hoy pone toda esa experiencia en The Lab: producción, mezcla, mastering, clases y kits, sin prisas y con honestidad,
+                para que tu música suene como tiene que sonar.
+              </p>
+            </div>
+
+            {/* Cifras destacadas: cuentan desde 0 al aparecer en pantalla */}
+            <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/10 pt-6">
+              {[
+                { hasta: 100, antes: '+', texto: 'Producciones' },
+                { hasta: 20, antes: '+', despues: 'M', texto: 'Visualizaciones' },
+                { hasta: new Date().getFullYear() - 2012, antes: '+', texto: 'Años produciendo' },
+              ].map((c) => (
+                <div key={c.texto}>
+                  <p className="font-display text-4xl leading-none text-volt md:text-5xl">
+                    <Contador hasta={c.hasta} antes={c.antes} despues={c.despues} />
+                  </p>
+                  <p className="mt-2 font-body text-[11px] uppercase tracking-widest text-muted md:text-xs">{c.texto}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* BOTÓN PERFIL MUSO.AI */}
+            <div className="mt-8">
+              <a
+                href="https://muso.ai/profile/6f3664ee-3a33-4b81-aeda-d228ac88b0e7"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Ver créditos en Muso.ai"
+                className="inline-block font-body text-sm font-bold uppercase tracking-wider text-paper transition duration-200 hover:scale-125 hover:text-volt"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                VER CRÉDITOS
+              </a>
+            </div>
+          </div>
         </div>
 
         <div className="mt-10 mx-auto max-w-md rounded-xl border border-white/10 bg-white/5 p-6 backdrop-blur">
