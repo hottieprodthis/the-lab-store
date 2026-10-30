@@ -34,6 +34,7 @@ export default async function handler(req, res) {
         pais: c.aviso?.pais || null,
         articulo: item?.name || c.plan_name || '',
         imagen: item?.image_url || null,
+        tipo: item?.type || 'producto', // producto | servicio | clase (para el icono si no hay imagen)
       };
     }).filter((c) => c.articulo);
 

@@ -12,6 +12,14 @@ const VISIBLE_MS = 7000; // cada aviso se ve 7 s
 const MAXIMO = 3; // como mucho 3 por visita
 const CLAVE = 'thelab-avisos-compras';
 
+// Icono cuando lo comprado no tiene imagen (los mismos que en la FAQ).
+function iconoDe(compra) {
+  if (compra.tipo === 'clase') return '🎓';
+  if (/seguimiento/i.test(compra.articulo || '')) return '🔄';
+  if (compra.tipo === 'servicio') return '🎚️';
+  return '🥁';
+}
+
 function nombrePais(codigo) {
   if (!codigo) return '';
   try {
@@ -83,7 +91,7 @@ export default function AvisoCompras({ ejemplo }) {
         <img src={actual.imagen} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
       ) : (
         <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-ink text-2xl">
-          🎧
+          {iconoDe(actual)}
         </span>
       )}
       <div className="min-w-0 flex-1">
