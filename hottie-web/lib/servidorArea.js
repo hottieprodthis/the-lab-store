@@ -48,7 +48,10 @@ export async function leerAjuste(clave) {
 }
 
 export async function cupoRevisiones() {
-  const n = Math.round(Number(await leerAjuste('review_quota')));
+  // Sin ajuste guardado (o vacío) vale el de por defecto, no 0.
+  const valor = await leerAjuste('review_quota');
+  if (valor === null || String(valor).trim() === '') return CUPO_REVISIONES_DEFECTO;
+  const n = Math.round(Number(valor));
   return Number.isFinite(n) && n >= 0 ? n : CUPO_REVISIONES_DEFECTO;
 }
 
