@@ -6,10 +6,12 @@ import { supabase } from '../lib/supabaseClient';
 import PayPalButton from '../components/PayPalButton';
 import { AvisoOferta } from '../components/PrecioOferta';
 import { leerOfertaSuscripcion, precioSuscripcion } from '../lib/ofertas';
-import { suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../lib/suscripcion';
+import { suscripcionActiva, precioRenovacion, leerCambioPrecio, precioPorVidaCents } from '../lib/suscripcion';
 import { cabecerasPago } from '../lib/cabecerasPago';
 import { permitirSuscripcion } from '../lib/disponibilidadClient';
 import { EsqueletoAreaCliente } from '../components/Esqueleto';
+import { Insignias, Proximamente, Escaparate, Votacion, RevisionTema, AvisoCierre } from '../components/AreaExtras';
+import { useDescuentoSuscriptor } from '../lib/useDescuentoSuscriptor';
 
 export default function AreaClientePage() {
   const [user, setUser] = useState(null);
@@ -33,6 +35,13 @@ export default function AreaClientePage() {
   // desde aquí.
   const [openSubPayment, setOpenSubPayment] = useState(false);
   const [subPaypalLoading, setSubPaypalLoading] = useState(false);
+  // Qué se paga en el menú de pago: la mensual o la de por vida.
+  const [planPago, setPlanPago] = useState('mensual');
+  // Suscripción de por vida: { cents, oferta } (lib/suscripcion.js).
+  const [porVida, setPorVida] = useState(null);
+  // Insignias, escaparate, próximamente, votación y revisión (api/area/extras).
+  const [extras, setExtras] = useState(null);
+  const { descuento } = useDescuentoSuscriptor();
   const router = useRouter();
 
   const toggleExpandPurchase = (id) => {
@@ -117,6 +126,15 @@ export default function AreaClientePage() {
       const sub = precioSuscripcion(precioNormalCents, leerOfertaSuscripcion(ofertaData?.value));
       setOfertaSub(sub.oferta ? sub : null);
 
+      const { data: ajustesPorVida } = await supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', ['lifetime_price', 'lifetime_offer']);
+      const ajustePorVida = (k) => (ajustesPorVida || []).find((x) => x.key === k)?.value;
+      setPorVida(precioSuscripcion(precioPorVidaCents(ajustePorVida('lifetime_price')), leerOfertaSuscripcion(ajustePorVida('lifetime_offer'))));
+
+      await cargarExtras(session.access_token);
+
       if (suscripcionActiva(profileData)) {
         const { data: postsData } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
         const { data: packsData } = await supabase.from('packs').select('*').order('created_at', { ascending: false });
@@ -131,10 +149,104 @@ export default function AreaClientePage() {
     loadData();
   }, [router]);
 
+  async function cargarExtras(token) {
+    try {
+      const r = await fetch('/api/area/extras', { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setExtras(await r.json());
+    } catch (e) {
+      console.error('No se pudieron cargar los extras del área:', e);
+    }
+  }
+
+  async function tokenSesion() {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || '';
+  }
+
+  const votar = async (votacionId, opcion) => {
+    const token = await tokenSesion();
+    const r = await fetch('/api/area/votar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ votacionId, opcion }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.error || 'No se pudo guardar tu voto.');
+    }
+    await cargarExtras(token);
+  };
+
+  const enviarRevision = async (datos) => {
+    const token = await tokenSesion();
+    const r = await fetch('/api/area/revision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(datos),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) {
+      await cargarExtras(token);
+      return null;
+    }
+    return d.motivo === 'lleno' ? { motivo: 'lleno' } : { error: d.error || 'No se pudo enviar tu tema.' };
+  };
+
+  // El enlace del pack lo da el servidor solo a suscriptores (pages/api/download.js).
+  // La pestaña se abre antes de esperar al servidor para que el navegador no la bloquee.
+  const descargarPack = async (packId) => {
+    const pestana = window.open('', '_blank');
+    try {
+      const r = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenSesion()}` },
+        body: JSON.stringify({ packId }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.url) throw new Error(d.error || 'No se pudo preparar la descarga.');
+      if (pestana) {
+        pestana.opener = null;
+        pestana.location.href = d.url;
+      } else {
+        window.location.href = d.url;
+      }
+    } catch (err) {
+      if (pestana) pestana.close();
+      alert(err.message);
+    }
+  };
+
+  const elegirPlan = (plan) => {
+    setPlanPago(plan);
+    setOpenSubPayment(true);
+  };
+
   // Precio que se enseña: con oferta, el del primer mes y el normal después.
   const textoPrecioSub = ofertaSub
     ? `${(ofertaSub.cents / 100).toFixed(2)} € el primer mes (después ${subscriptionPrice} €/mes)`
     : `${subscriptionPrice} €/mes`;
+
+  const textoPorVida = porVida ? `${(porVida.cents / 100).toFixed(2).replace('.', ',')} €` : '';
+
+  // Pago de la suscripción de por vida con tarjeta (y Klarna a plazos, Bizum...).
+  const handleLifetimeCheckout = async () => {
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: await cabecerasPago(),
+        body: JSON.stringify({ isLifetime: true, userEmail: user?.email }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Error al iniciar el pago: ' + (data.error || 'Desconocido'));
+      }
+    } catch (err) {
+      console.error('Error de conexión:', err);
+      alert('Hubo un error al conectar con el servidor de pagos.');
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -175,7 +287,7 @@ export default function AreaClientePage() {
   // se renueva solo el mes que viene — solo Stripe hace la renovación
   // automática real. Si el cliente quiere seguir pagando con PayPal, tendrá
   // que volver a pulsar aquí el mes siguiente.
-  const handleSubscriptionPaypalSuccess = async (details) => {
+  const handleSubscriptionPaypalSuccess = async (details, tipoPago = 'suscripcion') => {
     setSubPaypalLoading(true);
     try {
       // El acceso lo activa el servidor tras comprobar el pago con PayPal
@@ -186,13 +298,15 @@ export default function AreaClientePage() {
       const payerName = [details?.payer?.name?.given_name, details?.payer?.name?.surname]
         .filter(Boolean)
         .join(' ');
-      const priceInCents = ofertaSub ? ofertaSub.cents : Math.round(Number(subscriptionPrice) * 100);
+      const priceInCents = tipoPago === 'por_vida'
+        ? porVida?.cents
+        : ofertaSub ? ofertaSub.cents : Math.round(Number(subscriptionPrice) * 100);
 
       const respuesta = await fetch('/api/registrar-pago-paypal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({
-          tipo: 'suscripcion',
+          tipo: tipoPago,
           amountCents: priceInCents,
           userId: user?.id || null,
           userEmail: user?.email || payerEmail,
@@ -225,6 +339,7 @@ export default function AreaClientePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${await tokenSesion()}`,
         },
         body: JSON.stringify({
           userId: user.id,
@@ -257,8 +372,8 @@ export default function AreaClientePage() {
     try {
       const response = await fetch('/api/actualizar-preferencia-notificaciones', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, notifyNewItems: checked }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenSesion()}` },
+        body: JSON.stringify({ notifyNewItems: checked }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -371,6 +486,7 @@ export default function AreaClientePage() {
           <div>
             <h1 className="font-display text-3xl tracking-wide text-paper mb-1">Área de Clientes</h1>
             <p className="text-xs text-muted uppercase tracking-widest">{user?.email}</p>
+            <Insignias insignias={extras?.insignias} />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {profile?.is_admin && (
@@ -406,21 +522,22 @@ export default function AreaClientePage() {
 
         {/* Verificación de suscripción */}
         {!suscripcionActiva(profile) ? (
-          <div className="rounded-sm border border-white/10 bg-surface p-8 text-center max-w-lg mx-auto my-12">
-            <h2 className="font-display text-2xl mb-3 text-paper">🔒 Contenido Exclusivo Bloqueado</h2>
-            <p className="text-sm text-muted mb-6 leading-relaxed">
-              Para acceder a todos los packs de descargas y posts exclusivos, activa tu suscripción mensual por solo {textoPrecioSub}.
-            </p>
-            <button
-              onClick={() => setOpenSubPayment(true)}
-              className="rounded-sm bg-volt px-6 py-3 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
-            >
-              Suscribirse Ahora ({textoPrecioSub})
-            </button>
+          <div className="space-y-10">
+            <Proximamente texto={extras?.proximamente} />
+            <Escaparate
+              escaparate={extras?.escaparate}
+              revision={extras?.revision}
+              descuento={descuento}
+              textoMensual={textoPrecioSub}
+              porVida={extras?.cierre ? null : porVida}
+              onElegir={elegirPlan}
+            />
           </div>
         ) : (
           <div className="space-y-12">
-            
+            <AvisoCierre cierre={extras?.cierre} />
+            <Proximamente texto={extras?.proximamente} />
+
             {/* Sección Packs */}
             <div>
               <h2 className="font-display text-2xl tracking-wide text-paper mb-6 border-l-4 border-volt pl-3">
@@ -438,7 +555,7 @@ export default function AreaClientePage() {
                       </div>
                       <a 
                         href="#" 
-                        onClick={(e) => { e.preventDefault(); window.open(pack.file_key, '_blank'); }}
+                        onClick={(e) => { e.preventDefault(); descargarPack(pack.id); }}
                         className="inline-block rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink text-center hover:brightness-110"
                       >
                         Descargar Pack
@@ -470,8 +587,20 @@ export default function AreaClientePage() {
               )}
             </div>
 
+            <Votacion votacion={extras?.votacion} onVotar={votar} />
+            <RevisionTema revision={extras?.suscrito ? extras.revision : null} onEnviar={enviarRevision} />
+
+            {/* De por vida: sin fechas ni renovaciones */}
+            {profile?.por_vida && (
+              <div className="border-t border-white/10 pt-8 text-center">
+                <p className="text-sm text-paper">
+                  ⭐ Eres <strong className="text-volt">miembro de por vida</strong>: tienes acceso a todo sin cuotas ni renovaciones.
+                </p>
+              </div>
+            )}
+
             {/* Estado de la suscripción: hasta cuándo dura y renovar/cancelar */}
-            {profile?.is_subscribed && (
+            {profile?.is_subscribed && !profile?.por_vida && (
               <div className="border-t border-white/10 pt-8 text-center space-y-4">
                 {profile?.subscribed_until && (
                   <p className="text-sm text-muted">
@@ -498,6 +627,20 @@ export default function AreaClientePage() {
                   >
                     Renovar 1 mes más ({textoPrecioSub})
                   </button>
+                )}
+                {porVida && !extras?.cierre && (
+                  <div className="mx-auto max-w-md rounded-sm border border-volt/40 p-5">
+                    <p className="text-sm text-paper">
+                      ¿Te quedas? Pásate a <strong className="text-volt">de por vida</strong> por {textoPorVida} (o en 3 plazos) y olvídate de las cuotas.
+                      {profile?.stripe_subscription_id ? ' Tu mensual se cancela sola al pagar.' : ''}
+                    </p>
+                    <button
+                      onClick={() => elegirPlan('por_vida')}
+                      className="mt-4 rounded-sm bg-volt px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-ink hover:brightness-110"
+                    >
+                      Hacerme de por vida
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -738,10 +881,51 @@ export default function AreaClientePage() {
             </button>
 
             <h3 className="font-display text-2xl tracking-wide text-paper mb-6 border-b border-white/10 pb-4">
-              Suscribirse ({textoPrecioSub})
+              {planPago === 'por_vida' ? `De por vida (${textoPorVida})` : `Suscribirse (${textoPrecioSub})`}
             </h3>
-            {ofertaSub && <AvisoOferta fin={ofertaSub.oferta.fin} className="-mt-3 mb-5" />}
+            {planPago === 'por_vida'
+              ? porVida?.oferta && <AvisoOferta fin={porVida.oferta.fin} className="-mt-3 mb-5" />
+              : ofertaSub && <AvisoOferta fin={ofertaSub.oferta.fin} className="-mt-3 mb-5" />}
 
+            {planPago === 'por_vida' ? (
+            <div className="space-y-3">
+              <button
+                onClick={handleLifetimeCheckout}
+                className="block w-full text-center rounded-sm bg-[#CCFF00] px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition hover:brightness-110"
+              >
+                Pagar con tarjeta, en 3 plazos y más
+              </button>
+              <p className="text-[10px] text-muted leading-relaxed">
+                Con tarjeta puedes elegir Klarna para pagarlo en 3 plazos sin intereses (si Klarna te lo aprueba).
+              </p>
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink mx-3 text-muted text-xs uppercase font-semibold">O pagar con</span>
+                <div className="flex-grow border-t border-white/10"></div>
+              </div>
+              <div className="w-full relative z-10 min-h-[50px]">
+                {subPaypalLoading ? (
+                  <p className="text-xs text-muted text-center">Activando tu acceso…</p>
+                ) : (
+                  <PayPalButton
+                    amount={(porVida?.cents || 0) / 100}
+                    currency="EUR"
+                    label="Suscripción de por vida (pago único)"
+                    onSuccess={(details) => handleSubscriptionPaypalSuccess(details, 'por_vida')}
+                    checkBeforePay={() => permitirSuscripcion(user?.id)}
+                    plazos
+                  />
+                )}
+              </div>
+              <p className="text-[10px] text-muted leading-relaxed">
+                Pago único: acceso a todo el contenido exclusivo mientras exista el área de clientes, sin cuotas.{' '}
+                <a href="/condiciones-de-venta#por-vida" target="_blank" rel="noopener noreferrer" className="underline hover:text-paper">
+                  Ver condiciones
+                </a>
+                .
+              </p>
+            </div>
+            ) : (
             <div className="space-y-3">
               <button
                 onClick={handleSubscriptionCheckout}
@@ -771,6 +955,7 @@ export default function AreaClientePage() {
                 Con PayPal se cobra solo este mes: no se renueva sola, tendrás que volver a pulsar aquí el mes que viene si quieres seguir.
               </p>
             </div>
+            )}
           </div>
         </div>
       )}

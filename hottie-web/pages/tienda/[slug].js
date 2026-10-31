@@ -10,7 +10,9 @@ import { supabase } from '../../lib/supabaseClient';
 import { propsConObras } from '../../lib/obras';
 import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
-import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
+import { PrecioTachado, AvisoOferta, AvisoDescuentoSuscriptor } from '../../components/PrecioOferta';
+import { useDescuentoSuscriptor } from '../../lib/useDescuentoSuscriptor';
+import { filaConDescuento, porcentajePara } from '../../lib/descuentoSuscriptor';
 import { interpretarDemo } from '../../lib/demo';
 import OndaAudio from '../../components/OndaAudio';
 import { useCart } from '../../context/CartContext';
@@ -72,7 +74,10 @@ function ProductDemoPlayer({ demoUrl, fallbackCover }) {
   );
 }
 
-export default function ProductoDetalle({ product }) {
+export default function ProductoDetalle({ product: productoBase }) {
+  // Suscriptores: precio con su descuento (lib/descuentoSuscriptor.js).
+  const { descuento, suscrito } = useDescuentoSuscriptor();
+  const product = suscrito ? filaConDescuento(productoBase, 'producto', descuento) : productoBase;
   const router = useRouter();
   const { addToCart } = useCart();
   const [loading, setLoading] = useState(false);
@@ -233,7 +238,8 @@ export default function ProductoDetalle({ product }) {
             {product.oferta && <PrecioTachado cents={product.oferta.precio_original_cents} currency={product.currency} />}
             {formatPrice(product.price_cents, product.currency)}
           </p>
-          {product.oferta && <AvisoOferta fin={product.oferta.fin} className="mt-2" />}
+          {product.oferta && <AvisoOferta fin={product.oferta.fin} suscriptor={product.descuentoSuscriptor} className="mt-2" />}
+          {!suscrito && !product.oferta && <AvisoDescuentoSuscriptor porcentaje={porcentajePara(descuento, 'producto')} />}
           <p className="mt-6 whitespace-pre-line leading-relaxed text-muted">{product.description}</p>
 
           <div className="mt-8 flex flex-col gap-5 w-full">

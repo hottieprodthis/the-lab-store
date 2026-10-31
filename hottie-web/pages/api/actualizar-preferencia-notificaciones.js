@@ -22,10 +22,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId, notifyNewItems } = req.body || {};
+    const { notifyNewItems } = req.body || {};
 
+    // La cuenta sale de la sesión (antes valía cualquier userId que mandase
+    // el navegador, así que se podía cambiar la preferencia de otro).
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const { data: datos } = token ? await supabase.auth.getUser(token) : { data: null };
+    const userId = datos?.user?.id;
     if (!userId) {
-      return res.status(400).json({ error: 'Falta userId' });
+      return res.status(401).json({ error: 'Tienes que iniciar sesión.' });
     }
 
     const { error } = await supabase

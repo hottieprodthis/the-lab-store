@@ -1,4 +1,5 @@
 import { prepararCorreo } from '../../lib/correos';
+import { comprobarEnlace, comprobarEnlaces, enlaceParaCorreo, escaparHtml } from '../../lib/enlacesSeguros';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -24,6 +25,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
   }
 
+  // Enlaces: solo de plataformas conocidas y con https (lib/enlacesSeguros.js),
+  // para que abrirlos desde el correo sea seguro.
+  const demo = enlaceDemo && String(enlaceDemo).trim() ? comprobarEnlace(enlaceDemo) : null;
+  if (demo && !demo.ok) {
+    return res.status(400).json({ error: `Enlace de la demo: ${demo.motivo}` });
+  }
+
   // Briefing de SEGUIMIENTO: además de los cuatro campos de siempre exige
   // qué se trabaja (mezcla y master o producción), los enlaces a los
   // proyectos más recientes y los plugins que más usa el cliente.
@@ -38,6 +46,10 @@ export default async function handler(req, res) {
     if (!MODALIDADES[modalidad] || !enlacesOk || !pluginsOk) {
       return res.status(400).json({ error: 'Faltan campos obligatorios del seguimiento' });
     }
+  }
+  const proyectos = esSeguimiento ? comprobarEnlaces(enlacesProyectos) : null;
+  if (proyectos && !proyectos.ok) {
+    return res.status(400).json({ error: `Enlaces de tus proyectos: ${proyectos.motivo}` });
   }
 
   const resendApiKey = process.env.RESEND_API_KEY;
@@ -55,26 +67,20 @@ export default async function handler(req, res) {
 
   const etiquetaTipo = esSeguimiento ? 'SEGUIMIENTO' : esClase ? 'CLASE' : 'SERVICIO';
 
-  // Los textos libres del seguimiento se escapan para que lo que escriba el
-  // cliente no pueda alterar el correo.
-  const escapar = (texto) =>
-    String(texto)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/\n/g, '<br />');
+  // Todo lo que escribe el cliente se escapa para que no pueda alterar el
+  // correo (ni colar enlaces o código).
+  const escapar = (texto) => escaparHtml(texto).replace(/\n/g, '<br />');
 
   const camposEspecificosHtml = esSeguimiento
     ? `
           <p><strong>Quiere trabajar:</strong> ${MODALIDADES[modalidad]}</p>
-          <p><strong>Enlaces a sus proyectos más recientes:</strong><br />${escapar(enlacesProyectos.trim())}</p>
+          <p><strong>Enlaces a sus proyectos más recientes:</strong><br />${proyectos.enlaces.map((x) => enlaceParaCorreo({ ok: true, ...x })).join('<br /><br />')}</p>
           <p><strong>Plugins que usa mayoritariamente:</strong><br />${escapar(plugins.trim())}</p>
         `
     : esClase
-    ? `<p><strong>Nivel de experiencia:</strong> ${nivel || 'No especificado'}</p>`
+    ? `<p><strong>Nivel de experiencia:</strong> ${nivel ? escapar(nivel) : 'No especificado'}</p>`
     : `
-          <p><strong>Enlace a Demo/Maqueta:</strong> ${enlaceDemo ? `<a href="${enlaceDemo}">${enlaceDemo}</a>` : 'No adjuntado'}</p>
+          <p><strong>Enlace a Demo/Maqueta:</strong><br />${enlaceParaCorreo(demo)}</p>
           <p><strong>¿Tiene Stems / Tracks listos?:</strong> ${tieneStems ? 'SÍ' : 'NO'}</p>
         `;
 
@@ -85,7 +91,7 @@ export default async function handler(req, res) {
     : `
           <br />
           <h3>Detalles adicionales y referencias:</h3>
-          <p style="background: #111; color: #fff; padding: 15px; border-radius: 5px;">${detalles || 'Sin notas adicionales'}</p>
+          <p style="background: #111; color: #fff; padding: 15px; border-radius: 5px;">${detalles ? escapar(detalles) : 'Sin notas adicionales'}</p>
         `;
 
   try {
@@ -99,13 +105,13 @@ export default async function handler(req, res) {
       body: JSON.stringify(prepararCorreo({
         from: 'The Lab System <pedidos@hottieprodthis.com>',
         to: ['pedidos.thelab@gmail.com'],
-        subject: `📋 NUEVO BRIEFING DE ${etiquetaTipo}: ${nombre}`,
+        subject: `📋 NUEVO BRIEFING DE ${etiquetaTipo}: ${String(nombre).slice(0, 80)}`,
         html: `
           <h2>¡Nuevo briefing de ${esSeguimiento ? 'seguimiento' : esClase ? 'clase' : 'proyecto'} recibido!</h2>
-          <p><strong>Nombre / Nombre Artístico:</strong> ${nombre}</p>
-          <p><strong>Email de contacto:</strong> ${email}</p>
-          <p><strong>Teléfono / WhatsApp:</strong> ${telefono}</p>
-          <p><strong>Estilo musical:</strong> ${estilo}</p>
+          <p><strong>Nombre / Nombre Artístico:</strong> ${escapar(nombre)}</p>
+          <p><strong>Email de contacto:</strong> ${escapar(email)}</p>
+          <p><strong>Teléfono / WhatsApp:</strong> ${escapar(telefono)}</p>
+          <p><strong>Estilo musical:</strong> ${escapar(estilo)}</p>
           ${camposEspecificosHtml}
           ${detallesHtml}
         `,

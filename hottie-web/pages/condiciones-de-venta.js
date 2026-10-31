@@ -9,8 +9,8 @@ import Footer from '../components/Footer';
 // reglas de clases, servicios y devoluciones son las mismas que en pages/faq.js.
 const EMAIL = 'hottieprodthis@gmail.com';
 
-function Titulo({ children }) {
-  return <h2 className="text-lg font-bold text-paper uppercase tracking-wider pt-4">{children}</h2>;
+function Titulo({ children, id }) {
+  return <h2 id={id} className="scroll-mt-24 text-lg font-bold text-paper uppercase tracking-wider pt-4">{children}</h2>;
 }
 
 export default function CondicionesDeVenta() {
@@ -41,6 +41,11 @@ export default function CondicionesDeVenta() {
           <ul className="list-disc pl-5 space-y-2">
             <li>Los precios están en euros y el precio que ves al pagar es el precio final.</li>
             <li>Puedes pagar con tarjeta de crédito/débito, Apple Pay, Google Pay, PayPal, Bizum, Klarna, Amazon Pay o Link (la suscripción, con tarjeta, que se renueva sola cada mes, o con PayPal, que se paga mes a mes desde tu área de cliente). Los pagos los gestionan Stripe y PayPal.</li>
+            <li>
+              Algunos pagos se pueden hacer <strong className="text-paper">a plazos</strong> con Klarna o con «Paga en 3
+              plazos» de PayPal, si te lo aprueban. Los plazos son un acuerdo entre tú y Klarna o PayPal: para nosotros el
+              pago está hecho entero desde el primer momento.
+            </li>
             <li>
               Las <strong className="text-paper">ofertas</strong> se aplican solo durante las fechas indicadas en la web
               (verás el precio normal tachado y la fecha de fin). Después, el precio vuelve a ser el normal.
@@ -119,15 +124,60 @@ export default function CondicionesDeVenta() {
               hasta cuándo tienes acceso y podrás renovar otro mes.
             </li>
             <li>Si hay una oferta de suscripción, el descuento se aplica al primer mes.</li>
+            <li>
+              <strong className="text-paper">Descuento para suscriptores:</strong> cuando está activo, los suscriptores
+              (mensuales y de por vida) pagan menos en la tienda, los servicios y/o las clases, según se indique en la web
+              en cada momento (porcentaje, en qué se aplica y hasta cuándo). Hay que tener la sesión iniciada al pagar. No se
+              suma a otras ofertas: si algo ya está de oferta, se paga el precio de la oferta. Podemos cambiarlo o quitarlo
+              cuando queramos, sin que afecte a lo ya pagado.
+            </li>
+            <li>
+              <strong className="text-paper">Revisión de tu tema:</strong> cada suscriptor puede mandar un tema al mes
+              mientras queden plazas del cupo mensual (que es para todos y se reparte por orden de llegada). Es una opinión
+              orientativa y breve, por escrito, sobre cómo vemos el tema comercialmente y qué le falta en calidad y sonido;
+              no es un servicio de mezcla o mastering ni garantiza ningún resultado. Solo aceptamos enlaces de las plataformas
+              indicadas en el formulario. El tema sigue siendo tuyo: solo lo escuchamos para hacer la revisión y no lo
+              compartimos con nadie.
+            </li>
+            <li>
+              <strong className="text-paper">Votaciones:</strong> son orientativas; nos ayudan a decidir qué contenido
+              preparar, pero la decisión final es nuestra.
+            </li>
+          </ul>
+
+          <Titulo id="por-vida">Suscripción de por vida</Titulo>
+          <ul className="list-disc pl-5 space-y-2">
+            <li>
+              Es un <strong className="text-paper">pago único</strong> que da acceso, sin cuotas ni renovaciones, a todo el
+              contenido exclusivo del área de clientes: lo que ya está publicado y lo que se publique después.
+            </li>
+            <li>
+              <strong className="text-paper">«De por vida» significa mientras exista el área de clientes de The Lab</strong>,
+              no la vida de la persona. Si algún día cerrásemos el área de clientes de forma definitiva, te avisaríamos por
+              email con al menos 60 días de antelación para que puedas descargar el contenido al que tienes acceso.
+            </li>
+            <li>
+              Es personal e intransferible: es para tu cuenta. Compartir la cuenta o redistribuir el contenido puede suponer
+              la retirada del acceso.
+            </li>
+            <li>
+              Si tenías la suscripción mensual con tarjeta, se cancela automáticamente al pagar la de por vida, para que no
+              se te cobre nunca más. Lo que ya hubieras pagado de la mensual no se devuelve.
+            </li>
+            <li>
+              Las ventajas que dependen de plazas o fechas (revisiones con cupo mensual, descuentos para suscriptores,
+              votaciones) se aplican igual que a los suscriptores mensuales, mientras estén disponibles.
+            </li>
+            <li>Su precio y sus ofertas pueden cambiar, pero eso nunca afecta a quien ya la tiene.</li>
           </ul>
 
           <Titulo>Devoluciones</Titulo>
           <p>
             No se realizan reembolsos una vez realizado el pago. En los servicios y las clases, solo se devuelve el
             dinero en casos excepcionales y justificados de ausencia total de Hottie. Los productos de la tienda y la
-            suscripción al área de clientes no tienen devolución en ningún caso: el producto se entrega al momento de
-            pagar y la suscripción da acceso desde ese momento a todo su contenido durante el mes pagado, por lo que
-            al comprarlos aceptas perder el derecho de desistimiento. Todo ello sin perjuicio de los derechos que la
+            suscripción al área de clientes (mensual o de por vida) no tienen devolución en ningún caso: el producto se
+            entrega al momento de pagar y la suscripción da acceso desde ese momento a todo su contenido, por lo que al
+            comprarlos aceptas perder el derecho de desistimiento. Todo ello sin perjuicio de los derechos que la
             legislación de consumo te reconozca en cada caso.
           </p>
 

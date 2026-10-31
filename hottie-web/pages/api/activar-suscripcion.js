@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { finSegunStripe } from '../../lib/suscripcion';
+import { finSegunStripe, activarPorVida } from '../../lib/suscripcion';
 
 // Activa la suscripción del área de clientes al volver de pagar con tarjeta
 // (pages/gracias.js). Antes lo hacía el navegador llamando directamente a la
@@ -49,8 +49,24 @@ export default async function handler(req, res) {
     const pagada = sesion.status === 'complete' && (sesion.payment_status === 'paid' || sesion.payment_status === 'no_payment_required');
     const emailSesion = String(sesion.customer_details?.email || sesion.customer_email || '').toLowerCase();
     const esSuya = sesion.client_reference_id === usuario.id || (emailSesion && emailSesion === String(usuario.email || '').toLowerCase());
+    // Suscripción de por vida: pago único (mode "payment") marcado en checkout.js.
+    if (sesion.mode === 'payment' && sesion.metadata?.type === 'lifetime' && pagada && sesion.client_reference_id === usuario.id) {
+      const errorPorVida = await activarPorVida(supabase, stripe, { userId: usuario.id, email: usuario.email });
+      if (errorPorVida) {
+        console.error('activar-suscripcion (por vida): error de Supabase:', errorPorVida.message);
+        return res.status(500).json({ error: 'No se pudo activar la suscripción de por vida.' });
+      }
+      return res.status(200).json({ ok: true, porVida: true });
+    }
+
     if (sesion.mode !== 'subscription' || !pagada || !esSuya) {
       return res.status(403).json({ error: 'Ese pago no corresponde a una suscripción tuya completada.' });
+    }
+
+    // Quien ya es de por vida conserva su acceso tal cual.
+    const { data: perfilPrevio } = await supabase.from('profiles').select('por_vida').eq('id', usuario.id).maybeSingle();
+    if (perfilPrevio?.por_vida) {
+      return res.status(200).json({ ok: true, porVida: true });
     }
 
     // Hasta cuándo dura lo que Stripe ha cobrado (lib/suscripcion.js).

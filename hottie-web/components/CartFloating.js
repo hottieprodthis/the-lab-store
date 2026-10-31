@@ -17,6 +17,7 @@ export default function CartFloating() {
     clearCart,
     totalItems,
     totalPrice,
+    precioLinea,
     aviso,
     limiteDe,
   } = useCart();
@@ -291,7 +292,7 @@ export default function CartFloating() {
                 </div>
               ) : (
                 cart.map((item, index) => {
-                  const price = item.price || (item.price_cents ? item.price_cents / 100 : 0);
+                  const price = precioLinea(item);
                   const title = item.title || item.name || item.nombre || 'Producto / Servicio';
                   // Tope de unidades por cupo semanal/mensual (Infinity = sin tope)
                   const limite = limiteDe(item);

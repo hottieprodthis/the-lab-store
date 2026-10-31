@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../../components/SeguimientoForm';
+import { errorEnlacesBriefing, primerError } from '../../lib/enlacesSeguros';
 import { EsqueletoFormulario } from '../../components/Esqueleto';
 
 export default function BriefingPage() {
@@ -26,6 +27,15 @@ export default function BriefingPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Enlaces solo de plataformas seguras (lib/enlacesSeguros.js).
+    const errorEnlaces = errorEnlacesBriefing({
+      demo: mostrarServicio ? formData.enlaceDemo : '',
+      proyectos: mostrarSeguimiento ? segData.enlacesProyectos : null,
+    });
+    if (errorEnlaces) {
+      alert(errorEnlaces);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -54,7 +64,7 @@ export default function BriefingPage() {
         // Redirige a la página de agradecimientos tras enviar los datos
         router.push('/gracias?tipo=servicio');
       } else {
-        alert('Hubo un problema al enviar el formulario. Inténtalo de nuevo.');
+        alert(await primerError(respuestas));
       }
     } catch (err) {
       console.error(err);

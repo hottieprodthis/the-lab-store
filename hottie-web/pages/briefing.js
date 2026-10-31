@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../components/SeguimientoForm';
+import { errorEnlacesBriefing, primerError } from '../lib/enlacesSeguros';
 import { EsqueletoFormulario } from '../components/Esqueleto';
 
 // Página de briefing COMBINADO: se usa cuando un mismo pedido mezcla
@@ -60,6 +61,15 @@ export default function BriefingUnificadoPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Enlaces solo de plataformas seguras (lib/enlacesSeguros.js).
+    const errorEnlaces = errorEnlacesBriefing({
+      demo: hasServicioNormal ? servicioData.enlaceDemo : '',
+      proyectos: hasSeguimiento ? seguimientoData.enlacesProyectos : null,
+    });
+    if (errorEnlaces) {
+      alert(errorEnlaces);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -105,7 +115,7 @@ export default function BriefingUnificadoPage() {
           : `/gracias?tipo=${tipoFinal}`;
         router.push(query);
       } else {
-        alert('Hubo un problema al enviar los formularios. Inténtalo de nuevo.');
+        alert(await primerError(respuestas));
       }
     } catch (err) {
       console.error(err);

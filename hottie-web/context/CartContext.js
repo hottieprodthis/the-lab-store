@@ -6,6 +6,8 @@ import {
   cambiarCantidad,
   ajustarCarrito,
 } from '../lib/disponibilidadClient';
+import { useDescuentoSuscriptor } from '../lib/useDescuentoSuscriptor';
+import { precioLineaCarrito } from '../lib/descuentoSuscriptor';
 
 const CartContext = createContext();
 
@@ -97,10 +99,11 @@ export function CartProvider({ children }) {
 
   const totalItems = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
-  const totalPrice = cart.reduce((acc, item) => {
-    const price = item.price || (item.price_cents ? item.price_cents / 100 : 0);
-    return acc + price * (item.quantity || 1);
-  }, 0);
+  // Precio de suscriptor en las líneas que lo admiten (lib/descuentoSuscriptor.js).
+  const { descuento, suscrito } = useDescuentoSuscriptor();
+  const precioLinea = (item) => precioLineaCarrito(item, suscrito ? descuento : null);
+
+  const totalPrice = cart.reduce((acc, item) => acc + precioLinea(item) * (item.quantity || 1), 0);
 
   return (
     <CartContext.Provider
@@ -114,6 +117,7 @@ export function CartProvider({ children }) {
         clearCart,
         totalItems,
         totalPrice,
+        precioLinea,
         aviso,
         limiteDe,
       }}

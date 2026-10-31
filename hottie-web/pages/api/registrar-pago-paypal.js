@@ -3,7 +3,9 @@ import { prepararCorreo } from '../../lib/correos';
 import { aplicarOferta, leerOfertaSuscripcion, precioSuscripcion } from '../../lib/ofertas';
 import { partirIdCarrito, buscarPlan, precioCentimos, nombreConPlan } from '../../lib/precios';
 import { paypalConfigurado, verificarPedidoPaypal } from '../../lib/paypal';
-import { finTrasMesPaypal, suscripcionActiva, precioRenovacion, leerCambioPrecio } from '../../lib/suscripcion';
+import Stripe from 'stripe';
+import { finTrasMesPaypal, suscripcionActiva, precioRenovacion, leerCambioPrecio, leerPrecioPorVida, activarPorVida, NOMBRE_POR_VIDA, cierreAnunciado } from '../../lib/suscripcion';
+import { descuentoDePeticion, precioConDescuento } from '../../lib/descuentoSuscriptor';
 import { enlaceDescargaProducto } from '../../lib/descargas';
 import { aceptaMostrarNombre, datosAviso } from '../../lib/avisoCompras';
 
@@ -14,6 +16,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
+
+// Solo para cancelar la mensual con tarjeta de quien se pasa a "de por vida".
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2024-06-20' });
 
 const TABLE_BY_TIPO = {
   producto: 'products',
@@ -127,9 +132,9 @@ export default async function handler(req, res) {
     // activación del acceso (profiles.is_subscribed) ya la hace el cliente
     // vía RPC antes de llamar aquí; esto solo registra el historial y
     // manda los correos.
-    if (tipo === 'suscripcion') {
+    if (tipo === 'suscripcion' || tipo === 'por_vida') {
       return handleSuscripcionPaypal(req, res, {
-        amountCents, userId, userEmail, payerEmail, payerName, paypalOrderId,
+        amountCents, userId, userEmail, payerEmail, payerName, paypalOrderId, porVida: tipo === 'por_vida',
       });
     }
 
@@ -166,7 +171,9 @@ export default async function handler(req, res) {
     // y la comprobación con PayPal no está activa.
     const itemConOferta = aplicarOferta(item);
     const planElegido = buscarPlan(itemConOferta, { planName });
-    const precioServidor = planElegido === undefined ? null : precioCentimos(itemConOferta, planElegido);
+    const precioServidor = planElegido === undefined
+      ? null
+      : precioConDescuento(precioCentimos(itemConOferta, planElegido), itemConOferta, tipoNormalizado, await descuentoDePeticion(supabase, req));
     const precioCents = precioServidor ?? (typeof amountCents === 'number' ? amountCents : null);
 
     const pagador = await pagoComprobado(res, paypalOrderId, precioServidor, `${nombreItem} · pedido PayPal ${paypalOrderId || '—'} · ${userEmail || payerEmail || 'sin email'}`);
@@ -348,6 +355,7 @@ function extractRealId(id) {
 // clase con plan como si fuera un servicio.
 async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEmail, payerName, paypalOrderId }) {
   try {
+    const descuento = await descuentoDePeticion(supabase, req);
     const enrichedCart = await Promise.all(
       items.map(async (item) => {
         const cleanId = extractRealId(item.id);
@@ -370,7 +378,7 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
             const filaConOferta = aplicarOferta(dbItem);
             const plan = buscarPlan(filaConOferta, { planSlug: partirIdCarrito(item.id).planSlug });
             if (plan !== undefined) {
-              precioServidor = precioCentimos(filaConOferta, plan);
+              precioServidor = precioConDescuento(precioCentimos(filaConOferta, plan), filaConOferta, tipo, descuento);
               nombreResuelto = nombreConPlan(dbItem, plan) || nombreResuelto;
             }
             if (!imagen) imagen = dbItem.image_url || dbItem.imagen_url || null;
@@ -551,9 +559,11 @@ async function handleCarritoPaypal(req, res, { items, userId, userEmail, payerEm
 // de suscripción del área de clientes pagado con PayPal, y activa el acceso
 // (profiles.is_subscribed) para el usuario de la sesión, después de
 // comprobar el pago con PayPal.
-async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmail, payerEmail, payerName, paypalOrderId }) {
+// Con porVida es el pago único de la suscripción de por vida: mismo camino,
+// pero el acceso no caduca y no hay renovaciones.
+async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmail, payerEmail, payerName, paypalOrderId, porVida = false }) {
   try {
-    const nombreItem = 'Suscripción Área de Clientes';
+    const nombreItem = porVida ? NOMBRE_POR_VIDA : 'Suscripción Área de Clientes';
 
     // Quién se suscribe sale de su SESIÓN (cabecera Authorization), no de lo
     // que mande el navegador en el cuerpo.
@@ -576,16 +586,21 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
     const { data: ajusteCambio } = await supabase.from('settings').select('value').eq('key', 'subscription_price_change').maybeSingle();
     const { data: perfilActual } = await supabase
       .from('profiles')
-      .select('is_subscribed, subscribed_until')
+      .select('is_subscribed, subscribed_until, por_vida')
       .eq('id', usuarioSesion.id)
       .maybeSingle();
     const precioNormal = Math.round(Number(ajustePrecio?.value) * 100);
     const precioBase = Number.isFinite(precioNormal) && precioNormal > 0 ? precioNormal : 799;
-    const esperadoCents = precioSuscripcion(
-      suscripcionActiva(perfilActual) ? precioRenovacion(precioBase, leerCambioPrecio(ajusteCambio?.value)) : precioBase,
-      leerOfertaSuscripcion(ajusteOferta?.value)
-    ).cents;
+    const esperadoCents = porVida
+      ? (await leerPrecioPorVida(supabase)).cents
+      : precioSuscripcion(
+          suscripcionActiva(perfilActual) ? precioRenovacion(precioBase, leerCambioPrecio(ajusteCambio?.value)) : precioBase,
+          leerOfertaSuscripcion(ajusteOferta?.value)
+        ).cents;
 
+    if (porVida && (await cierreAnunciado(supabase))) {
+      console.error('registrar-pago-paypal: pago de por vida con el cierre del área ya anunciado', usuarioSesion.email, paypalOrderId);
+    }
     if (!(await pagoComprobado(res, paypalOrderId, esperadoCents, `${nombreItem} · pedido PayPal ${paypalOrderId || '—'} · ${usuarioSesion.email}`))) {
       return;
     }
@@ -593,13 +608,19 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
     // Pago comprobado: se activa el acceso desde el servidor (antes lo hacía
     // el navegador con la función activar_mi_suscripcion, sin comprobar nada)
     // y dura 1 mes; si aún le quedaban días, el mes se suma al final.
-    const nuevoFin = finTrasMesPaypal(perfilActual?.subscribed_until);
-    const { error: subError } = await supabase
-      .from('profiles')
-      .upsert(
-        { id: usuarioSesion.id, email: usuarioSesion.email, is_subscribed: true, subscribed_until: nuevoFin.toISOString() },
-        { onConflict: 'id' }
-      );
+    // A quien ya es de por vida no se le cambia nada (un mes de PayPal le
+    // pondría fecha de fin); el aviso al admin sale en el correo de abajo.
+    const nuevoFin = finTrasMesPaypal(perfilActual?.por_vida ? null : perfilActual?.subscribed_until);
+    const { error: subError } = perfilActual?.por_vida
+      ? { error: null }
+      : porVida
+      ? { error: await activarPorVida(supabase, stripe, { userId: usuarioSesion.id, email: usuarioSesion.email }) }
+      : await supabase
+          .from('profiles')
+          .upsert(
+            { id: usuarioSesion.id, email: usuarioSesion.email, is_subscribed: true, subscribed_until: nuevoFin.toISOString() },
+            { onConflict: 'id' }
+          );
     if (subError) {
       console.error('registrar-pago-paypal (suscripción): no se pudo activar el acceso:', subError.message);
       return res.status(500).json({ error: 'El pago se ha realizado, pero hubo un problema activando el acceso. Escríbenos y lo resolvemos.' });
@@ -654,11 +675,12 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
             to: ['pedidos.thelab@gmail.com'],
             subject: `🚨 NUEVO PAGO RECIBIDO (PayPal): ${nombreCliente}`,
             html: `
-              <h2>¡Nuevo mes de suscripción pagado con PayPal!</h2>
+              <h2>${porVida ? '¡Nueva suscripción DE POR VIDA pagada con PayPal!' : '¡Nuevo mes de suscripción pagado con PayPal!'}</h2>
+              ${perfilActual?.por_vida ? '<p style="color:#ff0000;"><strong>OJO:</strong> este cliente YA era de por vida: revisa si hay que devolverle el pago.</p>' : ''}
               <p><strong>Cliente:</strong> ${nombreCliente}</p>
               <p><strong>Email:</strong> ${destinoEmail || 'No disponible'}</p>
               <p><strong>Total pagado:</strong> ${amount} €</p>
-              <p style="color:#ff9900;"><strong>OJO:</strong> este pago NO se renueva solo — solo Stripe hace renovación automática.</p>
+              ${porVida ? '' : '<p style="color:#ff9900;"><strong>OJO:</strong> este pago NO se renueva solo — solo Stripe hace renovación automática.</p>'}
               ${paypalOrderId ? `<p><strong>ID de orden PayPal:</strong> ${paypalOrderId}</p>` : ''}
             `,
           })),
@@ -675,7 +697,7 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
               from: 'The Lab <pedidos@hottieprodthis.com>',
               reply_to: 'pedidos.thelab@gmail.com',
               to: [destinoEmail],
-              subject: 'Tu suscripción en The Lab - Confirmación',
+              subject: porVida ? 'Ya eres miembro de por vida de The Lab' : 'Tu suscripción en The Lab - Confirmación',
               html: `
                 <!DOCTYPE html>
                 <html>
@@ -685,8 +707,10 @@ async function handleSuscripcionPaypal(req, res, { amountCents, userId, userEmai
                 </head>
                 <body style="background-color:#0d0d0d; color:#ffffff; font-family: Arial, sans-serif; padding:20px;">
                   <h2 style="color:#ffffff;">¡Gracias, ${nombreCliente}!</h2>
-                  <p style="color:#dddddd;">Tu pago con PayPal se ha procesado correctamente y ya tienes acceso al Área de Clientes hasta el ${nuevoFin.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Madrid' })}.</p>
-                  <p style="color:#dddddd;">Este pago no se renueva automáticamente: antes de esa fecha tendrás que volver a pulsar "Suscribirse" en tu área si quieres seguir con acceso (el mes nuevo se suma al que te queda).</p>
+                  ${porVida
+                    ? '<p style="color:#dddddd;">Tu pago con PayPal se ha procesado correctamente: ya eres <strong style="color:#CCFF00;">miembro de por vida</strong> del Área de Clientes. Sin cuotas ni renovaciones: tienes acceso a todo el contenido exclusivo mientras exista el área.</p>'
+                    : `<p style="color:#dddddd;">Tu pago con PayPal se ha procesado correctamente y ya tienes acceso al Área de Clientes hasta el ${nuevoFin.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Madrid' })}.</p>
+                  <p style="color:#dddddd;">Este pago no se renueva automáticamente: antes de esa fecha tendrás que volver a pulsar "Suscribirse" en tu área si quieres seguir con acceso (el mes nuevo se suma al que te queda).</p>`}
                 </body>
                 </html>
               `,

@@ -9,6 +9,8 @@
 // El acceso a posts y packs lo decide Supabase con esta misma fecha
 // (supabase/migrations/2026-10-24_caducidad_suscripcion.sql).
 
+import { precioSuscripcion, leerOfertaSuscripcion } from './ofertas';
+
 export const DIAS_MARGEN_STRIPE = 3;
 
 // ¿Tiene acceso ahora mismo? (el admin siempre).
@@ -109,4 +111,84 @@ export function finSegunStripe(suscripcion) {
   const segundos = suscripcion?.current_period_end ?? suscripcion?.items?.data?.[0]?.current_period_end;
   if (!Number.isFinite(Number(segundos))) return null;
   return new Date((Number(segundos) + DIAS_MARGEN_STRIPE * 86400) * 1000);
+}
+
+// --- Suscripción de por vida (pago único) ---
+// Se guarda en profiles.por_vida y su acceso dura "para siempre": mientras
+// exista el área de clientes (condiciones de venta). El precio y su oferta
+// los pone el admin (settings "lifetime_price" y "lifetime_offer", con el
+// mismo formato que la oferta de la mensual; ver lib/ofertas.js).
+export const FIN_POR_VIDA = '9999-12-31T23:59:59.000Z';
+export const PRECIO_POR_VIDA_DEFECTO_CENTS = 14900;
+export const NOMBRE_POR_VIDA = 'Suscripción de por vida Área de Clientes';
+
+export function esPorVida(perfil) {
+  return Boolean(perfil?.por_vida);
+}
+
+// Precio normal (céntimos) a partir del ajuste guardado en euros.
+export function precioPorVidaCents(valorAjuste) {
+  const cents = Math.round(Number(String(valorAjuste ?? '').replace(',', '.')) * 100);
+  return Number.isFinite(cents) && cents >= 50 ? cents : PRECIO_POR_VIDA_DEFECTO_CENTS;
+}
+
+// Precio a pagar ahora (céntimos), con la oferta si está en vigor.
+// Devuelve { cents, oferta: { fin, precio_original_cents } | null }.
+export async function leerPrecioPorVida(supabase) {
+  const { data } = await supabase.from('settings').select('key, value').in('key', ['lifetime_price', 'lifetime_offer']);
+  const valor = (k) => (data || []).find((f) => f.key === k)?.value;
+  return precioSuscripcion(precioPorVidaCents(valor('lifetime_price')), leerOfertaSuscripcion(valor('lifetime_offer')));
+}
+
+// Pasa un perfil a "de por vida". Si pagaba la mensual con tarjeta, se le
+// cancela en Stripe para que no se le cobre más (primero se quita el id del
+// perfil, así el aviso de Stripe de "suscripción cancelada" ya no le quita el
+// acceso). Devuelve el error de Supabase, si lo hay.
+export async function activarPorVida(supabase, stripe, { userId, email }) {
+  const { data: perfil } = await supabase.from('profiles').select('stripe_subscription_id').eq('id', userId).maybeSingle();
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: userId,
+      ...(email ? { email } : {}),
+      is_subscribed: true,
+      por_vida: true,
+      por_vida_desde: new Date().toISOString(),
+      subscribed_until: FIN_POR_VIDA,
+      stripe_subscription_id: null,
+    },
+    { onConflict: 'id' }
+  );
+  if (error) return error;
+  if (perfil?.stripe_subscription_id && stripe) {
+    try {
+      await stripe.subscriptions.cancel(perfil.stripe_subscription_id);
+    } catch (e) {
+      console.error('activarPorVida: no se pudo cancelar la mensual en Stripe', perfil.stripe_subscription_id, e.message);
+    }
+  }
+  return null;
+}
+
+// --- Cierre anunciado del área de clientes (settings "area_closing") ---
+// { aviso: ISO, cierre: ISO }. Las condiciones de venta prometen avisar con al
+// menos 60 días; desde el aviso ya no se vende la de por vida.
+export const DIAS_AVISO_CIERRE = 60;
+
+export function leerCierreArea(valor) {
+  let v = valor;
+  if (!v) return null;
+  if (typeof v === 'string') {
+    try {
+      v = JSON.parse(v);
+    } catch (e) {
+      return null;
+    }
+  }
+  const cierre = new Date(v?.cierre);
+  return Number.isNaN(cierre.getTime()) ? null : { aviso: v.aviso || null, cierre: cierre.toISOString() };
+}
+
+export async function cierreAnunciado(supabase) {
+  const { data } = await supabase.from('settings').select('value').eq('key', 'area_closing').maybeSingle();
+  return leerCierreArea(data?.value);
 }

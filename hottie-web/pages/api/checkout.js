@@ -7,6 +7,8 @@ import { estadoSemana, resumirPedido, comprobarPedido, tipoFormularioServicios }
 import { bloqueoPagoObras, leerVacaciones, mensajeReservasVacaciones, CASILLA_CONDICIONES } from '../../lib/obras';
 import { enlaceDescargaProducto } from '../../lib/descargas';
 import { aceptaMostrarNombre } from '../../lib/avisoCompras';
+import { leerPrecioPorVida, NOMBRE_POR_VIDA, cierreAnunciado } from '../../lib/suscripcion';
+import { descuentoDePeticion, precioConDescuento } from '../../lib/descuentoSuscriptor';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -30,7 +32,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { productId, isService, isSubscription, planName, customPriceCents, items, returnUrl, userId: bodyUserId, userEmail, clientName } = req.body;
+  const { productId, isService, isSubscription, isLifetime, planName, customPriceCents, items, returnUrl, userId: bodyUserId, userEmail, clientName } = req.body;
 
   // Web en obras / compras cerradas (interruptores del panel): no se vende
   // nada salvo al admin (y, con las compras cerradas, la renovación de quien
@@ -41,7 +43,7 @@ export default async function handler(req, res) {
       ? !isService
       : Array.isArray(items) && items.length > 0 && items.every((i) => i && !i.isService && !i.isClass));
   const cerrada = await bloqueoPagoObras(supabase, req, {
-    esSuscripcion: Boolean(isSubscription),
+    esSuscripcion: Boolean(isSubscription || isLifetime),
     userId: bodyUserId || null,
     soloProductos,
   });
@@ -125,6 +127,13 @@ export default async function handler(req, res) {
 
     // 1. SUSCRIPCIÓN
     if (isSubscription) {
+      // Quien ya es de por vida no puede contratar además la mensual.
+      if (resolvedUserId) {
+        const { data: perfilSub } = await supabase.from('profiles').select('por_vida').eq('id', resolvedUserId).maybeSingle();
+        if (perfilSub?.por_vida) {
+          return res.status(400).json({ error: 'Ya tienes la suscripción de por vida: no necesitas la mensual.' });
+        }
+      }
       checkoutMode = 'subscription';
       // El precio se lee SIEMPRE de los ajustes del admin, nunca del
       // navegador (customPriceCents se ignora: el cliente podría cambiarlo).
@@ -187,6 +196,41 @@ export default async function handler(req, res) {
 
       metadataPayload = { ...metadataPayload, type: 'subscription' };
     }
+    // 1b. SUSCRIPCIÓN DE POR VIDA (pago único; con tarjeta se puede pagar a
+    // plazos con Klarna). Solo con la sesión del propio cliente: el acceso se
+    // le da a esa cuenta.
+    else if (isLifetime) {
+      const authHeader = req.headers.authorization || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      const { data: datosUsuario } = token ? await supabase.auth.getUser(token) : { data: null };
+      const usuario = datosUsuario?.user;
+      if (!usuario) {
+        return res.status(401).json({ error: 'Inicia sesión en tu área de clientes para hacerte de por vida.' });
+      }
+      const { data: perfil } = await supabase.from('profiles').select('por_vida').eq('id', usuario.id).maybeSingle();
+      if (perfil?.por_vida) {
+        return res.status(400).json({ error: 'Ya tienes la suscripción de por vida.' });
+      }
+      if (await cierreAnunciado(supabase)) {
+        return res.status(409).json({ error: 'El área de clientes va a cerrar: ya no se vende la suscripción de por vida.' });
+      }
+      resolvedUserId = usuario.id;
+      const precio = await leerPrecioPorVida(supabase);
+      totalCents += precio.cents;
+      planNameToSave = NOMBRE_POR_VIDA;
+      lineItems = [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: NOMBRE_POR_VIDA,
+            description: 'Pago único: acceso para siempre al contenido exclusivo del área de clientes',
+          },
+          unit_amount: precio.cents,
+        },
+        quantity: 1,
+      }];
+      metadataPayload = { ...metadataPayload, user_id: usuario.id, type: 'lifetime' };
+    }
     // 2. CARRITO DE COMPRAS
     else if (items && Array.isArray(items) && items.length > 0) {
       // Extrae el UUID real de un id de carrito. Los artículos con plan
@@ -203,6 +247,8 @@ export default async function handler(req, res) {
         return match ? match[1] : String(id);
       };
 
+      // Descuento para suscriptores (lib/descuentoSuscriptor.js), si toca.
+      const descuento = await descuentoDePeticion(supabase, req);
       const enrichedCart = await Promise.all(
         items.map(async (item) => {
           // El enlace de descarga nunca se toma del navegador: sale de product_files.
@@ -277,7 +323,7 @@ export default async function handler(req, res) {
           if (isProductItem) hasProduct = true;
 
           const cantidad = Math.max(1, Math.floor(Number(item.quantity)) || 1);
-          const finalPriceCents = precioCentimos(filaDb, plan);
+          const finalPriceCents = precioConDescuento(precioCentimos(filaDb, plan), filaDb, isClassItem ? 'clase' : isServiceItem ? 'servicio' : 'producto', descuento);
           totalCents += finalPriceCents * cantidad;
 
           return {
@@ -433,7 +479,12 @@ export default async function handler(req, res) {
       if (item.active === false || planDirecto === undefined) {
         return res.status(400).json({ error: 'Este artículo o plan ya no está disponible. Recarga la página.' });
       }
-      const unitAmount = precioCentimos(item, planDirecto);
+      const unitAmount = precioConDescuento(
+        precioCentimos(item, planDirecto),
+        item,
+        hasClass ? 'clase' : hasService ? 'servicio' : 'producto',
+        await descuentoDePeticion(supabase, req)
+      );
       totalCents += unitAmount;
       if (hasClass || hasService) {
         itemsCupo.push({
@@ -587,6 +638,8 @@ export default async function handler(req, res) {
     if (isSubscription) {
       // Suscripción: comportamiento intacto.
       successUrl = `${siteUrl}/gracias?tipo=suscripcion&session_id={CHECKOUT_SESSION_ID}`;
+    } else if (isLifetime) {
+      successUrl = `${siteUrl}/gracias?tipo=por_vida&session_id={CHECKOUT_SESSION_ID}`;
     } else if (isMixedCategories) {
       // Pedido con 2 o más tipos distintos (por ejemplo Producto+Servicio,
       // Servicio+Clase o Producto+Servicio+Clase): todos los briefings que

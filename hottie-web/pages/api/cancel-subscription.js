@@ -1,9 +1,18 @@
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16',
 });
+
+// Antes se usaba el cliente público de Supabase con el userId que mandaba el
+// navegador: las reglas de la base de datos no dejaban leer ni cambiar el
+// perfil así, y la baja fallaba siempre. Ahora la cuenta sale de la sesión
+// del propio cliente (Authorization) y el perfil se cambia desde el servidor.
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -11,21 +20,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId } = req.body;
-
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const { data: datos } = token ? await supabase.auth.getUser(token) : { data: null };
+    const userId = datos?.user?.id;
     if (!userId) {
-      return res.status(400).json({ error: 'Falta el ID de usuario' });
+      return res.status(401).json({ error: 'Tienes que iniciar sesión.' });
     }
 
-    // 1. Buscamos el perfil del usuario en Supabase para ver su código de suscripción de Stripe
+    // 1. Buscamos el perfil del usuario para ver su suscripción de Stripe
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_subscription_id')
+      .select('stripe_subscription_id, por_vida')
       .eq('id', userId)
       .single();
 
     if (profileError) {
       return res.status(404).json({ error: 'No se encontró tu perfil.' });
+    }
+    if (profile?.por_vida) {
+      return res.status(400).json({ error: 'Tu suscripción es de por vida: no hay nada que cancelar.' });
     }
 
     // 2. Si la suscripción se pagó con tarjeta (Stripe), la cancelamos de
@@ -43,7 +57,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 3. Actualizamos Supabase para quitarle los privilegios de suscrito
+    // 3. Quitamos el acceso
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ is_subscribed: false, stripe_subscription_id: null })

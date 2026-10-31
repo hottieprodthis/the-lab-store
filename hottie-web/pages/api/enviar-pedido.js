@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { prepararCorreo } from '../../lib/correos';
-import { finSegunStripe, proximaRenovacionStripe, ajustarPrecioStripe, precioRenovacion, leerCambioPrecio, altaStripe } from '../../lib/suscripcion';
+import { finSegunStripe, proximaRenovacionStripe, ajustarPrecioStripe, precioRenovacion, leerCambioPrecio, altaStripe, activarPorVida, NOMBRE_POR_VIDA } from '../../lib/suscripcion';
 import { enlaceDescargaProducto } from '../../lib/descargas';
 import { datosAviso } from '../../lib/avisoCompras';
 
@@ -134,7 +134,8 @@ export default async function handler(req, res) {
           const { error } = await supabase
             .from('profiles')
             .update({ is_subscribed: true, subscribed_until: fin.toISOString() })
-            .eq('stripe_subscription_id', subId);
+            .eq('stripe_subscription_id', subId)
+            .eq('por_vida', false);
           if (error) console.error('Webhook invoice.paid: error de Supabase:', error.message);
         }
 
@@ -167,7 +168,7 @@ export default async function handler(req, res) {
       const cambios = perdida
         ? { is_subscribed: false, subscribed_until: new Date().toISOString() }
         : { is_subscribed: true, subscribed_until: fin.toISOString() };
-      const { error } = await supabase.from('profiles').update(cambios).eq('stripe_subscription_id', sub.id);
+      const { error } = await supabase.from('profiles').update(cambios).eq('stripe_subscription_id', sub.id).eq('por_vida', false);
       if (error) console.error(`Webhook ${event.type}: error de Supabase:`, error.message);
     }
     return res.status(200).json({ received: true });
@@ -175,6 +176,17 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+
+    // Stripe puede mandar el mismo aviso más de una vez (reintentos). Si este
+    // pago ya está guardado, no se repite nada (ni la compra ni los correos).
+    const { data: yaGuardada } = await supabase
+      .from('purchases')
+      .select('id')
+      .eq('stripe_session_id', session.id)
+      .limit(1);
+    if (Array.isArray(yaGuardada) && yaGuardada.length > 0) {
+      return res.status(200).json({ received: true, repetido: true });
+    }
     const emailCliente = session.customer_details?.email || session.customer_email || session.metadata?.customer_email;
     const nombreCliente = session.customer_details?.name || 'Cliente';
     const metadata = session.metadata || {};
@@ -289,6 +301,8 @@ export default async function handler(req, res) {
       // Nombramos la compra para el historial de forma robusta
       if (metadata.type === 'subscription') {
         planNameToSave = 'Suscripción Área de Clientes';
+      } else if (metadata.type === 'lifetime') {
+        planNameToSave = NOMBRE_POR_VIDA;
       } else {
         planNameToSave = singleTitle;
       }
@@ -318,6 +332,9 @@ export default async function handler(req, res) {
         if (metadata.type !== 'subscription') {
           itemsForHistory = [{ name: singleTitle, type: 'producto', quantity: 1, price_cents: null, currency: 'eur', image_url: null }];
         }
+      } else if (metadata.type === 'lifetime') {
+        linksHtml = `<p style="color:#cccccc;">Ya eres <strong style="color:#CCFF00;">miembro de por vida</strong> del Área de Clientes: sin cuotas ni renovaciones, con acceso a todo el contenido exclusivo mientras exista el área.</p>`;
+        linksText = planNameToSave;
       } else if (metadata.type === 'subscription') {
         linksHtml = `<p style="color:#cccccc;">Tu suscripción se ha activado correctamente.</p>`;
         linksText = planNameToSave;
@@ -355,6 +372,7 @@ export default async function handler(req, res) {
           .insert([
             {
               user_id: userId,
+              stripe_session_id: session.id,
               aviso,
               amount: totalAmount,
               plan_name: planNameToSave,
@@ -381,6 +399,7 @@ export default async function handler(req, res) {
             {
               user_id: null,
               email: emailCliente.trim(),
+              stripe_session_id: session.id,
               aviso,
               amount: totalAmount,
               plan_name: planNameToSave,
@@ -407,6 +426,13 @@ export default async function handler(req, res) {
     // cliente pulsara cancelar, Stripe seguiría cobrando cada mes.
     if (userId && metadata.type === 'subscription' && session.subscription) {
       try {
+        // Si ya era de por vida, no se le cambia nada (se avisa en el log para
+        // cancelar a mano esa mensual en Stripe).
+        const { data: perfilPrevio } = await supabase.from('profiles').select('por_vida').eq('id', userId).maybeSingle();
+        if (perfilPrevio?.por_vida) {
+          console.error('AVISO: un cliente de por vida ha pagado la mensual; cancélala en Stripe:', session.subscription);
+          throw new Error('cliente de por vida');
+        }
         // Hasta cuándo dura lo que Stripe acaba de cobrar (lib/suscripcion.js).
         let fin = null;
         try {
@@ -438,11 +464,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // 5. Suscripción de por vida (pago único): acceso para siempre y, si
+    // pagaba la mensual con tarjeta, se le cancela (lib/suscripcion.js).
+    if (userId && metadata.type === 'lifetime') {
+      const errorPorVida = await activarPorVida(supabase, stripe, { userId, email: emailCliente });
+      if (errorPorVida) console.error('ERROR activando la suscripción de por vida:', errorPorVida.message);
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
 
     if (!resendApiKey) {
-      console.error('Falta la variable RESEND_API_KEY en Vercel');
-      return res.status(500).json({ error: 'Falta la API Key de Resend' });
+      // La compra ya está guardada: no se pide a Stripe que repita el aviso.
+      console.error('Falta la variable RESEND_API_KEY en Vercel: no se enviaron los correos del pedido', session.id);
+      return res.status(200).json({ received: true, sinCorreo: true });
     }
 
     const fullEmailHtml = `
@@ -499,8 +533,8 @@ export default async function handler(req, res) {
         });
       }
     } catch (error) {
-      console.error('Error al enviar el correo con Resend:', error);
-      return res.status(500).json({ message: 'Error en el envío de correo' });
+      // Igual: la compra ya está guardada, así que no se pide a Stripe que repita.
+      console.error('Error al enviar el correo con Resend (pedido ' + session.id + '):', error);
     }
   }
 

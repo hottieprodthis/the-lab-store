@@ -39,11 +39,12 @@ const formatoFecha = (d) =>
 async function suscriptoresActivos() {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, is_admin, is_subscribed, subscribed_until, stripe_subscription_id')
+    .select('id, email, is_admin, is_subscribed, subscribed_until, stripe_subscription_id, por_vida')
     .eq('is_subscribed', true)
     .gt('subscribed_until', new Date().toISOString());
   if (error) throw new Error(error.message);
-  return (data || []).filter((p) => suscripcionActiva(p) && !p.is_admin);
+  // Los de por vida ya no pagan cuotas: el cambio de precio no les afecta.
+  return (data || []).filter((p) => suscripcionActiva(p) && !p.is_admin && !p.por_vida);
 }
 
 export default async function handler(req, res) {

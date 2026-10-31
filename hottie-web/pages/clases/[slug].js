@@ -8,13 +8,18 @@ import { supabase } from '../../lib/supabaseClient';
 import { propsConObras } from '../../lib/obras';
 import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
-import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
+import { PrecioTachado, AvisoOferta, AvisoDescuentoSuscriptor } from '../../components/PrecioOferta';
+import { useDescuentoSuscriptor } from '../../lib/useDescuentoSuscriptor';
+import { filaConDescuento, porcentajePara } from '../../lib/descuentoSuscriptor';
 import { useCart } from '../../context/CartContext';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../../lib/disponibilidadClient';
 import PayPalButton from '../../components/PayPalButton';
 import { cabecerasPago } from '../../lib/cabecerasPago';
 
-export default function DetalleClase({ clase }) {
+export default function DetalleClase({ clase: claseBase }) {
+  // Suscriptores: precio con su descuento (lib/descuentoSuscriptor.js).
+  const { descuento, suscrito } = useDescuentoSuscriptor();
+  const clase = suscrito ? filaConDescuento(claseBase, 'clase', descuento) : claseBase;
   const [loadingPlan, setLoadingPlan] = useState(null);
   // Límite semanal de clases (panel de admin): si ya no quedan plazas esta
   // semana se desactivan "+ Carrito" y "RESERVAR" y se avisa.
@@ -272,7 +277,7 @@ export default function DetalleClase({ clase }) {
                       )}
                       {formatPrice(Math.round(parseFloat(plan.price) * 100), clase.currency)}
                     </p>
-                    {plan.precio_original !== undefined && clase.oferta && <AvisoOferta fin={clase.oferta.fin} className="mt-1" />}
+                    {plan.precio_original !== undefined && clase.oferta && <AvisoOferta fin={clase.oferta.fin} suscriptor={clase.descuentoSuscriptor} className="mt-1" />}
                     {plan.description && (
                       <p className="mt-4 text-sm text-muted leading-relaxed whitespace-pre-line">{plan.description}</p>
                     )}
@@ -346,7 +351,8 @@ export default function DetalleClase({ clase }) {
                 {clase.oferta && <PrecioTachado cents={clase.oferta.precio_original_cents} currency={clase.currency} />}
                 {clase.price_cents ? formatPrice(clase.price_cents, clase.currency) : 'A consultar'}
               </p>
-              {clase.oferta && <AvisoOferta fin={clase.oferta.fin} className="mt-2" />}
+              {clase.oferta && <AvisoOferta fin={clase.oferta.fin} suscriptor={clase.descuentoSuscriptor} className="mt-2" />}
+              {!suscrito && !clase.oferta && <AvisoDescuentoSuscriptor porcentaje={porcentajePara(descuento, 'clase')} />}
 
               {clase.price_cents || clase.price ? (
                 <div className="mt-6 flex items-center justify-center gap-2">

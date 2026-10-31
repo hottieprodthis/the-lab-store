@@ -14,6 +14,10 @@ export default function Gracias() {
   const [subMessage, setSubMessage] = useState('');
 
   useEffect(() => {
+    if (!router.isReady) return;
+    // Al pagar la suscripción (mensual o de por vida) el carrito no se ha
+    // comprado: se deja como estaba.
+    if (tipo === 'suscripcion' || tipo === 'por_vida') return;
     // Vaciamos el carrito de compras local
     try {
       if (typeof clearCart === 'function') {
@@ -27,12 +31,12 @@ export default function Gracias() {
     } catch (e) {
       console.error('Error vaciando carrito:', e);
     }
-  }, []);
+  }, [router.isReady, tipo]);
 
   // Activación blindada de la suscripción
   useEffect(() => {
     async function activateSubscription() {
-      if (tipo === 'suscripcion' && session_id) {
+      if ((tipo === 'suscripcion' || tipo === 'por_vida') && session_id) {
         setSubscribing(true);
         try {
           // El servidor comprueba con Stripe que esta sesión de pago es una
@@ -47,7 +51,7 @@ export default function Gracias() {
               body: JSON.stringify({ session_id }),
             });
             if (res.ok) {
-              setSubMessage('¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
+              setSubMessage(tipo === 'por_vida' ? '¡Ya eres miembro de por vida! Tienes acceso para siempre a todo el contenido exclusivo.' : '¡Suscripción activada con éxito! Ya puedes acceder a todo el contenido exclusivo.');
             } else {
               const datos = await res.json().catch(() => ({}));
               console.error('Error al activar suscripción:', datos.error);
@@ -81,7 +85,8 @@ export default function Gracias() {
   // cualquier combinación se detecte correctamente, sin importar en
   // qué orden se añadieron los artículos al carrito.
   const tipoStr = typeof tipo === 'string' ? tipo : '';
-  const esSuscripcion = tipoStr === 'suscripcion';
+  const esPorVida = tipoStr === 'por_vida';
+  const esSuscripcion = tipoStr === 'suscripcion' || esPorVida;
   const esMixtoLegado = tipoStr === 'mixto'; // compatibilidad con enlaces antiguos
 
   const tieneProducto = tipoStr.includes('producto');
@@ -131,12 +136,12 @@ export default function Gracias() {
           </div>
 
           <h1 className="font-display text-4xl md:text-5xl text-paper tracking-wide">
-            {esSuscripcion ? '¡SUSCRIPCIÓN ACTIVADA!' : '¡MUCHAS GRACIAS POR TU COMPRA!'}
+            {esPorVida ? '¡MIEMBRO DE POR VIDA!' : esSuscripcion ? '¡SUSCRIPCIÓN ACTIVADA!' : '¡MUCHAS GRACIAS POR TU COMPRA!'}
           </h1>
 
           <p className="mt-4 text-muted text-lg max-w-lg mx-auto">
             {esSuscripcion && (
-              subMessage || 'Tu pago mensual se ha procesado correctamente. Ya tienes acceso completo al Área de Clientes.'
+              subMessage || (esPorVida ? 'Tu pago se ha procesado correctamente. Ya tienes acceso para siempre al Área de Clientes.' : 'Tu pago mensual se ha procesado correctamente. Ya tienes acceso completo al Área de Clientes.')
             )}
             {esClase && (
               'Hemos recibido la reserva de tu clase correctamente. En breve nos pondremos en contacto contigo por correo o WhatsApp para coordinar la sesión.'

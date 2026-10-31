@@ -41,7 +41,10 @@ function CasillaMostrarNombre() {
 // abre el cobro. Se usa para el límite semanal de servicios y clases (después
 // de cobrar ya no se podría rechazar el pedido). Si no se pasa, el botón se
 // comporta exactamente igual que siempre.
-export default function PayPalButton({ amount, currency = 'EUR', label, onSuccess, checkBeforePay }) {
+// plazos (opcional): añade debajo el botón "Paga en 3 plazos" de PayPal (solo
+// sale si PayPal se lo ofrece a ese comprador). Se cobra entero al momento;
+// los plazos son entre el cliente y PayPal.
+export default function PayPalButton({ amount, currency = 'EUR', label, onSuccess, checkBeforePay, plazos = false }) {
   const ref = useRef(null);
   const checkRef = useRef(checkBeforePay);
   checkRef.current = checkBeforePay;
@@ -53,10 +56,11 @@ export default function PayPalButton({ amount, currency = 'EUR', label, onSucces
     const renderButtons = () => {
       if (!window.paypal || !ref.current) return;
       ref.current.innerHTML = '';
-      window.paypal
-        .Buttons({
-          fundingSource: window.paypal.FUNDING.PAYPAL,
-          style: { color: 'gold', shape: 'rect', label: 'paypal', height: 45 },
+      const opciones = (fundingSource) => ({
+          fundingSource,
+          style: fundingSource === window.paypal.FUNDING.PAYPAL
+            ? { color: 'gold', shape: 'rect', label: 'paypal', height: 45 }
+            : { shape: 'rect', height: 45 },
           ...(checkBeforePay
             ? {
                 onClick: async (data, actions) => {
@@ -75,8 +79,17 @@ export default function PayPalButton({ amount, currency = 'EUR', label, onSucces
             const details = await actions.order.capture();
             if (onSuccess) onSuccess(details);
           },
-        })
-        .render(ref.current);
+        });
+      window.paypal.Buttons(opciones(window.paypal.FUNDING.PAYPAL)).render(ref.current);
+      if (plazos && window.paypal.FUNDING.PAYLATER) {
+        const botonPlazos = window.paypal.Buttons(opciones(window.paypal.FUNDING.PAYLATER));
+        if (botonPlazos.isEligible()) {
+          const hueco = document.createElement('div');
+          hueco.className = 'mt-2';
+          ref.current.appendChild(hueco);
+          botonPlazos.render(hueco);
+        }
+      }
     };
 
     const existing = document.querySelector('script[data-paypal-sdk]');
@@ -86,11 +99,11 @@ export default function PayPalButton({ amount, currency = 'EUR', label, onSucces
     }
 
     const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&disable-funding=card`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}&disable-funding=card&enable-funding=paylater`;
     script.dataset.paypalSdk = 'true';
     script.onload = renderButtons;
     document.body.appendChild(script);
-  }, [amount, currency, label, onSuccess]);
+  }, [amount, currency, label, onSuccess, plazos]);
 
   // Debajo de los botones de pago (tarjeta y PayPal) va siempre el aviso de
   // que no hay devoluciones, para que se vea antes de pagar.

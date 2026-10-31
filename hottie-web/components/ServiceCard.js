@@ -6,11 +6,16 @@ import { supabase } from '../lib/supabaseClient';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../lib/disponibilidadClient';
 import PayPalButton from './PayPalButton';
 import { PrecioTachado, AvisoOferta } from './PrecioOferta';
+import { useDescuentoSuscriptor } from '../lib/useDescuentoSuscriptor';
+import { filaConDescuento } from '../lib/descuentoSuscriptor';
 import { useFoco, Foco } from './Animaciones';
 import AntesDespues, { enlacesAntesDespues } from './AntesDespues';
 import { cabecerasPago } from '../lib/cabecerasPago';
 
-export default function ServiceCard({ service }) {
+export default function ServiceCard({ service: servicioBase }) {
+  // Suscriptores: precio con su descuento (lib/descuentoSuscriptor.js).
+  const { descuento, suscrito } = useDescuentoSuscriptor();
+  const service = suscrito ? filaConDescuento(servicioBase, servicioBase.isClass ? 'clase' : 'servicio', descuento) : servicioBase;
   const [loading, setLoading] = useState(false);
   // Límite semanal de servicios/clases: si ya no quedan plazas esta semana
   // (o la clase es incompatible con otra ya reservada), se desactivan
@@ -188,7 +193,7 @@ export default function ServiceCard({ service }) {
           ) : (
             'A consultar'
           )}
-          {service.oferta && <AvisoOferta fin={service.oferta.fin} className="mt-1 text-[10px] font-normal" />}
+          {service.oferta && <AvisoOferta fin={service.oferta.fin} suscriptor={service.descuentoSuscriptor} className="mt-1 text-[10px] font-normal" />}
         </span>
 
         {/* ACCIONES Y BOTONES */}

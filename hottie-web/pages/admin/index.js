@@ -1172,6 +1172,22 @@ export default function AdminDashboard() {
               )}
             </div>
 
+            {/* ÁREA DE CLIENTES: EXTRAS */}
+            <div className="mb-12">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-2xl tracking-wide text-paper">Área de clientes: extras</h2>
+                <Link
+                  href="/admin/area-privada"
+                  className="rounded-sm bg-volt px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink hover:brightness-110"
+                >
+                  Abrir
+                </Link>
+              </div>
+              <div className="rounded-sm border border-white/10 bg-surface p-4 text-sm text-muted">
+                De por vida, descuento para suscriptores, Próximamente, votaciones, revisiones de temas y clientes con sus insignias.
+              </div>
+            </div>
+
             {/* SUSCRIPTORES */}
             <div className="mb-12">
               <div className="mb-4 flex items-center justify-between">

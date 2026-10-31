@@ -72,6 +72,12 @@ export default function PoliticaDePrivacidad() {
               estrellas y el texto (nunca tu email). Puedes pedirnos que la quitemos cuando quieras.
             </li>
             <li>
+              <strong className="text-paper">Área de clientes:</strong> si eres suscriptor y mandas un tema para revisar,
+              guardamos el enlace, el título, el artista y los datos que pongas (género, BPM, tonalidad, calidad y tu nota),
+              y nuestra respuesta. Si votas, guardamos tu voto (solo vemos el recuento; nunca se publica quién vota qué).
+              Las insignias se calculan con la antigüedad de tu cuenta y tus compras, y solo las ves tú y nosotros.
+            </li>
+            <li>
               <strong className="text-paper">Pagos:</strong> los datos de tu tarjeta, Bizum, Klarna, Amazon Pay, Link o PayPal los recogen y
               guardan directamente Stripe o PayPal. Nosotros nunca vemos ni guardamos los datos de tu tarjeta.
             </li>
@@ -128,6 +134,7 @@ export default function PoliticaDePrivacidad() {
             <li>Los de tus compras, el tiempo que exija la ley.</li>
             <li>Tu email del boletín, hasta que te des de baja.</li>
             <li>Los datos de los formularios, el tiempo necesario para prestarte el servicio o la clase.</li>
+            <li>Las revisiones de temas y los votos, mientras tengas la cuenta (puedes pedirnos que los borremos antes).</li>
           </ul>
 
           <Titulo>Tus derechos</Titulo>

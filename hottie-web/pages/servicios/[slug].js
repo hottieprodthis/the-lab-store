@@ -9,13 +9,18 @@ import { supabase } from '../../lib/supabaseClient';
 import { propsConObras } from '../../lib/obras';
 import { aplicarOferta } from '../../lib/ofertas';
 import { formatPrice } from '../../lib/format';
-import { PrecioTachado, AvisoOferta } from '../../components/PrecioOferta';
+import { PrecioTachado, AvisoOferta, AvisoDescuentoSuscriptor } from '../../components/PrecioOferta';
+import { useDescuentoSuscriptor } from '../../lib/useDescuentoSuscriptor';
+import { filaConDescuento, porcentajePara } from '../../lib/descuentoSuscriptor';
 import { useCart } from '../../context/CartContext';
 import { obtenerDisponibilidad, bloqueoPara, permitirPago } from '../../lib/disponibilidadClient';
 import PayPalButton from '../../components/PayPalButton';
 import { cabecerasPago } from '../../lib/cabecerasPago';
 
-export default function DetalleServicio({ service }) {
+export default function DetalleServicio({ service: servicioBase }) {
+  // Suscriptores: precio con su descuento (lib/descuentoSuscriptor.js).
+  const { descuento, suscrito } = useDescuentoSuscriptor();
+  const service = suscrito ? filaConDescuento(servicioBase, 'servicio', descuento) : servicioBase;
   const [loadingPlan, setLoadingPlan] = useState(null);
   // Límite semanal de servicios (panel de admin): si ya no quedan plazas
   // esta semana se desactivan "+ Carrito" y "RESERVAR" y se avisa.
@@ -275,7 +280,7 @@ export default function DetalleServicio({ service }) {
                       )}
                       {formatPrice(Math.round(parseFloat(plan.price) * 100), service.currency)}
                     </p>
-                    {plan.precio_original !== undefined && service.oferta && <AvisoOferta fin={service.oferta.fin} className="mt-1" />}
+                    {plan.precio_original !== undefined && service.oferta && <AvisoOferta fin={service.oferta.fin} suscriptor={service.descuentoSuscriptor} className="mt-1" />}
                     {plan.description && (
                       <p className="mt-4 text-sm text-muted leading-relaxed whitespace-pre-line">{plan.description}</p>
                     )}
@@ -349,7 +354,8 @@ export default function DetalleServicio({ service }) {
                 {service.oferta && <PrecioTachado cents={service.oferta.precio_original_cents} currency={service.currency} />}
                 {service.price_cents ? formatPrice(service.price_cents, service.currency) : 'A consultar'}
               </p>
-              {service.oferta && <AvisoOferta fin={service.oferta.fin} className="mt-2" />}
+              {service.oferta && <AvisoOferta fin={service.oferta.fin} suscriptor={service.descuentoSuscriptor} className="mt-2" />}
+              {!suscrito && !service.oferta && <AvisoDescuentoSuscriptor porcentaje={porcentajePara(descuento, 'servicio')} />}
 
               {service.price_cents || service.price ? (
                 <div className="mt-6 flex items-center justify-center gap-2">
