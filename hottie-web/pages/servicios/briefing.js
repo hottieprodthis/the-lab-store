@@ -4,9 +4,12 @@ import Head from 'next/head';
 import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../../components/SeguimientoForm';
 import { errorEnlacesBriefing, primerError } from '../../lib/enlacesSeguros';
 import { EsqueletoFormulario } from '../../components/Esqueleto';
+import { usePagoBriefing, SinPagoBriefing } from '../../components/PagoBriefing';
 
 export default function BriefingPage() {
   const router = useRouter();
+  // Solo con el justificante de un pago (components/PagoBriefing.js).
+  const pago = usePagoBriefing();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -45,7 +48,7 @@ export default function BriefingPage() {
           fetch('/api/guardar-briefing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...segData, tipo: 'seguimiento' }),
+            body: JSON.stringify({ ...segData, tipo: 'seguimiento', ...pago.ref }),
           })
         );
       }
@@ -54,7 +57,7 @@ export default function BriefingPage() {
           fetch('/api/guardar-briefing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
+            body: JSON.stringify({ ...formData, ...pago.ref }),
           })
         );
       }
@@ -76,9 +79,10 @@ export default function BriefingPage() {
 
   // Esperamos a que el router conozca la URL para no enseñar un instante el
   // formulario equivocado.
-  if (!router.isReady) {
+  if (!router.isReady || pago.estado === 'comprobando') {
     return <EsqueletoFormulario />;
   }
+  if (pago.estado === 'no') return <SinPagoBriefing />;
 
   return (
     <>

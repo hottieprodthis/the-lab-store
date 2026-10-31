@@ -128,12 +128,14 @@ export default function ServiceCard({ service: servicioBase }) {
 
     // Igual que al pagar con tarjeta, el cliente va nada más pagar al
     // formulario que le corresponde: clase, seguimiento o servicio.
+    // El número de pedido de PayPal es el justificante para abrir el formulario.
+    const justificante = `&paypal=${encodeURIComponent(details?.id || '')}`;
     if (service.isClass) {
-      window.location.href = '/clases/briefing?tipo=clase';
+      window.location.href = `/clases/briefing?tipo=clase${justificante}`;
     } else if (service.cupo === 'seguimiento') {
-      window.location.href = '/servicios/briefing?tipo=servicio&seg=solo';
+      window.location.href = `/servicios/briefing?tipo=servicio&seg=solo${justificante}`;
     } else {
-      window.location.href = '/servicios/briefing?tipo=servicio';
+      window.location.href = `/servicios/briefing?tipo=servicio${justificante}`;
     }
   };
 

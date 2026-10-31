@@ -179,10 +179,12 @@ export default function CartFloating() {
     const segQuery =
       nSeguimientos === 0 ? '' : nSeguimientos === serviciosCarrito.length ? '&seg=solo' : '&seg=con';
 
+    // El número de pedido de PayPal es el justificante para abrir el formulario.
+    const justificante = `&paypal=${encodeURIComponent(details?.id || '')}`;
     let destino = `/gracias?tipo=${tipoQuery}`;
-    if (totalCategorias > 1) destino = `/briefing?tipo=${tipoQuery}${segQuery}`;
-    else if (hasService) destino = `/servicios/briefing?tipo=${tipoQuery}${segQuery}`;
-    else if (hasClass) destino = `/clases/briefing?tipo=${tipoQuery}`;
+    if (totalCategorias > 1) destino = `/briefing?tipo=${tipoQuery}${segQuery}${justificante}`;
+    else if (hasService) destino = `/servicios/briefing?tipo=${tipoQuery}${segQuery}${justificante}`;
+    else if (hasClass) destino = `/clases/briefing?tipo=${tipoQuery}${justificante}`;
 
     clearCart();
     setIsOpen(false);

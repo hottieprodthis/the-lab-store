@@ -681,7 +681,7 @@ export default async function handler(req, res) {
       // para que salga en las estadísticas del admin.
       if (resolvedUserId || destinoEmail) {
         try {
-          const { error: dbError } = await supabase.from('purchases').insert([
+          const { data: compraGratis, error: dbError } = await supabase.from('purchases').insert([
             {
               user_id: resolvedUserId || null,
               ...(resolvedUserId ? {} : { email: String(destinoEmail).trim() }),
@@ -689,9 +689,12 @@ export default async function handler(req, res) {
               plan_name: planNameToSave,
               items: itemsForHistory.length > 0 ? itemsForHistory : null,
             }
-          ]);
+          ]).select('id').single();
           if (dbError) {
             console.error('Error guardando compra de 0€ en Supabase:', dbError.message);
+          } else if (compraGratis?.id && needsBriefing) {
+            // Justificante para abrir el formulario (lib/pagoBriefing.js).
+            successUrl = successUrl.replace('&session_id={CHECKOUT_SESSION_ID}', '') + `&compra=${compraGratis.id}`;
           }
         } catch (e) {
           console.error('Error guardando compra de 0€ en Supabase:', e);

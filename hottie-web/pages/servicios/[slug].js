@@ -147,8 +147,8 @@ export default function DetalleServicio({ service: servicioBase }) {
     // formulario (el tipo del plan manda sobre el del servicio).
     window.location.href =
       (plan.cupo || service.cupo) === 'seguimiento'
-        ? '/servicios/briefing?tipo=servicio&seg=solo'
-        : '/servicios/briefing?tipo=servicio';
+        ? `/servicios/briefing?tipo=servicio&seg=solo&paypal=${encodeURIComponent(details?.id || '')}`
+        : `/servicios/briefing?tipo=servicio&paypal=${encodeURIComponent(details?.id || '')}`;
   };
 
   // --- Compra directa cuando el servicio NO tiene planes (precio único) ---
@@ -220,8 +220,8 @@ export default function DetalleServicio({ service: servicioBase }) {
     // formulario.
     window.location.href =
       service.cupo === 'seguimiento'
-        ? '/servicios/briefing?tipo=servicio&seg=solo'
-        : '/servicios/briefing?tipo=servicio';
+        ? `/servicios/briefing?tipo=servicio&seg=solo&paypal=${encodeURIComponent(details?.id || '')}`
+        : `/servicios/briefing?tipo=servicio&paypal=${encodeURIComponent(details?.id || '')}`;
   };
 
   return (

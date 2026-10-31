@@ -4,6 +4,7 @@ import Head from 'next/head';
 import SeguimientoForm, { SEGUIMIENTO_INICIAL } from '../components/SeguimientoForm';
 import { errorEnlacesBriefing, primerError } from '../lib/enlacesSeguros';
 import { EsqueletoFormulario } from '../components/Esqueleto';
+import { usePagoBriefing, SinPagoBriefing } from '../components/PagoBriefing';
 
 // Página de briefing COMBINADO: se usa cuando un mismo pedido mezcla
 // dos o más categorías (producto+servicio, producto+clase,
@@ -14,6 +15,8 @@ import { EsqueletoFormulario } from '../components/Esqueleto';
 // contiene el "tipo" recibido por la URL.
 export default function BriefingUnificadoPage() {
   const router = useRouter();
+  // Solo con el justificante de un pago (components/PagoBriefing.js).
+  const pago = usePagoBriefing();
   const { tipo, session_id, seg } = router.query;
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
@@ -80,7 +83,7 @@ export default function BriefingUnificadoPage() {
           fetch('/api/guardar-briefing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(claseData),
+            body: JSON.stringify({ ...claseData, ...pago.ref }),
           })
         );
       }
@@ -90,7 +93,7 @@ export default function BriefingUnificadoPage() {
           fetch('/api/guardar-briefing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...seguimientoData, tipo: 'seguimiento' }),
+            body: JSON.stringify({ ...seguimientoData, tipo: 'seguimiento', ...pago.ref }),
           })
         );
       }
@@ -100,7 +103,7 @@ export default function BriefingUnificadoPage() {
           fetch('/api/guardar-briefing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...servicioData, tipo: 'servicio' }),
+            body: JSON.stringify({ ...servicioData, tipo: 'servicio', ...pago.ref }),
           })
         );
       }
@@ -125,9 +128,10 @@ export default function BriefingUnificadoPage() {
     }
   };
 
-  if (!ready) {
+  if (!ready || pago.estado === 'comprobando') {
     return <EsqueletoFormulario />;
   }
+  if (pago.estado === 'no') return <SinPagoBriefing />;
 
   return (
     <>

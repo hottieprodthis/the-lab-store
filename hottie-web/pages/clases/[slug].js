@@ -153,7 +153,7 @@ export default function DetalleClase({ clase: claseBase }) {
 
     // Igual que al pagar con tarjeta, el cliente va nada más pagar al
     // formulario de su clase.
-    window.location.href = '/clases/briefing?tipo=clase';
+    window.location.href = `/clases/briefing?tipo=clase&paypal=${encodeURIComponent(details?.id || '')}`;
   };
 
   // --- Compra directa cuando la clase NO tiene planes (precio único) ---
@@ -223,7 +223,7 @@ export default function DetalleClase({ clase: claseBase }) {
 
     // Igual que al pagar con tarjeta, el cliente va nada más pagar al
     // formulario de su clase.
-    window.location.href = '/clases/briefing?tipo=clase';
+    window.location.href = `/clases/briefing?tipo=clase&paypal=${encodeURIComponent(details?.id || '')}`;
   };
 
   return (

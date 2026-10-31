@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { usePagoBriefing, SinPagoBriefing } from '../../components/PagoBriefing';
+import { EsqueletoFormulario } from '../../components/Esqueleto';
 
 export default function BriefingClasesPage() {
   const router = useRouter();
+  // Solo con el justificante de un pago (components/PagoBriefing.js).
+  const pago = usePagoBriefing();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -23,13 +27,14 @@ export default function BriefingClasesPage() {
       const res = await fetch('/api/guardar-briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, ...pago.ref }),
       });
 
       if (res.ok) {
         router.push('/gracias?tipo=clase');
       } else {
-        alert('Hubo un problema al enviar el formulario. Inténtalo de nuevo.');
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Hubo un problema al enviar el formulario. Inténtalo de nuevo.');
       }
     } catch (err) {
       console.error(err);
@@ -38,6 +43,9 @@ export default function BriefingClasesPage() {
       setLoading(false);
     }
   };
+
+  if (pago.estado === 'comprobando') return <EsqueletoFormulario />;
+  if (pago.estado === 'no') return <SinPagoBriefing />;
 
   return (
     <>

@@ -1,5 +1,9 @@
 import { prepararCorreo } from '../../lib/correos';
+import { createClient } from '@supabase/supabase-js';
 import { comprobarEnlace, comprobarEnlaces, enlaceParaCorreo, escaparHtml } from '../../lib/enlacesSeguros';
+import { referenciaPago, comprobarPagoBriefing } from '../../lib/pagoBriefing';
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -23,6 +27,14 @@ export default async function handler(req, res) {
 
   if (!nombre || !email || !telefono || !estilo) {
     return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  }
+
+  // Solo se acepta con el justificante de un pago real que incluya ese tipo
+  // de compra (lib/pagoBriefing.js).
+  const pago = await comprobarPagoBriefing(supabase, referenciaPago(req.body || {}));
+  const necesita = tipo === 'clase' ? pago.clase : pago.servicio;
+  if (!pago.ok || !necesita) {
+    return res.status(403).json({ error: 'Este formulario solo se puede enviar después de pagar. Si ya has pagado y ves esto, escríbenos y lo resolvemos.' });
   }
 
   // Enlaces: solo de plataformas conocidas y con https (lib/enlacesSeguros.js),
