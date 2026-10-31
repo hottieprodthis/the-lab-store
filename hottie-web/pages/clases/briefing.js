@@ -7,7 +7,7 @@ import { EsqueletoFormulario } from '../../components/Esqueleto';
 export default function BriefingClasesPage() {
   const router = useRouter();
   // Solo con el justificante de un pago (components/PagoBriefing.js).
-  const pago = usePagoBriefing();
+  const pago = usePagoBriefing('clase');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',

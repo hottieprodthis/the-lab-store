@@ -28,7 +28,8 @@ export function referenciaPago(datos = {}) {
   return {
     sessionId: limpio(datos.session_id, /^cs_[A-Za-z0-9_]{10,200}$/),
     paypal: limpio(datos.paypal, /^[A-Z0-9-]{5,40}$/i),
-    compra: limpio(datos.compra, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
+    // El id de las compras es un número (purchases.id).
+    compra: limpio(datos.compra, /^d{1,12}$/),
   };
 }
 

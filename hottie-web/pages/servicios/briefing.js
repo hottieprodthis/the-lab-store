@@ -9,7 +9,7 @@ import { usePagoBriefing, SinPagoBriefing } from '../../components/PagoBriefing'
 export default function BriefingPage() {
   const router = useRouter();
   // Solo con el justificante de un pago (components/PagoBriefing.js).
-  const pago = usePagoBriefing();
+  const pago = usePagoBriefing('servicio');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',

@@ -7,8 +7,9 @@ import { useRouter } from 'next/router';
 // comprueba el servidor (pages/api/briefing-permitido.js). El mismo
 // justificante viaja con el formulario y el servidor lo vuelve a comprobar
 // al enviarlo (pages/api/guardar-briefing.js).
-// Devuelve { estado: 'comprobando' | 'ok' | 'no', ref }.
-export function usePagoBriefing() {
+// necesita: 'clase' o 'servicio' si el formulario es solo de eso (null = vale
+// cualquiera de los dos). Devuelve { estado: 'comprobando' | 'ok' | 'no', ref }.
+export function usePagoBriefing(necesita = null) {
   const router = useRouter();
   const [estado, setEstado] = useState('comprobando');
   const [ref, setRef] = useState({});
@@ -29,7 +30,7 @@ export function usePagoBriefing() {
     fetch(`/api/briefing-permitido?${new URLSearchParams(datos)}`)
       .then((r) => r.json())
       .then((d) => {
-        if (vivo) setEstado(d?.ok ? 'ok' : 'no');
+        if (vivo) setEstado(d?.ok && (!necesita || d[necesita]) ? 'ok' : 'no');
       })
       .catch(() => {
         if (vivo) setEstado('no');
@@ -37,7 +38,7 @@ export function usePagoBriefing() {
     return () => {
       vivo = false;
     };
-  }, [router.isReady, router.query]);
+  }, [router.isReady, router.query, necesita]);
 
   return { estado, ref };
 }
